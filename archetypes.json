@@ -1,0 +1,59 @@
+{
+  "_provenance": "Written by Claude (Anthropic) during development, in the same voice/scope the engine/generate_archetypes.py LangGraph pipeline is designed to produce. Not simulated placeholder text — this is the real explanation content the deployed site serves. See README.md for why the public site ships this instead of calling the API live per visitor.",
+
+  "faq": {
+    "risk": "Te lo preguntamos porque no hay una cartera \"correcta\" para todos — depende de cómo reaccionás vos ante una caída. Si sabemos que te asusta ver números en rojo, armamos algo que se mueva menos (aunque crezca más despacio). Si te da igual, o hasta te motiva comprar más barato, podemos ir con algo de más potencial de crecimiento, aceptando que también puede bajar más en el camino.",
+    "horizon": "El tiempo que falta para que necesites este dinero cambia todo. Si es para algo que pasa pronto, no querés que el mercado te sorprenda bajando justo antes — ahí preferimos algo más estable, incluso si tu tolerancia al riesgo es alta. Si es para dentro de muchos años, hay tiempo de sobra para que las bajadas se recuperen, así que podés permitirte más riesgo.",
+    "style": "Esto no cambia tu cartera — solo cuánto texto técnico te mostramos primero. Si preferís entender el \"por qué\" de cada número, te dejamos todo abierto. Si preferís ver el resultado y confiar, te lo mostramos resumido, con el detalle a un click si después querés mirarlo.",
+    "amount": "Este número es solo para que los ejemplos de abajo se sientan reales — \"con $X hoy tendrías $Y\" en vez de porcentajes abstractos. No estás invirtiendo nada de verdad ni te pedimos datos de una cuenta real."
+  },
+
+  "horizonCapNotice": "Contestaste que tolerarías más riesgo, pero como esta meta es a corto plazo, ajustamos la mezcla hacia algo más estable — así evitás tener que vender justo en un mal momento.",
+
+  "explanations": {
+    "conservador|viaje": {
+      "headline": "Como este dinero lo vas a necesitar pronto, la prioridad es que esté ahí cuando lo necesites, no que crezca al máximo.",
+      "detail": "La mayor parte está en préstamos a gobiernos y empresas grandes (lo que en finanzas se llama \"bonos\"): pagan un interés más predecible y se mueven mucho menos que las acciones de un día para el otro. Dejamos una porción chica en empresas grandes del mundo por si el plan se estira un poco, y un colchón en efectivo para tener disponibilidad inmediata. Cuando la meta está cerca, crecer al máximo deja de ser la prioridad — lo importante es no perder lo que ya juntaste."
+    },
+    "moderado|viaje": {
+      "headline": "Buscamos un equilibrio: algo de crecimiento, pero sin apostar todo a que el mercado esté de buen humor justo cuando necesites el dinero.",
+      "detail": "Repartimos entre empresas grandes del mundo (para captar algo de crecimiento) y bonos (para amortiguar los golpes), con un poco de efectivo a mano. No es la combinación más agresiva posible — a propósito. Si el mercado tiene un mal mes justo antes de tu viaje o meta, esta mezcla debería sentirse mucho menos brusca que estar 100% en acciones."
+    },
+    "conservador|casa": {
+      "headline": "Comprar una casa suele ser una meta de varios años, así que hay algo de margen — pero seguimos priorizando estabilidad sobre crecimiento agresivo.",
+      "detail": "La mayoría va a bonos, que se mueven poco y dan un ingreso más previsible mientras juntás para la entrada. Sumamos una porción de empresas grandes del mundo para que el dinero no se quede completamente parado frente a la inflación, y un colchón en efectivo. Es una mezcla pensada para alguien que prefiere dormir tranquilo aunque eso signifique crecer un poco más despacio."
+    },
+    "moderado|casa": {
+      "headline": "Con varios años por delante, podemos dejar que una parte real del dinero trabaje en empresas grandes del mundo, sin perder de vista que esta meta importa.",
+      "detail": "La mitad está en empresas grandes del mundo — ahí suele estar el crecimiento a mediano plazo — y la otra mitad en bonos y efectivo, que amortiguan si el mercado tiene un mal año justo cuando estás por comprar. Es el punto medio clásico: ni tan conservador que el dinero apenas crezca, ni tan expuesto que una mala racha te retrase los planes."
+    },
+    "arriesgado|casa": {
+      "headline": "Si estás cómodo viendo que el valor sube y baja en el camino, podemos apuntar a más crecimiento mientras juntás para la casa.",
+      "detail": "La mayor parte está en empresas grandes del mundo, buscando el crecimiento más alto posible en el tiempo que tenés. Esto significa que vas a ver bajadas más marcadas en el camino — meses donde el número baja en vez de subir — pero también más potencial de que, al final, hayas juntado más de lo que hubieras juntado con algo más conservador. Vale la pena revisar esta mezcla a medida que se acerca la fecha de compra, para ir bajando el riesgo con el tiempo."
+    },
+    "conservador|crecer": {
+      "headline": "No tenés una meta puntual, así que priorizamos que el dinero crezca de forma tranquila y constante, sin sobresaltos.",
+      "detail": "Aun sin una fecha límite, elegiste priorizar la estabilidad — y eso es totalmente válido. La mayoría va a bonos, con una porción en empresas grandes del mundo para que el crecimiento no se quede en cero, y algo de efectivo. Vas a ver menos movimiento en el gráfico que alguien con más apetito de riesgo, y eso es exactamente el punto."
+    },
+    "moderado|crecer": {
+      "headline": "Sin una fecha límite específica, buscamos un balance sólido entre crecer y no sufrir cada baja del mercado.",
+      "detail": "La mitad en empresas grandes del mundo, la otra mitad repartida entre bonos y efectivo. Es una mezcla pensada para el largo plazo sin fecha fija: suficiente exposición a empresas para que el crecimiento sea real, suficiente en bonos para que una mala racha no te haga querer vender en el peor momento."
+    },
+    "arriesgado|crecer": {
+      "headline": "Sin apuro por una fecha, y cómodo con la montaña rusa, apuntamos al máximo crecimiento posible en esta mezcla.",
+      "detail": "La gran mayoría está en empresas grandes del mundo. Históricamente, este tipo de mezcla tiende a crecer más que una más conservadora en horizontes largos — pero el camino no es una línea recta: vas a ver caídas de 20%, 30% o más en algún momento. La apuesta es que, sin una fecha límite que te obligue a vender en un mal momento, el tiempo juega a tu favor."
+    },
+    "conservador|jubilacion": {
+      "headline": "Para la jubilación el horizonte es largo, pero elegiste priorizar la tranquilidad por sobre exprimir cada punto de crecimiento posible.",
+      "detail": "Aunque técnicamente tenés décadas por delante (lo que normalmente permitiría más riesgo), tu prioridad es dormir tranquilo — y esa preferencia también cuenta. La mayoría va a bonos, con una porción en empresas grandes del mundo para que la inflación no se coma tus ahorros con el tiempo. Vale la pena revisar este perfil de vez en cuando: a veces, con más contexto sobre cuánto podés tolerar en la práctica (no solo en teoría), la mezcla ideal cambia."
+    },
+    "moderado|jubilacion": {
+      "headline": "Con décadas por delante, hay tiempo de sobra para que las bajadas del mercado se recuperen — por eso balanceamos crecimiento con algo de protección.",
+      "detail": "La mitad en empresas grandes del mundo, aprovechando el tiempo que tenés para que el crecimiento compuesto haga su trabajo. La otra mitad en bonos y efectivo, para que el camino se sienta menos brusco. Con este horizonte tan largo, muchas personas terminan sintiéndose cómodas subiendo un poco el riesgo con el tiempo — pero arrancar así es un punto de partida sólido."
+    },
+    "arriesgado|jubilacion": {
+      "headline": "Décadas de horizonte y comodidad con la volatilidad: es el escenario donde más sentido tiene apostar fuerte por el crecimiento.",
+      "detail": "La gran mayoría está en empresas grandes del mundo. Es la combinación con más potencial de crecimiento a largo plazo de todas las que ofrecemos — y también la que más se va a mover en el camino, con caídas fuertes en algunos años. Para la jubilación, con décadas de por medio, el tiempo es tu mejor herramienta contra esa volatilidad: las bajadas tienen tiempo de sobra para recuperarse antes de que necesites el dinero."
+    }
+  }
+}

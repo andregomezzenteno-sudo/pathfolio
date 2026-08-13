@@ -1,0 +1,21 @@
+{
+  "_comment": "Single source of truth for the deterministic allocation engine. Consumed by both app.js (client) and engine/generate_archetypes.py (offline content generation) so there is exactly one place that decides what percentage goes where.",
+  "_horizonCapComment": "horizonCap: time horizon can only pull the effective risk tier DOWN from what the user stated, never up — a short horizon objectively limits how much volatility you can absorb before needing the money, regardless of stated risk appetite. null = no cap. Every key in horizonCap below is a real horizon value (code iterates this object's keys), so no _comment-style keys belong inside it.",
+  "riskOrder": ["conservador", "moderado", "arriesgado"],
+  "buckets": {
+    "conservador": { "equities": 0.20, "bonds": 0.70, "cash": 0.10 },
+    "moderado": { "equities": 0.50, "bonds": 0.40, "cash": 0.10 },
+    "arriesgado": { "equities": 0.80, "bonds": 0.15, "cash": 0.05 }
+  },
+  "horizonCap": {
+    "viaje": "moderado",
+    "casa": null,
+    "crecer": null,
+    "jubilacion": null
+  },
+  "instruments": {
+    "equities": { "ticker": "VT", "name": "Vanguard Total World Stock ETF", "expenseRatio": 0.0007 },
+    "bonds": { "ticker": "BND", "name": "Vanguard Total Bond Market ETF", "expenseRatio": 0.0003 },
+    "cash": { "illustrativeAnnualRate": 0.02 }
+  }
+}
