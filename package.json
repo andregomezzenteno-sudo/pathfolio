@@ -4,9 +4,10 @@
   "private": true,
   "description": "Cuestionario ilustrado de inversión con motor determinista y backtest sobre datos reales.",
   "scripts": {
-    "test": "node tests/engine.test.mjs && node tests/dom.test.mjs",
+    "test": "node tests/engine.test.mjs && node tests/dom.test.mjs && python tests/pipeline.test.py",
     "test:engine": "node tests/engine.test.mjs",
-    "test:dom": "node tests/dom.test.mjs"
+    "test:dom": "node tests/dom.test.mjs",
+    "test:pipeline": "python tests/pipeline.test.py"
   },
   "devDependencies": {
     "jsdom": "^25.0.1"

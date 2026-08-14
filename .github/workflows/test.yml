@@ -22,6 +22,16 @@ jobs:
       # recorre el cuestionario entero como lo haría una persona.
       - name: Pruebas de integración (jsdom)
         run: npm run test:dom
+      # El pipeline de contenido no se ejecuta en producción, pero el README
+      # invita a ejecutarlo: si reventara, quedaría peor que no tenerlo. Se
+      # prueba con el modelo sustituido por un doble, así que no gasta ni una
+      # llamada ni requiere clave.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pruebas del pipeline de contenido (LangGraph, sin llamadas reales)
+        run: python tests/pipeline.test.py
+
       - name: Validar los JSON de contenido
         run: |
           for f in allocations.json archetypes.json cloudFacts.json; do

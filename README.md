@@ -359,6 +359,17 @@ repeatedly would mean a real bill, not just a 429. Pre-generating the content
 at build time removes that risk entirely while keeping every explanation
 genuinely LLM-authored, not templated filler.
 
+**El pipeline se prueba sin gastar llamadas.** El README invita a ejecutarlo, y
+un pipeline "ejecutable" que reventara al intentarlo quedaría peor que no
+tenerlo. [`tests/pipeline.test.py`](tests/pipeline.test.py) ejercita el código
+real —el grafo, sus nodos, la construcción de los prompts, el esquema de
+salida— sustituyendo únicamente el modelo por un doble. Así se detectan los
+fallos que de verdad pueden colarse (una clave que ya no existe en
+`allocations.json`, un prompt que no formatea, un grafo mal cableado) y además
+comprueba que los perfiles y los pesos que el pipeline describiría coincidan
+con los que la app entrega de verdad, que es donde una regeneración podría
+sobrescribir con contenido equivocado.
+
 ## The risk score is continuous (and why that mattered)
 
 The first version collapsed a 0–100 slider into three fixed buckets. Setting
@@ -418,9 +429,10 @@ file. One file, no transpilation.
 
 ```bash
 npm install
-npm test              # engine + integration
-npm run test:engine   # pure logic, no DOM, ~0.2s
-npm run test:dom      # loads the real index.html + engine.js + app.js in jsdom
+npm test                # las tres suites
+npm run test:engine     # lógica pura, sin DOM, ~0,2 s
+npm run test:dom        # carga el index.html + engine.js + app.js reales en jsdom
+npm run test:pipeline   # el pipeline de LangGraph, con el modelo sustituido
 ```
 
 Both suites run on every push and PR ([`.github/workflows/test.yml`](.github/workflows/test.yml)).
