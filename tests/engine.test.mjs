@@ -547,14 +547,14 @@ const baseAnswers = () => ({
   // El motor Python enumera a propósito las formas prohibidas dentro de la
   // instrucción al modelo; esas líneas van marcadas para no contarlas.
   const stripMarked = text => text.split('\n').filter(l => !l.includes('dialect-guard-ignore')).join('\n');
-  const sources = {
-    'archetypes.json': fs.readFileSync(ROOT + '/archetypes.json', 'utf8'),
-    'cloudFacts.json': fs.readFileSync(ROOT + '/cloudFacts.json', 'utf8'),
-    'allocations.json': fs.readFileSync(ROOT + '/allocations.json', 'utf8'),
-    'index.html': fs.readFileSync(ROOT + '/index.html', 'utf8'),
-    'app.js': fs.readFileSync(ROOT + '/app.js', 'utf8'),
-    'engine/generate_archetypes.py': fs.readFileSync(ROOT + '/engine\\generate_archetypes.py', 'utf8'),
-  };
+  // Vía read()/path.join, nunca concatenando rutas a mano: una barra
+  // invertida de Windows aquí funcionaba en local y reventaba en el CI.
+  const sources = {};
+  for (const f of ['archetypes.json', 'cloudFacts.json', 'allocations.json',
+                   'index.html', 'app.js', 'engine.js',
+                   path.join('engine', 'generate_archetypes.py')]) {
+    sources[f] = read(f);
+  }
   const offenders = [];
   for (const [name, raw] of Object.entries(sources)) {
     const text = stripMarked(raw);
