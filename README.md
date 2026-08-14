@@ -27,9 +27,10 @@ roles (Revolut, Kraken, BVNK, Affirm, UST, and similar).
      against the first risk answer), and finally an amount — with an optional
      monthly contribution that unlocks a lump-sum-vs-dollar-cost-averaging
      comparison on the results chart.
-2. **A "¿Sabías que?" drawer**, reachable from any screen, with ten optional
-   topics (acciones, bonos, efectivo, índices, fondos indexados/ETFs, REITs,
-   criptomonedas, interés compuesto, private equity, volatilidad) — never
+2. **A "¿Sabías que?" drawer**, reachable from any screen, with fourteen
+   optional topics (acciones, bonos, efectivo, índices, fondos indexados/ETFs,
+   REITs, criptomonedas, interés compuesto, private equity, volatilidad,
+   diversificación, rebalanceo, inflación, aporte único vs. mensual) — never
    gating progress, always one tap away, defaulting to whichever topic is
    most relevant to the screen you're on. Each topic is a one-sentence hook
    plus 2–3 short bullet facts, not a paragraph — meant to be skimmed, not
@@ -103,11 +104,29 @@ language. Reasons, all reinforcing each other:
   mirror in [engine/generate_archetypes.py](engine/generate_archetypes.py)).
   When any cap kicks in, the UI says so explicitly rather than silently
   overriding the user's answer.
-- **The equity and bonds instrument choices are a second, orthogonal axis**
-  from the risk/horizon weights — picking NASDAQ 100 over MSCI World, or
-  corporate over government bonds, changes *which ETF* fills that slot, never
-  the percentage it gets. See `equityIndexOptions`/`bondsOptions` in
-  [allocations.json](allocations.json).
+- **The equity and bonds instrument choices feed back into the weights
+  themselves**, not just which ticker fills a fixed-size slot — see *The risk
+  tilt* below.
+
+## The risk tilt
+
+Earlier drafts let you pick NASDAQ 100 vs. S&P 500 vs. MSCI World (and
+government vs. corporate vs. mixed bonds) but only swapped which ticker
+got fetched — the donut percentages never moved, which felt like the choice
+didn't actually do anything. `adjustWeightsForInstrumentRisk()` in
+[app.js](app.js) fixes that: each instrument option carries a
+`riskMultiplier` in [allocations.json](allocations.json) (an illustrative
+estimate of its volatility relative to the baseline pick — NASDAQ 100 at
+1.35 vs. MSCI World's 1.0, corporate bonds at 1.20 vs. the mixed fund's 1.0,
+government at 0.85) and a modestly-dampened tilt trims or grows that
+bucket's weight accordingly — equities and bonds trade against each other,
+cash stays fixed as the safety floor set purely by the risk/horizon/age/
+volatility signals. Pick two baseline instruments and nothing changes;
+pick NASDAQ 100 and the equities slice visibly shrinks a few points, with a
+notice on the dashboard explaining why. It's a simplified, transparent take
+on real risk-parity/volatility-targeting portfolio construction, not a
+live-computed one — the multipliers are documented estimates, not pulled
+from the fetched price history.
 
 ## The sketch system
 

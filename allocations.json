@@ -13,41 +13,41 @@
     "crecer": null,
     "jubilacion": null
   },
-  "_equityIndexComment": "equityIndexOptions: which real ETF fills the 'equities' slot is a separate, user-chosen axis, orthogonal to the risk/horizon weights above — picking NASDAQ 100 instead of MSCI World changes WHICH instrument gets the equities percentage, never the percentage itself.",
+  "_riskTiltComment": "riskMultiplier (on every equity/bonds option below) and tiltDampening together make the equity/bonds INSTRUMENT choice actually move the donut percentages, not just swap a ticker label — picking a more volatile instrument (e.g. NASDAQ 100, riskMultiplier 1.35) trims that bucket's weight and hands the difference to the other bucket, so the portfolio's overall risk budget stays closer to constant regardless of which specific fund you picked. Multipliers are illustrative estimates of each instrument's historical volatility relative to its baseline (msci=1.0 for equities, mixed=1.0 for bonds), not live-computed — see adjustWeightsForInstrumentRisk() in app.js and 'The risk tilt' in README.md.",
+  "tiltDampening": 0.35,
   "equityIndexOptions": {
     "sp500": {
-      "ticker": "SPY", "label": "S&P 500", "name": "SPDR S&P 500 ETF Trust", "expenseRatio": 0.0009,
+      "ticker": "SPY", "label": "S&P 500", "name": "SPDR S&P 500 ETF Trust", "expenseRatio": 0.0009, "riskMultiplier": 1.05,
       "shortDesc": "Las ~500 empresas más grandes de Estados Unidos",
       "blurb": "Depende casi por completo de la economía de Estados Unidos — si a EEUU le va bien, esto tiende a subir; si le va mal, tiende a bajar."
     },
     "nasdaq100": {
-      "ticker": "QQQ", "label": "NASDAQ 100", "name": "Invesco QQQ Trust", "expenseRatio": 0.0020,
+      "ticker": "QQQ", "label": "NASDAQ 100", "name": "Invesco QQQ Trust", "expenseRatio": 0.0020, "riskMultiplier": 1.35,
       "shortDesc": "100 grandes empresas de EEUU, con mucho peso en tecnología",
-      "blurb": "Muy concentrado en tecnología — puede crecer más rápido en las buenas, pero también caer más fuerte cuando el sector tech tiene un mal momento."
+      "blurb": "Muy concentrado en tecnología — puede crecer más rápido en las buenas, pero también caer más fuerte cuando el sector tech tiene un mal momento. Por eso le damos algo menos de peso que a una opción más diversificada, a igual perfil de riesgo."
     },
     "msci": {
-      "ticker": "VT", "label": "MSCI World (global)", "name": "Vanguard Total World Stock ETF", "expenseRatio": 0.0007,
+      "ticker": "VT", "label": "MSCI World (global)", "name": "Vanguard Total World Stock ETF", "expenseRatio": 0.0007, "riskMultiplier": 1.00,
       "shortDesc": "Miles de empresas grandes de todo el mundo, no solo de EEUU",
-      "blurb": "Al repartirse entre muchos países, no depende tanto de lo que le pase a una sola economía — es la opción más diversificada de las tres."
+      "blurb": "Al repartirse entre muchos países, no depende tanto de lo que le pase a una sola economía — es la opción más diversificada de las tres, y la que usamos como referencia."
     }
   },
   "defaultEquityIndex": "msci",
-  "_bondsComment": "bondsOptions: same pattern as equityIndexOptions — which real ETF fills the 'bonds' slot is a separate, user-chosen axis, orthogonal to the risk/horizon weights.",
   "bondsOptions": {
     "govt": {
-      "ticker": "GOVT", "label": "Gobierno (EEUU)", "name": "iShares U.S. Treasury Bond ETF", "expenseRatio": 0.0005,
+      "ticker": "GOVT", "label": "Gobierno (EEUU)", "name": "iShares U.S. Treasury Bond ETF", "expenseRatio": 0.0005, "riskMultiplier": 0.85,
       "shortDesc": "Deuda del gobierno de Estados Unidos",
-      "blurb": "El más seguro de los dos — el gobierno de EEUU históricamente siempre pagó lo que debía."
+      "blurb": "El más seguro de los dos — el gobierno de EEUU históricamente siempre pagó lo que debía, así que le damos algo más de peso que a una opción con más riesgo de crédito."
     },
     "corporate": {
-      "ticker": "LQD", "label": "Corporativos", "name": "iShares iBoxx Investment Grade Corporate Bond ETF", "expenseRatio": 0.0014,
+      "ticker": "LQD", "label": "Corporativos", "name": "iShares iBoxx Investment Grade Corporate Bond ETF", "expenseRatio": 0.0014, "riskMultiplier": 1.20,
       "shortDesc": "Deuda de empresas grandes con buena calificación crediticia",
-      "blurb": "Algo más de riesgo que el gobierno, así que suele pagar algo más de interés a cambio."
+      "blurb": "Algo más de riesgo que el gobierno (riesgo de crédito), así que suele pagar algo más de interés a cambio — y le damos algo menos de peso para compensar."
     },
     "mixed": {
-      "ticker": "BND", "label": "Mezcla", "name": "Vanguard Total Bond Market ETF", "expenseRatio": 0.0003,
+      "ticker": "BND", "label": "Mezcla", "name": "Vanguard Total Bond Market ETF", "expenseRatio": 0.0003, "riskMultiplier": 1.00,
       "shortDesc": "Un fondo amplio que combina gobierno y empresas",
-      "blurb": "El punto medio: no elegís entre uno u otro, el fondo ya viene mezclado."
+      "blurb": "El punto medio: no elegís entre uno u otro, el fondo ya viene mezclado — y el que usamos como referencia."
     }
   },
   "defaultBondsChoice": "mixed",

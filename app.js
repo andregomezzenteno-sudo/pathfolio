@@ -41,6 +41,8 @@ const SKETCH_ICONS = {
   rollercoaster:'M6 44 L18 20 L30 48 L42 12 L58 36',
   layers:       'M32 8 L52 18 L32 28 L12 18 Z M12 32 L32 22 L52 32 L32 42 Z M12 46 L32 36 L52 46 L32 56 Z',
   government:   'M32 8 L52 22 H12 Z M16 26 V50 M24 26 V50 M32 26 V50 M40 26 V50 M48 26 V50 M10 50 H54 M10 56 H54',
+  balance:      'M32 8 V52 M14 20 H50 M14 20 L6 38 H22 Z M50 20 L42 38 H58 Z M22 52 H42',
+  calendar:     'M12 14 H52 V54 H12 Z M12 26 H52 M20 14 V6 M44 14 V6 M20 36 H28 M36 36 H44 M20 46 H28 M36 46 H44',
   building:     'M16 12 H48 V56 H16 Z M22 20 H28 M36 20 H42 M22 30 H28 M36 30 H42 M22 40 H28 M36 40 H42 M26 48 H38 V56 H26 Z',
   coin:         'M32 12 C42 12 50 20 50 30 C50 40 42 48 32 48 C22 48 14 40 14 30 C14 20 22 12 32 12 Z M26 24 H38 M26 36 H38 M30 20 V40',
   spiral:       'M33 40 C29 40 26 37 26 33 C26 28 30 24 35 24 C41 24 46 29 46 35 C46 42 40 48 32 48 C23 48 16 41 16 32 C16 22 24 14 34 14',
@@ -131,6 +133,33 @@ function computeEffectiveRisk(riskSliderValue, horizon, volatilitySliderValue, a
 
 function getAllocationWeights(effectiveRisk, allocations) {
   return allocations.buckets[effectiveRisk];
+}
+
+// Makes the equity/bonds INSTRUMENT choice actually move the donut
+// percentages, not just swap which ticker fills a fixed-size slot. A more
+// volatile pick (e.g. NASDAQ 100, riskMultiplier 1.35) gets a modestly
+// smaller share; the difference goes to the other bucket — cash is left
+// untouched since it's the safety floor set by risk/horizon/age/volatility,
+// unrelated to which specific fund was chosen. `dampening` keeps the shift
+// noticeable but bounded (a real risk-parity engine would go further; this
+// is a legible, transparent approximation of the same idea). Equities and
+// bonds are renormalized after the tilt so the three weights still sum to
+// exactly 1.
+function adjustWeightsForInstrumentRisk(baseWeights, equityRiskMultiplier, bondsRiskMultiplier, dampening) {
+  const equityTilt = 1 - dampening * (equityRiskMultiplier - 1);
+  const bondsTilt = 1 - dampening * (bondsRiskMultiplier - 1);
+
+  let equities = baseWeights.equities * equityTilt;
+  let bonds = baseWeights.bonds * bondsTilt;
+  const cash = baseWeights.cash;
+
+  const targetSum = baseWeights.equities + baseWeights.bonds;
+  const currentSum = equities + bonds;
+  const scale = currentSum > 0 ? targetSum / currentSum : 1;
+  equities *= scale;
+  bonds *= scale;
+
+  return { equities, bonds, cash };
 }
 
 function getExplanation(effectiveRisk, horizon, archetypes) {
@@ -609,9 +638,9 @@ restartBtn.addEventListener('click', () => {
 /* ---------- "¿Sabías que?" drawer ---------- */
 
 const SCREEN_TO_TOPIC = {
-  age: 'interesCompuesto', risk: 'volatilidad', horizon: 'acciones', knowledge: 'indices', indexLesson: 'indices',
-  equityIndex: 'indices', bondsKnowledge: 'bonos', bondsLesson: 'bonos', bondsChoice: 'bonos',
-  style: 'fondosIndexados', volatility: 'volatilidad', amount: 'interesCompuesto',
+  age: 'interesCompuesto', risk: 'volatilidad', horizon: 'diversificacion', knowledge: 'indices', indexLesson: 'indices',
+  equityIndex: 'indices', bondsKnowledge: 'bonos', bondsLesson: 'bonos', bondsChoice: 'diversificacion',
+  style: 'fondosIndexados', volatility: 'rebalanceo', amount: 'dcaVsLumpSum',
 };
 
 const drawerTab = document.getElementById('drawerTab');
@@ -680,6 +709,7 @@ const dashHeadline = document.getElementById('dashHeadline');
 const capNotice = document.getElementById('capNotice');
 const volNotice = document.getElementById('volNotice');
 const ageNotice = document.getElementById('ageNotice');
+const tiltNotice = document.getElementById('tiltNotice');
 const allocationDonut = document.getElementById('allocationDonut');
 const donutLegend = document.getElementById('donutLegend');
 const backtestStory = document.getElementById('backtestStory');
@@ -701,10 +731,12 @@ async function runDashboard() {
   backtestStory.textContent = 'Cargando datos históricos reales…';
 
   const { effectiveRisk, wasCappedByHorizon, wasCappedByVolatility, wasCappedByAge } = computeEffectiveRisk(answers.risk, answers.horizon, answers.volatility, answers.age, ALLOCATIONS);
-  const weights = getAllocationWeights(effectiveRisk, ALLOCATIONS);
+  const baseWeights = getAllocationWeights(effectiveRisk, ALLOCATIONS);
   const explanation = getExplanation(effectiveRisk, answers.horizon, ARCHETYPES);
   const equityInstrument = resolveEquityIndex(answers.equityIndex, ALLOCATIONS);
   const bondsInstrument = resolveBondsChoice(answers.bondsChoice, ALLOCATIONS);
+  const weights = adjustWeightsForInstrumentRisk(baseWeights, equityInstrument.riskMultiplier, bondsInstrument.riskMultiplier, ALLOCATIONS.tiltDampening);
+  const wasTilted = Math.abs(weights.equities - baseWeights.equities) > 0.005;
 
   dashHeadline.textContent = explanation ? explanation.headline : '—';
 
@@ -717,6 +749,11 @@ async function runDashboard() {
   ageNotice.hidden = !wasCappedByAge;
   if (wasCappedByAge) {
     ageNotice.textContent = 'Con 60+ años, hay menos tiempo para que una mala racha se recupere antes de necesitar el dinero — ajustamos la mezcla hacia algo más prudente, independientemente de tu tolerancia al riesgo.';
+  }
+  tiltNotice.hidden = !wasTilted;
+  if (wasTilted) {
+    const eqDir = weights.equities < baseWeights.equities ? 'un poco menos' : 'un poco más';
+    tiltNotice.textContent = `${equityInstrument.label} y/o ${bondsInstrument.label} son más o menos volátiles que nuestras opciones de referencia, así que le dimos a las empresas grandes ${eqDir} de peso del que te hubiera tocado por defecto — buscando mantener el riesgo total parecido, sin importar qué instrumento específico elegiste.`;
   }
 
   const donutSegments = [

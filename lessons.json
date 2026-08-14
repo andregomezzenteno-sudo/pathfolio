@@ -100,6 +100,46 @@
         "Dos inversiones pueden llegar al mismo lugar por caminos muy distintos.",
         "Más volatilidad no siempre significa más riesgo a largo plazo."
       ]
+    },
+    "diversificacion": {
+      "title": "¿Qué es diversificar?",
+      "icon": "layers",
+      "hook": "No poner todos los huevos en la misma canasta — literal.",
+      "facts": [
+        "Repartir entre activos distintos para que un mal día en uno no te hunda todo.",
+        "No elimina el riesgo, pero suaviza el camino: cuando algo baja, otra cosa puede compensar.",
+        "Por eso esta cartera mezcla empresas, bonos y efectivo en vez de apostar todo a una sola cosa."
+      ]
+    },
+    "rebalanceo": {
+      "title": "¿Qué es rebalancear una cartera?",
+      "icon": "balance",
+      "hook": "Volver a poner los porcentajes donde estaban.",
+      "facts": [
+        "Si las acciones suben mucho, terminan pesando más de lo planeado — rebalancear es vender un poco de eso y comprar lo que quedó atrás.",
+        "Suena raro (vender lo que sube, comprar lo que baja), pero mantiene tu nivel de riesgo constante en el tiempo.",
+        "Se suele hacer una o dos veces al año, no todos los días."
+      ]
+    },
+    "inflacion": {
+      "title": "¿Qué es la inflación?",
+      "icon": "cash",
+      "hook": "Por qué $100 hoy no van a comprar lo mismo en 10 años.",
+      "facts": [
+        "Los precios suben con el tiempo, así que el mismo dinero compra un poco menos cada año.",
+        "El efectivo quieto es el que más lo sufre — por eso no conviene tener todo ahí.",
+        "Invertir es, en parte, intentar que tu dinero crezca más rápido que los precios."
+      ]
+    },
+    "dcaVsLumpSum": {
+      "title": "¿Aportar todo de una vez o de a poco?",
+      "icon": "calendar",
+      "hook": "Las dos formas de poner dinero a trabajar.",
+      "facts": [
+        "\"De una vez\" (lump sum) suele rendir más en promedio, porque tu dinero está invertido más tiempo.",
+        "\"De a poco\" (aportes mensuales) suaviza el momento de entrada — no apostás todo a un solo precio.",
+        "No hay una respuesta única: por eso este simulador te deja comparar las dos con tus propios números."
+      ]
     }
   }
 }
