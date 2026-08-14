@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 const html = read('index.html');
+const configJs = read('config.js');
 const i18nJs = read('i18n.js');
 const dynamicJs = read('i18n/dynamic.js');
 const engineJs = read('engine.js');
@@ -49,7 +50,9 @@ async function main() {
   // Idioma explícito: jsdom declara navigator.language en-US, así que sin esto
   // la app arrancaría en inglés (que es justo lo que debe hacer para alguien
   // de fuera, pero aquí queremos recorrer el flujo en español).
-  const dom = new JSDOM(html, { url: 'https://example.com/?lang=es', runScripts: 'dangerously', pretendToBeVisual: true });
+  const warnings = [];
+  const dom = new JSDOM(html, { url: 'https://example.com/?lang=es', runScripts: 'dangerously', pretendToBeVisual: true,
+    virtualConsole: new (await import('jsdom')).VirtualConsole().on('warn', m => warnings.push(String(m))) });
   const { window } = dom;
   const doc = window.document;
 
@@ -63,7 +66,7 @@ async function main() {
     if (url.includes('cloudFacts.json')) return { ok: true, json: async () => JSON.parse(cloudFactsJson) };
     if (url.includes('i18n/es.json')) return { ok: true, json: async () => JSON.parse(read('i18n/es.json')) };
     if (url.includes('i18n/en.json')) return { ok: true, json: async () => JSON.parse(read('i18n/en.json')) };
-    if (url.includes('api.twelvedata.com')) {
+    if (url.includes('api.twelvedata.com') || url.includes('proxy.test')) {
       const symbol = new URL(url).searchParams.get('symbol');
       if (!fixtures[symbol]) throw new Error('ticker inesperado: ' + symbol);
       return { ok: true, status: 200, json: async () => ({ status: 'ok', ...fixtures[symbol] }) };
@@ -72,7 +75,7 @@ async function main() {
   };
 
   // Mismo orden que index.html: primero el motor, luego la interfaz.
-  for (const src of [i18nJs, dynamicJs, engineJs, appJs]) {
+  for (const src of [configJs, i18nJs, dynamicJs, engineJs, appJs]) {
     const script = doc.createElement('script');
     script.textContent = src;
     doc.body.appendChild(script);
@@ -345,6 +348,21 @@ async function main() {
   assert(fetchedUrls.some(u => u.includes('EUR%2FUSD') || u.includes('EUR/USD')),
     'debería descargarse el tipo de cambio: los fondos cotizan en dólares y el resultado se enseña en euros');
   console.log('OK: se descargan los tickers reales de todo lo elegido, sectores incluidos (SPY+QQQ+XLK+XLI, GOVT+LQD, VNQ, GLD+DBC)');
+
+  /* ---------- origen de los datos: proxy o llamada directa ---------- */
+  // Sin proxy configurado se llama directo, con la clave a la vista, y la app
+  // debe avisarlo por consola en vez de dejarlo pasar en silencio.
+  assert(fetchedUrls.some(u => u.includes('apikey=')),
+    'sin proxy configurado se llama directamente a Twelve Data');
+  assert(warnings.some(w => /dataProxyUrl/.test(w)),
+    'debería avisarse por consola de que la clave está viajando al navegador');
+
+  // Con proxy configurado, la clave no debe aparecer en ninguna petición.
+  window.PATHFOLIO_CONFIG.dataProxyUrl = 'https://proxy.test';
+  const viaProxy = window.eval("marketDataUrl('SPY', 2500)");
+  assert(!viaProxy.includes('apikey'), `con proxy, la URL no debe llevar la clave: "${viaProxy}"`);
+  assert(viaProxy.startsWith('https://proxy.test?symbol=SPY'), `debería apuntar al proxy: "${viaProxy}"`);
+  console.log('OK: con el proxy configurado la clave desaparece de las peticiones; sin él se llama directo y se avisa por consola');
 
   /* ---------- narración: de dónde sale cada porcentaje ---------- */
   const steps = doc.getElementById('narrativeList').querySelectorAll('.narrative-step');

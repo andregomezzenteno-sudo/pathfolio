@@ -512,8 +512,28 @@ simple, honest approximation of dollar-cost averaging next to the
 lump-sum-only line.
 This reuses the same `TWELVE_DATA_API_KEY` embedded in the sibling
 [`trading-backtester`](https://github.com/andregomezzenteno-sudo/trading-backtester)
-project (same free-tier, rate-limited, intentionally-public key — see that
-repo's README for the full reasoning).
+project.
+
+**La clave no tiene por qué viajar al navegador.** Una web estática que
+consulta una API con clave no tiene dónde esconderla: acaba incrustada en el
+JavaScript y, por tanto, a la vista en el repositorio. Por muy limitada que
+sea la clave, una credencial dentro del código fuente es una mala señal en un
+proyecto que aspira a mirarse con ojos de fintech.
+
+[`worker/`](worker/) resuelve eso con un Cloudflare Worker que se pone en
+medio: la clave vive como secreto de Cloudflare y el navegador solo habla con
+el proxy. No es un reenvío ciego —un proxy abierto sería peor que la clave
+expuesta— sino que lleva lista blanca de símbolos, lista blanca de orígenes,
+tope de tamaño y caché de 6 horas, que además ahorra muchísima cuota en un
+plan de 8 peticiones por minuto.
+
+Se activa poniendo su URL en [`config.js`](config.js). Mientras esté vacía, la
+app llama directamente a Twelve Data y **avisa por consola** de que la clave
+está viajando al cliente: es un modo de desarrollo, no el destino. La suite
+comprueba que la lista blanca del proxy cubra exactamente los tickers que la
+app usa —ni uno de menos, que rompería un backtest, ni uno de más, que sería
+superficie de ataque gratuita— y que la clave no aparezca ni en el Worker ni
+en su configuración.
 
 Because multi-select means a maximal portfolio can need **ten** tickers while
 the free tier allows eight requests per minute, the fetch layer is built for

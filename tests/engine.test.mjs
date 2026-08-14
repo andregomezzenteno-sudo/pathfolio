@@ -711,4 +711,34 @@ const baseAnswers = () => ({
 }
 
 
+
+/* ---- el proxy tiene que conocer todos los tickers ---- */
+{
+  // El Worker solo deja pasar los simbolos de su lista blanca, que es lo que
+  // impide que sea un proxy abierto para cualquiera. El riesgo real es
+  // olvidarse de ella al anadir un instrumento: la app pediria un ticker que
+  // el proxy rechaza y el backtest fallaria solo para quien eligiera esa
+  // opcion concreta. Esto lo detecta antes de desplegar.
+  const worker = read('worker/src/index.js');
+  const block = worker.match(/ALLOWED_SYMBOLS = new Set\(\[([\s\S]*?)\]\)/)[1];
+  const listed = new Set((block.match(/'([^']+)'/g) || []).map(x => x.replace(/'/g, '')));
+
+  const needed = new Set(['EUR/USD']); // el tipo de cambio no vive en ningun grupo
+  for (const group of ['equityIndexOptions', 'bondsOptions', 'realEstateSubtypes', 'alternativeSubtypes']) {
+    for (const opt of Object.values(ALLOCATIONS[group])) if (opt.ticker) needed.add(opt.ticker);
+  }
+
+  const missing = [...needed].filter(tk => !listed.has(tk));
+  assert(missing.length === 0, `el proxy no permite estos tickers que la app si usa: ${missing.join(', ')}`);
+  const unused = [...listed].filter(tk => !needed.has(tk));
+  assert(unused.length === 0, `el proxy permite tickers que la app ya no usa (superficie de mas): ${unused.join(', ')}`);
+
+  // La clave no debe aparecer nunca en el codigo del proxy ni en su config:
+  // va como secreto de Cloudflare, que es justo el motivo de que exista.
+  assert(!/[0-9a-f]{32}/.test(worker), 'el Worker no debe llevar la clave dentro');
+  assert(!/[0-9a-f]{32}/.test(read('worker/wrangler.toml')), 'wrangler.toml no debe llevar la clave');
+  assert(!/[0-9a-f]{32}/.test(read('config.js')), 'config.js no debe llevar la clave: solo dice donde esta el proxy');
+  console.log(`OK: la lista blanca del proxy cubre exactamente los ${needed.size} tickers que usa la app, ni uno mas, y ni el Worker ni su configuracion contienen la clave`);
+}
+
 console.log('\nTODAS LAS PRUEBAS DE LÓGICA DE PATHFOLIO PASAN');

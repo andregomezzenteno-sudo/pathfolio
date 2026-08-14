@@ -112,10 +112,43 @@ function renderAllSketchIcons(root = document) {
 
 /* ---------- Descarga de datos (Twelve Data — misma clave/patrón que trading-backtester) ---------- */
 
+/* Origen de los datos de mercado.
+ *
+ * Con el proxy configurado (config.js -> dataProxyUrl), el navegador llama a
+ * un Cloudflare Worker que añade la clave desde un secreto suyo: la
+ * credencial no viaja nunca al cliente ni aparece en el repositorio. Es el
+ * camino bueno, y está en worker/.
+ *
+ * Sin proxy configurado se llama directamente a Twelve Data con la clave de
+ * abajo. Funciona —es lo que hubo desde el principio— pero deja una
+ * credencial a la vista en un repositorio público, así que se avisa por
+ * consola en vez de dejarlo pasar en silencio. Se conserva para que el sitio
+ * siga en pie mientras el Worker no esté desplegado, no como destino. */
 const TWELVE_DATA_API_KEY = '861f8f9854f843bb929a3eb03b49d5d7';
+let warnedAboutDirectKey = false;
+
+// Se lee la configuración en cada llamada en vez de una sola vez al cargar:
+// cuesta nada y hace que el origen de los datos sea observable y comprobable
+// sin recargar la página.
+const dataProxyUrl = () => (window.PATHFOLIO_CONFIG && window.PATHFOLIO_CONFIG.dataProxyUrl) || '';
+
+function marketDataUrl(symbol, outputsize) {
+  const proxy = dataProxyUrl();
+  if (proxy) {
+    return `${proxy.replace(/\/$/, '')}?symbol=${encodeURIComponent(symbol)}&outputsize=${outputsize}`;
+  }
+  if (!warnedAboutDirectKey) {
+    warnedAboutDirectKey = true;
+    console.warn(
+      'PathFolio: llamando a Twelve Data con la clave incrustada en el cliente. ' +
+      'Configura dataProxyUrl en config.js para que la clave deje de viajar al navegador (ver worker/README.md).'
+    );
+  }
+  return `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=1day&outputsize=${outputsize}&apikey=${TWELVE_DATA_API_KEY}`;
+}
 
 async function fetchPricesTwelveData(symbol, outputsize) {
-  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=1day&outputsize=${outputsize}&apikey=${TWELVE_DATA_API_KEY}`;
+  const url = marketDataUrl(symbol, outputsize);
   let res = await fetch(url);
   let json = await res.json();
   if (json.status === 'error' && json.code === 429) {
