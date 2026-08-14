@@ -89,6 +89,33 @@ body {
   .sketch-icon .frame-1 { opacity: 1; }
 }
 
+/* Sketch-wobble frame: every bordered box gets a hand-drawn double-line look
+   — the real background/border stays crisp underneath (so text never
+   distorts), and a second, wobbly outline (the SVG turbulence+displacement
+   filter defined inline in index.html) sits just inside it, ~60% opacity.
+   Applied broadly via a plain selector list rather than a class added to
+   every element, so no HTML changes were needed to roll it out everywhere. */
+.landing-card, .quiz-card, .dash-card, .lesson-trio-item, .option-card,
+.btn-primary, .btn-secondary, .topic-chip, .amount-input-row,
+.cap-note, .drawer-panel, .tooltip {
+  position: relative;
+}
+.landing-card::after, .quiz-card::after, .dash-card::after,
+.lesson-trio-item::after, .option-card::after,
+.btn-primary::after, .btn-secondary::after, .topic-chip::after,
+.amount-input-row::after, .cap-note::after, .drawer-panel::after,
+.tooltip::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 1.5px solid var(--text-primary);
+  border-radius: inherit;
+  filter: url(#sketchWobble);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.option-card.selected::after { border-color: var(--brand); opacity: 0.75; }
+
 /* Header */
 .app-header {
   display: flex;
@@ -224,6 +251,15 @@ body {
   letter-spacing: 0.04em;
   color: var(--brand);
 }
+.quiz-eyebrow.connector-text {
+  font-size: 0.92rem;
+  font-weight: 500;
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-secondary);
+}
+.quiz-eyebrow.connector-text[hidden] { display: none; }
 .quiz-card h2 { margin: 0; font-size: 1.3rem; line-height: 1.42; max-width: 42ch; }
 @media (min-width: 720px) { .quiz-card h2 { font-size: 1.55rem; } }
 .quiz-hint { margin: -10px 0 0; color: var(--text-muted); font-size: 0.85rem; }
@@ -321,7 +357,9 @@ body {
   padding: 10px 16px;
   width: fit-content;
 }
+.amount-secondary-h2 { font-size: 1.02rem !important; margin-top: 4px !important; }
 .amount-prefix { color: var(--text-muted); font-weight: 700; }
+.amount-suffix { color: var(--text-muted); font-size: 0.85rem; padding-left: 4px; }
 .amount-input-row input {
   font: inherit;
   font-size: 1.1rem;

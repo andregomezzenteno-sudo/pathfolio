@@ -8,6 +8,16 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="sketchWobble" x="-20%" y="-20%" width="140%" height="140%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="7" result="noise"/>
+    <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="sketchWobbleChart" x="-10%" y="-30%" width="120%" height="160%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="2" seed="3" result="noise"/>
+    <feDisplacementMap in="SourceGraphic" in2="noise" scale="5.5" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
 <div class="page">
 
   <header class="app-header">
@@ -40,9 +50,34 @@
     <!-- ===================== QUESTIONNAIRE ===================== -->
     <section class="screen" id="screen-quiz" data-screen hidden>
 
+      <!-- age: first question, sets context for everything after -->
+      <div class="quiz-card" id="q-age" data-question="age" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>Para empezar: ¿en qué rango de edad estás?</h2>
+        <p class="quiz-hint">Esto nos ayuda a pensar cuánto tiempo tiene tu dinero para recuperarse de una mala racha.</p>
+        <div class="quiz-options" data-options="age">
+          <button class="option-card" type="button" data-value="18-30">
+            <span class="sketch-icon-slot" data-icon="sprout" data-size="40"></span>
+            <span class="option-label">18-30</span>
+          </button>
+          <button class="option-card" type="button" data-value="31-45">
+            <span class="sketch-icon-slot" data-icon="stocks" data-size="40"></span>
+            <span class="option-label">31-45</span>
+          </button>
+          <button class="option-card" type="button" data-value="46-60">
+            <span class="sketch-icon-slot" data-icon="bonds" data-size="40"></span>
+            <span class="option-label">46-60</span>
+          </button>
+          <button class="option-card" type="button" data-value="60+">
+            <span class="sketch-icon-slot" data-icon="retirement" data-size="40"></span>
+            <span class="option-label">60+</span>
+          </button>
+        </div>
+      </div>
+
       <!-- risk: slider -->
       <div class="quiz-card" id="q-risk" data-question="risk" hidden>
-        <p class="quiz-eyebrow">Pregunta 1</p>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2>Si el dinero que invertiste bajara de valor de un día para el otro, ¿qué tan tranquilo te quedarías?</h2>
         <div class="slider-row">
           <input type="range" id="riskSlider" min="1" max="5" step="1" value="3">
@@ -66,7 +101,7 @@
 
       <!-- horizon: icon cards (unchanged style) -->
       <div class="quiz-card" id="q-horizon" data-question="horizon" hidden>
-        <p class="quiz-eyebrow">Pregunta 2</p>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2>¿Para qué es este dinero?</h2>
         <div class="quiz-options" data-options="horizon">
           <button class="option-card" type="button" data-value="viaje">
@@ -90,7 +125,7 @@
 
       <!-- knowledge gate -->
       <div class="quiz-card" id="q-knowledge" data-question="knowledge" hidden>
-        <p class="quiz-eyebrow">Pregunta 3</p>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2>¿Ya conocés la diferencia entre el S&amp;P 500, el NASDAQ 100 y el MSCI World?</h2>
         <div class="knowledge-gate" data-options="knowledge">
           <button class="option-card knowledge-card" type="button" data-value="si">
@@ -130,7 +165,7 @@
 
       <!-- equity index choice: real, affects backtest data -->
       <div class="quiz-card" id="q-equityIndex" data-question="equityIndex" hidden>
-        <p class="quiz-eyebrow">Pregunta 4</p>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2>Para la parte de "empresas grandes del mundo" en tu cartera, ¿cuál preferís?</h2>
         <div class="quiz-options" data-options="equityIndex">
           <button class="option-card" type="button" data-value="sp500">
@@ -151,9 +186,67 @@
         </div>
       </div>
 
+      <!-- bonds knowledge gate -->
+      <div class="quiz-card" id="q-bondsKnowledge" data-question="bondsKnowledge" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Sabés la diferencia entre bonos de gobierno y bonos corporativos?</h2>
+        <div class="knowledge-gate" data-options="bondsKnowledge">
+          <button class="option-card knowledge-card" type="button" data-value="si">
+            <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
+            <span class="option-label">Sí, ya sé</span>
+          </button>
+          <button class="option-card knowledge-card" type="button" data-value="no">
+            <span class="sketch-icon-slot" data-icon="question" data-size="36"></span>
+            <span class="option-label">No, explicame</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- bonds lesson (conditional, only if bondsKnowledge=no) -->
+      <div class="quiz-card lesson-card" id="q-bondsLesson" data-question="bondsLesson" hidden>
+        <p class="quiz-eyebrow">Una explicación rápida</p>
+        <h2>Dos sabores de "prestarle plata a alguien"</h2>
+        <div class="lesson-trio">
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="government" data-size="44"></span>
+            <strong>Bonos de gobierno</strong>
+            <p>Le prestás al gobierno de EEUU. El más seguro de los dos.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="bonds" data-size="44"></span>
+            <strong>Bonos corporativos</strong>
+            <p>Le prestás a empresas grandes. Algo más de riesgo, algo más de interés.</p>
+          </div>
+        </div>
+        <button class="btn-primary" data-advance="bondsLesson" type="button">Ya entendí, continuar →</button>
+      </div>
+
+      <!-- bonds choice: real, affects backtest data -->
+      <div class="quiz-card" id="q-bondsChoice" data-question="bondsChoice" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>Para la parte de "préstamos" de tu cartera, ¿cuál preferís?</h2>
+        <div class="quiz-options" data-options="bondsChoice">
+          <button class="option-card" type="button" data-value="govt">
+            <span class="sketch-icon-slot" data-icon="government" data-size="40"></span>
+            <span class="option-label">Gobierno</span>
+            <span class="option-sublabel">Más seguro</span>
+          </button>
+          <button class="option-card" type="button" data-value="corporate">
+            <span class="sketch-icon-slot" data-icon="bonds" data-size="40"></span>
+            <span class="option-label">Corporativos</span>
+            <span class="option-sublabel">Algo más de rendimiento</span>
+          </button>
+          <button class="option-card" type="button" data-value="mixed">
+            <span class="sketch-icon-slot" data-icon="layers" data-size="40"></span>
+            <span class="option-label">Mezcla</span>
+            <span class="option-sublabel">Un poco de cada uno</span>
+          </button>
+        </div>
+      </div>
+
       <!-- style -->
       <div class="quiz-card" id="q-style" data-question="style" hidden>
-        <p class="quiz-eyebrow">Pregunta 5</p>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2>¿Preferís que te explique todo con detalle, o preferís confiar y ver resultados?</h2>
         <div class="quiz-options" data-options="style">
           <button class="option-card" type="button" data-value="detalle">
@@ -169,7 +262,7 @@
 
       <!-- volatility cross-check: slider -->
       <div class="quiz-card" id="q-volatility" data-question="volatility" hidden>
-        <p class="quiz-eyebrow">Pregunta 6</p>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2>Y siendo realistas: ¿cuánta caída podrías tolerar sin vender por pánico?</h2>
         <div class="slider-row">
           <input type="range" id="volatilitySlider" min="1" max="5" step="1" value="3">
@@ -182,14 +275,20 @@
         <button class="btn-primary" data-advance="volatility" type="button">Continuar →</button>
       </div>
 
-      <!-- amount -->
+      <!-- amount + optional monthly contribution -->
       <div class="quiz-card" id="q-amount" data-question="amount" hidden>
-        <p class="quiz-eyebrow">Última pregunta</p>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2>Para hacerlo concreto: si hoy invirtieras un monto, ¿cuánto sería?</h2>
         <p class="quiz-hint">Es solo para los ejemplos de abajo — no es una inversión real.</p>
         <div class="amount-input-row">
           <span class="amount-prefix">$</span>
           <input type="number" id="amountInput" value="1000" min="100" step="100">
+        </div>
+        <h2 class="amount-secondary-h2">¿Y si además aportaras algo todos los meses? (opcional)</h2>
+        <div class="amount-input-row">
+          <span class="amount-prefix">$</span>
+          <input type="number" id="monthlyInput" value="0" min="0" step="50">
+          <span class="amount-suffix">/ mes</span>
         </div>
         <button class="btn-primary" id="seeResultsBtn" type="button">Ver mi resultado →</button>
       </div>
@@ -207,6 +306,7 @@
         </div>
         <p class="cap-note" id="capNotice" hidden></p>
         <p class="cap-note" id="volNotice" hidden></p>
+        <p class="cap-note" id="ageNotice" hidden></p>
       </div>
 
       <div class="dash-card layer-2">

@@ -40,6 +40,7 @@ const SKETCH_ICONS = {
   vault:        'M12 10 H52 V54 H12 Z M32 32 C36 32 39 29 39 25 C39 21 36 18 32 18 C28 18 25 21 25 25 C25 29 28 32 32 32 Z M32 32 V40 M20 10 V4 M44 10 V4',
   rollercoaster:'M6 44 L18 20 L30 48 L42 12 L58 36',
   layers:       'M32 8 L52 18 L32 28 L12 18 Z M12 32 L32 22 L52 32 L32 42 Z M12 46 L32 36 L52 46 L32 56 Z',
+  government:   'M32 8 L52 22 H12 Z M16 26 V50 M24 26 V50 M32 26 V50 M40 26 V50 M48 26 V50 M10 50 H54 M10 56 H54',
   building:     'M16 12 H48 V56 H16 Z M22 20 H28 M36 20 H42 M22 30 H28 M36 30 H42 M22 40 H28 M36 40 H42 M26 48 H38 V56 H26 Z',
   coin:         'M32 12 C42 12 50 20 50 30 C50 40 42 48 32 48 C22 48 14 40 14 30 C14 20 22 12 32 12 Z M26 24 H38 M26 36 H38 M30 20 V40',
   spiral:       'M33 40 C29 40 26 37 26 33 C26 28 30 24 35 24 C41 24 46 29 46 35 C46 42 40 48 32 48 C23 48 16 41 16 32 C16 22 24 14 34 14',
@@ -92,13 +93,22 @@ function applyCap(currentTier, capTier, riskOrder) {
   return { tier: capped, wasCapped: capped !== currentTier };
 }
 
-// Two independent signals can each only pull the effective risk tier DOWN
+// A 60+ age bracket caps at "moderado" regardless of stated risk/horizon —
+// the classic retirement glide-path principle: less time for a bad sequence
+// of returns to recover from, independent of how the person FEELS about risk.
+function ageToCapTier(age) {
+  return age === '60+' ? 'moderado' : null;
+}
+
+// Three independent signals can each only pull the effective risk tier DOWN
 // from the stated risk-slider tier, never up: a short horizon objectively
-// limits how much volatility you can absorb, and a low tolerance for actual
+// limits how much volatility you can absorb, a low tolerance for actual
 // drawdowns (the "would you panic-sell" question) reveals a lower true risk
-// capacity than the abstract slider might have suggested. Both are applied
-// transparently — the UI states when and why an adjustment happened.
-function computeEffectiveRisk(riskSliderValue, horizon, volatilitySliderValue, allocations) {
+// capacity than the abstract slider might have suggested, and an age bracket
+// close to/in retirement limits how long a bad sequence of returns has to
+// recover. All three are applied transparently — the UI states when and why
+// each adjustment happened, never silently.
+function computeEffectiveRisk(riskSliderValue, horizon, volatilitySliderValue, age, allocations) {
   const order = allocations.riskOrder;
   let tier = riskSliderToTier(riskSliderValue);
 
@@ -108,10 +118,14 @@ function computeEffectiveRisk(riskSliderValue, horizon, volatilitySliderValue, a
   const afterVol = applyCap(tier, volatilitySliderToTier(volatilitySliderValue), order);
   tier = afterVol.tier;
 
+  const afterAge = applyCap(tier, ageToCapTier(age), order);
+  tier = afterAge.tier;
+
   return {
     effectiveRisk: tier,
     wasCappedByHorizon: afterHorizon.wasCapped,
     wasCappedByVolatility: afterVol.wasCapped,
+    wasCappedByAge: afterAge.wasCapped,
   };
 }
 
@@ -126,6 +140,10 @@ function getExplanation(effectiveRisk, horizon, archetypes) {
 
 function resolveEquityIndex(choiceKey, allocations) {
   return allocations.equityIndexOptions[choiceKey] || allocations.equityIndexOptions[allocations.defaultEquityIndex];
+}
+
+function resolveBondsChoice(choiceKey, allocations) {
+  return allocations.bondsOptions[choiceKey] || allocations.bondsOptions[allocations.defaultBondsChoice];
 }
 
 /* ---------- Data fetching (Twelve Data — same key/pattern as trading-backtester) ---------- */
@@ -151,14 +169,16 @@ async function fetchPricesTwelveData(symbol, outputsize) {
   return { dates, closes };
 }
 
-const equitySeriesCache = new Map(); // ticker -> {dates, closes}, since the user can change their index choice
-async function fetchEquitySeries(ticker) {
-  if (!equitySeriesCache.has(ticker)) {
-    equitySeriesCache.set(ticker, await fetchPricesTwelveData(ticker, 2500));
+// ticker -> {dates, closes}, shared by both the equity-index and bonds-choice
+// pickers since either one can change and re-trigger a fetch for a ticker
+// already seen (or not) — one cache, keyed by symbol, covers both.
+const tickerSeriesCache = new Map();
+async function fetchTickerSeries(ticker) {
+  if (!tickerSeriesCache.has(ticker)) {
+    tickerSeriesCache.set(ticker, await fetchPricesTwelveData(ticker, 2500));
   }
-  return equitySeriesCache.get(ticker);
+  return tickerSeriesCache.get(ticker);
 }
-let cachedBondSeries = null;
 
 /* ---------- Portfolio math ---------- */
 
@@ -186,6 +206,26 @@ function blendPortfolio({ dates, equityCloses, bondCloses, weights, cashAnnualRa
     dailyReturns.push(blended);
   }
   return { dates, portfolioEquity, cashOnlyEquity, dailyReturns };
+}
+
+// Same blended daily returns as the lump-sum line, but adds a fixed monthly
+// contribution the first time each new calendar month appears in the date
+// series — a simple, honest approximation of dollar-cost averaging (real
+// contribution timing within a month varies; this doesn't pretend otherwise).
+function simulateDCA({ dates, dailyReturns, initialAmount, monthlyAmount }) {
+  const n = dates.length;
+  const value = new Array(n).fill(0);
+  value[0] = initialAmount;
+  let lastKey = dates[0].slice(0, 7); // "YYYY-MM"
+  for (let i = 1; i < n; i++) {
+    value[i] = value[i - 1] * (1 + dailyReturns[i - 1]);
+    const key = dates[i].slice(0, 7);
+    if (monthlyAmount > 0 && key !== lastKey) {
+      value[i] += monthlyAmount;
+      lastKey = key;
+    }
+  }
+  return value;
 }
 
 function annualizedVol(rets, periodsPerYear) {
@@ -291,6 +331,7 @@ function renderDonut(svg, segments) {
       'stroke-dasharray': `${segLen} ${circumference - segLen}`,
       'stroke-dashoffset': -offset,
       transform: `rotate(-90 ${cx} ${cy})`,
+      filter: 'url(#sketchWobbleChart)',
     });
     svg.appendChild(circle);
     offset += seg.weight * circumference;
@@ -371,7 +412,7 @@ function renderLineChart({ svg, tooltipEl, dates, series, yFormat, tooltipFormat
       if (v == null) return;
       d += (d === '' ? 'M' : 'L') + xForIndex(i).toFixed(2) + ',' + yForValue(v).toFixed(2) + ' ';
     });
-    svg.appendChild(svgEl('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    svg.appendChild(svgEl('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', filter: 'url(#sketchWobbleChart)' }));
   });
 
   const crosshair = svgEl('line', { x1: 0, x2: 0, y1: margin.top, y2: margin.top + innerH, stroke: 'var(--baseline)', 'stroke-width': 1, visibility: 'hidden' });
@@ -424,8 +465,14 @@ function renderLineChart({ svg, tooltipEl, dates, series, yFormat, tooltipFormat
 
 /* ---------- Questionnaire state machine ---------- */
 
-const QUESTIONS = ['risk', 'horizon', 'knowledge', 'indexLesson', 'equityIndex', 'style', 'volatility', 'amount'];
-const answers = { risk: 3, horizon: null, knowledge: null, equityIndex: null, style: null, volatility: 3, amount: 1000 };
+const QUESTIONS = ['age', 'risk', 'horizon', 'knowledge', 'indexLesson', 'equityIndex', 'bondsKnowledge', 'bondsLesson', 'bondsChoice', 'style', 'volatility', 'amount'];
+// Each conditional lesson is skipped when the paired gate question was answered "si".
+const CONDITIONAL_LESSONS = { indexLesson: 'knowledge', bondsLesson: 'bondsKnowledge' };
+const answers = {
+  age: null, risk: 3, horizon: null, knowledge: null, equityIndex: null,
+  bondsKnowledge: null, bondsChoice: null, style: null, volatility: 3,
+  amount: 1000, monthly: 0,
+};
 let currentStep = 0;
 
 const screenLanding = document.getElementById('screen-landing');
@@ -437,13 +484,21 @@ const progressLabel = document.getElementById('progressLabel');
 const startBtn = document.getElementById('startBtn');
 const seeResultsBtn = document.getElementById('seeResultsBtn');
 const amountInput = document.getElementById('amountInput');
+const monthlyInput = document.getElementById('monthlyInput');
 const restartBtn = document.getElementById('restartBtn');
 
+function skippedLessonCount() {
+  return Object.entries(CONDITIONAL_LESSONS).filter(([, gate]) => answers[gate] === 'si').length;
+}
 function effectiveQuestionCount() {
-  return answers.knowledge === 'si' ? QUESTIONS.length - 1 : QUESTIONS.length;
+  return QUESTIONS.length - skippedLessonCount();
 }
 function effectivePosition(step) {
-  const skippedBefore = (answers.knowledge === 'si' && step > QUESTIONS.indexOf('indexLesson')) ? 1 : 0;
+  let skippedBefore = 0;
+  for (const lessonKey in CONDITIONAL_LESSONS) {
+    const idx = QUESTIONS.indexOf(lessonKey);
+    if (answers[CONDITIONAL_LESSONS[lessonKey]] === 'si' && step > idx) skippedBefore += 1;
+  }
   return step + 1 - skippedBefore;
 }
 
@@ -454,17 +509,39 @@ function renderProgress() {
   progressLabel.textContent = `Pregunta ${pos} de ${total}`;
 }
 
+// "Hila cosas": a short sentence at the top of select screens that names the
+// answer just given before asking the next thing, so the flow reads as one
+// connected conversation rather than a stack of unrelated form fields.
+const HORIZON_PHRASE = { viaje: 'para un viaje o una meta cercana', casa: 'para comprar una casa', crecer: 'para que crezca, sin apuro', jubilacion: 'para tu jubilación' };
+const EQUITY_LABEL = { sp500: 'el S&P 500', nasdaq100: 'el NASDAQ 100', msci: 'el MSCI World' };
+const RISK_PHRASE = { 1: 'muy baja', 2: 'baja', 3: 'media', 4: 'alta', 5: 'muy alta' };
+const CONNECTORS = {
+  risk: a => a.age ? `Con ${a.age} años, pensemos en cómo reaccionás ante las bajadas.` : null,
+  knowledge: a => a.horizon ? `Ya que esto es ${HORIZON_PHRASE[a.horizon]}, hablemos de la parte de acciones.` : null,
+  bondsKnowledge: a => a.equityIndex ? `Con ${EQUITY_LABEL[a.equityIndex]} elegido, vamos con la otra mitad clásica de una cartera: los bonos.` : null,
+  volatility: a => `Dijiste que tu tolerancia al riesgo es ${RISK_PHRASE[a.risk]} — probémosla con un escenario real.`,
+  amount: () => 'Con tu perfil casi listo, solo falta ponerle números.',
+};
+
 function showStep(step) {
   currentStep = step;
   QUESTIONS.forEach((q, i) => {
     document.getElementById('q-' + q).hidden = i !== step;
   });
+  const qKey = QUESTIONS[step];
+  const connectorEl = document.querySelector(`#q-${qKey} [data-connector]`);
+  if (connectorEl) {
+    const text = CONNECTORS[qKey] ? CONNECTORS[qKey](answers) : null;
+    connectorEl.hidden = !text;
+    connectorEl.textContent = text || '';
+  }
   renderProgress();
 }
 
 function nextStep() {
   let next = currentStep + 1;
-  if (QUESTIONS[next] === 'indexLesson' && answers.knowledge === 'si') next += 1;
+  const lessonGate = CONDITIONAL_LESSONS[QUESTIONS[next]];
+  if (lessonGate && answers[lessonGate] === 'si') next += 1;
   if (next < QUESTIONS.length) showStep(next);
 }
 
@@ -515,14 +592,16 @@ document.querySelectorAll('[data-advance]').forEach(btn => {
 startBtn.addEventListener('click', goToQuiz);
 seeResultsBtn.addEventListener('click', () => {
   answers.amount = Math.max(100, parseFloat(amountInput.value) || 1000);
+  answers.monthly = Math.max(0, parseFloat(monthlyInput.value) || 0);
   runDashboard();
 });
 restartBtn.addEventListener('click', () => {
   screenDashboard.hidden = true;
   document.querySelectorAll('.option-card.selected').forEach(el => el.classList.remove('selected'));
-  answers.horizon = answers.knowledge = answers.equityIndex = answers.style = null;
-  answers.risk = 3; answers.volatility = 3;
-  riskSlider.value = 3; document.getElementById('volatilitySlider').value = 3;
+  answers.age = answers.horizon = answers.knowledge = answers.equityIndex = null;
+  answers.bondsKnowledge = answers.bondsChoice = answers.style = null;
+  answers.risk = 3; answers.volatility = 3; answers.monthly = 0;
+  riskSlider.value = 3; document.getElementById('volatilitySlider').value = 3; monthlyInput.value = 0;
   updateRiskPreview();
   goToQuiz();
 });
@@ -530,8 +609,9 @@ restartBtn.addEventListener('click', () => {
 /* ---------- "¿Sabías que?" drawer ---------- */
 
 const SCREEN_TO_TOPIC = {
-  risk: 'volatilidad', horizon: 'acciones', knowledge: 'indices', indexLesson: 'indices',
-  equityIndex: 'indices', style: 'bonos', volatility: 'volatilidad', amount: 'efectivo',
+  age: 'interesCompuesto', risk: 'volatilidad', horizon: 'acciones', knowledge: 'indices', indexLesson: 'indices',
+  equityIndex: 'indices', bondsKnowledge: 'bonos', bondsLesson: 'bonos', bondsChoice: 'bonos',
+  style: 'fondosIndexados', volatility: 'volatilidad', amount: 'interesCompuesto',
 };
 
 const drawerTab = document.getElementById('drawerTab');
@@ -599,6 +679,7 @@ drawerBackdrop.addEventListener('click', closeDrawer);
 const dashHeadline = document.getElementById('dashHeadline');
 const capNotice = document.getElementById('capNotice');
 const volNotice = document.getElementById('volNotice');
+const ageNotice = document.getElementById('ageNotice');
 const allocationDonut = document.getElementById('allocationDonut');
 const donutLegend = document.getElementById('donutLegend');
 const backtestStory = document.getElementById('backtestStory');
@@ -619,10 +700,11 @@ async function runDashboard() {
   screenDashboard.hidden = false;
   backtestStory.textContent = 'Cargando datos históricos reales…';
 
-  const { effectiveRisk, wasCappedByHorizon, wasCappedByVolatility } = computeEffectiveRisk(answers.risk, answers.horizon, answers.volatility, ALLOCATIONS);
+  const { effectiveRisk, wasCappedByHorizon, wasCappedByVolatility, wasCappedByAge } = computeEffectiveRisk(answers.risk, answers.horizon, answers.volatility, answers.age, ALLOCATIONS);
   const weights = getAllocationWeights(effectiveRisk, ALLOCATIONS);
   const explanation = getExplanation(effectiveRisk, answers.horizon, ARCHETYPES);
   const equityInstrument = resolveEquityIndex(answers.equityIndex, ALLOCATIONS);
+  const bondsInstrument = resolveBondsChoice(answers.bondsChoice, ALLOCATIONS);
 
   dashHeadline.textContent = explanation ? explanation.headline : '—';
 
@@ -632,10 +714,14 @@ async function runDashboard() {
   if (wasCappedByVolatility) {
     volNotice.textContent = 'Dijiste que tolerarías más riesgo, pero tu respuesta sobre caídas reales sugiere lo contrario — ajustamos la mezcla hacia algo más prudente. Mejor prevenir que vender en pánico.';
   }
+  ageNotice.hidden = !wasCappedByAge;
+  if (wasCappedByAge) {
+    ageNotice.textContent = 'Con 60+ años, hay menos tiempo para que una mala racha se recupere antes de necesitar el dinero — ajustamos la mezcla hacia algo más prudente, independientemente de tu tolerancia al riesgo.';
+  }
 
   const donutSegments = [
     { name: `Empresas grandes (${equityInstrument.label})`, weight: weights.equities, color: 'var(--series-1)' },
-    { name: 'Gobiernos/empresas (bonos)', weight: weights.bonds, color: 'var(--series-2)' },
+    { name: `Bonos (${bondsInstrument.label})`, weight: weights.bonds, color: 'var(--series-2)' },
     { name: 'Efectivo', weight: weights.cash, color: 'var(--series-3)' },
   ];
   renderDonut(allocationDonut, donutSegments);
@@ -647,10 +733,10 @@ async function runDashboard() {
   explanationDetail.textContent = explanation ? explanation.detail : '';
 
   try {
-    const equitySeries = await fetchEquitySeries(equityInstrument.ticker);
-    if (!cachedBondSeries) cachedBondSeries = await fetchPricesTwelveData(ALLOCATIONS.instruments.bonds.ticker, 2500);
+    const equitySeries = await fetchTickerSeries(equityInstrument.ticker);
+    const bondSeries = await fetchTickerSeries(bondsInstrument.ticker);
 
-    const aligned = alignByDate(equitySeries.dates, equitySeries.closes, cachedBondSeries.dates, cachedBondSeries.closes);
+    const aligned = alignByDate(equitySeries.dates, equitySeries.closes, bondSeries.dates, bondSeries.closes);
     const cashRate = ALLOCATIONS.instruments.cash.illustrativeAnnualRate;
     const blend = blendPortfolio({ dates: aligned.dates, equityCloses: aligned.equityCloses, bondCloses: aligned.bondCloses, weights, cashAnnualRate: cashRate });
 
@@ -659,30 +745,35 @@ async function runDashboard() {
     const cashOnlyValue = answers.amount * blend.cashOnlyEquity[n - 1];
     const years = ((new Date(blend.dates[n - 1]) - new Date(blend.dates[0])) / (365.25 * 86400000)).toFixed(1);
 
-    backtestStory.textContent = `Si hubieras invertido ${formatUSD(answers.amount, 0)} así hace ${years} años (${shortDate(blend.dates[0])}), hoy tendrías aproximadamente ${formatUSD(finalValue, 0)}. Dejarlo todo en efectivo, en cambio, hubiera dado ${formatUSD(cashOnlyValue, 0)}.`;
+    const hasMonthly = answers.monthly > 0;
+    const dcaSeries = hasMonthly ? simulateDCA({ dates: blend.dates, dailyReturns: blend.dailyReturns, initialAmount: answers.amount, monthlyAmount: answers.monthly }) : null;
+
+    backtestStory.textContent = hasMonthly
+      ? `Si hubieras invertido ${formatUSD(answers.amount, 0)} hace ${years} años (${shortDate(blend.dates[0])}) y aportado ${formatUSD(answers.monthly, 0)} más cada mes, hoy tendrías aproximadamente ${formatUSD(dcaSeries[n - 1], 0)} — contra ${formatUSD(finalValue, 0)} si solo hubieras puesto el monto inicial y nada más.`
+      : `Si hubieras invertido ${formatUSD(answers.amount, 0)} así hace ${years} años (${shortDate(blend.dates[0])}), hoy tendrías aproximadamente ${formatUSD(finalValue, 0)}. Dejarlo todo en efectivo, en cambio, hubiera dado ${formatUSD(cashOnlyValue, 0)}.`;
+
+    const chartSeries = [
+      { name: hasMonthly ? 'Solo aporte inicial' : 'Tu cartera', color: 'var(--series-1)', data: blend.portfolioEquity.map(v => answers.amount * v) },
+    ];
+    if (hasMonthly) chartSeries.push({ name: 'Con aporte mensual', color: 'var(--series-2)', data: dcaSeries });
+    chartSeries.push({ name: 'Solo efectivo', color: 'var(--series-3)', data: blend.cashOnlyEquity.map(v => answers.amount * v) });
 
     renderLineChart({
       svg: document.getElementById('pfChart'),
       tooltipEl: document.getElementById('pfTooltip'),
       dates: blend.dates,
-      series: [
-        { name: 'Tu cartera', color: 'var(--series-1)', data: blend.portfolioEquity.map(v => answers.amount * v) },
-        { name: 'Solo efectivo', color: 'var(--series-3)', data: blend.cashOnlyEquity.map(v => answers.amount * v) },
-      ],
+      series: chartSeries,
       yFormat: v => formatUSD(v, 0),
       tooltipFormat: v => formatUSD(v, 0),
     });
-    buildLegend(document.getElementById('pfLegend'), [
-      { name: 'Tu cartera', color: 'var(--series-1)' },
-      { name: 'Solo efectivo', color: 'var(--series-3)' },
-    ]);
+    buildLegend(document.getElementById('pfLegend'), chartSeries.map(s => ({ name: s.name, color: s.color })));
 
     const vol = annualizedVol(blend.dailyReturns, 252);
     const dd = maxDrawdown(blend.portfolioEquity);
     detailTableBody.textContent = '';
     const rows = [
       [`Empresas grandes (${equityInstrument.label})`, equityInstrument.ticker, weights.equities, equityInstrument.expenseRatio],
-      ['Gobiernos/empresas (bonos)', ALLOCATIONS.instruments.bonds.ticker, weights.bonds, ALLOCATIONS.instruments.bonds.expenseRatio],
+      [`Bonos (${bondsInstrument.label})`, bondsInstrument.ticker, weights.bonds, bondsInstrument.expenseRatio],
       ['Efectivo', '—', weights.cash, null],
     ];
     rows.forEach(([name, ticker, weight, ter]) => {
