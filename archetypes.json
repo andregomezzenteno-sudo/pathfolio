@@ -1,56 +1,115 @@
 {
-  "_provenance": "Escrito por Claude (Anthropic) durante el desarrollo, en la misma voz y alcance que produce el pipeline de engine/generate_archetypes.py, solo que en tiempo de compilación en lugar de por visitante. Castellano de España, igual que el resto de la app.",
+  "_provenance": "Escrito por Claude (Anthropic) durante el desarrollo, en la misma voz y alcance que produce el pipeline de engine/generate_archetypes.py, solo que en tiempo de compilación en lugar de por visitante. Castellano de España, igual que el resto de la app. Indexado por idioma (es/en).",
   "faq": {
-    "risk": "Preguntamos por el riesgo porque es lo que decide qué parte de tu dinero puede moverse mucho a cambio de crecer más. No hay respuesta correcta: la buena es la que te deja dormir tranquilo, porque la cartera que abandonas a mitad no sirve de nada.",
-    "horizon": "El tiempo que falta para que necesites el dinero lo cambia todo. Si es para algo cercano, no te interesa que el mercado te pille bajando justo antes, así que preferimos algo más estable aunque tu tolerancia al riesgo sea alta. Si es para dentro de muchos años, hay margen de sobra para que las caídas se recuperen y puedes permitirte más riesgo.",
-    "style": "Esto no cambia tu cartera, solo cuánto detalle técnico te enseñamos de entrada. Si prefieres entender el porqué de cada número, te lo dejamos todo abierto. Si prefieres ver el resultado y fiarte, te lo mostramos resumido y el detalle queda a un clic.",
-    "amount": "El importe no cambia los porcentajes: una cartera de 1.000 € y otra de 100.000 € se reparten igual. Lo pedimos solo para traducir esos porcentajes a euros y que el ejemplo histórico se entienda de un vistazo."
+    "es": {
+      "risk": "Preguntamos por el riesgo porque es lo que decide qué parte de tu dinero puede moverse mucho a cambio de crecer más. No hay respuesta correcta: la buena es la que te deja dormir tranquilo, porque la cartera que abandonas a mitad no sirve de nada.",
+      "horizon": "El tiempo que falta para que necesites el dinero lo cambia todo. Si es para algo cercano, no te interesa que el mercado te pille bajando justo antes, así que preferimos algo más estable aunque tu tolerancia al riesgo sea alta. Si es para dentro de muchos años, hay margen de sobra para que las caídas se recuperen y puedes permitirte más riesgo.",
+      "style": "Esto no cambia tu cartera, solo cuánto detalle técnico te enseñamos de entrada. Si prefieres entender el porqué de cada número, te lo dejamos todo abierto. Si prefieres ver el resultado y fiarte, te lo mostramos resumido y el detalle queda a un clic.",
+      "amount": "El importe no cambia los porcentajes: una cartera de 1.000 € y otra de 100.000 € se reparten igual. Lo pedimos solo para traducir esos porcentajes a euros y que el ejemplo histórico se entienda de un vistazo."
+    },
+    "en": {
+      "risk": "We ask about risk because it decides what share of your money can move a lot in exchange for growing more. There's no right answer: the good one is whichever lets you sleep at night, because a portfolio you abandon halfway is no use to anyone.",
+      "horizon": "How long until you need the money changes everything. If it's for something soon, you don't want the market catching you on the way down just before, so we prefer something steadier even if your risk tolerance is high. If it's for many years out, there's ample room for falls to recover and you can afford more risk.",
+      "style": "This doesn't change your portfolio, only how much technical detail we show you up front. If you'd rather understand the why behind every number, we leave it all open. If you'd rather see the result and trust us, we show a summary and the detail stays one click away.",
+      "amount": "The amount doesn't change the percentages: a €1,000 portfolio and a €100,000 one are split the same way. We only ask so we can translate those percentages into euros and make the historical example easy to read at a glance."
+    }
   },
-  "horizonCapNotice": "Contestaste que tolerarías más riesgo, pero como esta meta es a corto plazo hemos ajustado la mezcla hacia algo más estable, para que no te veas obligado a vender justo en un mal momento.",
+  "horizonCapNotice": {
+    "es": "Contestaste que tolerarías más riesgo, pero como esta meta es a corto plazo hemos ajustado la mezcla hacia algo más estable, para que no te veas obligado a vender justo en un mal momento.",
+    "en": "You answered that you'd tolerate more risk, but since this goal is short-term we've shifted the mix towards something steadier, so you don't end up forced to sell at exactly the wrong moment."
+  },
   "explanations": {
-    "conservador|viaje": {
-      "headline": "Como vas a necesitar este dinero pronto, lo prioritario es que esté ahí cuando lo necesites, no que crezca al máximo.",
-      "detail": "La mayor parte va a renta fija (préstamos al Estado y a grandes empresas, lo que en finanzas se llama \"bonos\"): pagan un interés más predecible y se mueven mucho menos que las acciones de un día para otro. Dejamos una porción pequeña en renta variable por si el plan se alarga un poco, y un colchón en efectivo para tener el dinero disponible al instante. Cuando la meta está cerca, exprimir el crecimiento deja de ser lo importante: lo que cuenta es no perder lo que ya has reunido."
+    "es": {
+      "conservador|viaje": {
+        "headline": "Como vas a necesitar este dinero pronto, lo prioritario es que esté ahí cuando lo necesites, no que crezca al máximo.",
+        "detail": "La mayor parte va a renta fija (préstamos al Estado y a grandes empresas, lo que en finanzas se llama \"bonos\"): pagan un interés más predecible y se mueven mucho menos que las acciones de un día para otro. Dejamos una porción pequeña en renta variable por si el plan se alarga un poco, y un colchón en efectivo para tener el dinero disponible al instante. Cuando la meta está cerca, exprimir el crecimiento deja de ser lo importante: lo que cuenta es no perder lo que ya has reunido."
+      },
+      "moderado|viaje": {
+        "headline": "Con una meta cercana no conviene arriesgar de más, así que buscamos un punto medio entre crecer y llegar con el dinero intacto.",
+        "detail": "Repartimos entre renta fija, que aporta la estabilidad, y renta variable, que aporta el crecimiento. La idea es que el dinero trabaje algo sin que un mal trimestre te obligue a cambiar de planes. Conforme se acerque la fecha tiene sentido ir moviendo peso hacia la parte estable: cuanto menos tiempo queda, menos margen hay para recuperarse de una caída."
+      },
+      "conservador|casa": {
+        "headline": "Comprar una casa es una meta con fecha, y prefieres ir sobre seguro: priorizamos que el dinero esté cuando toque firmar.",
+        "detail": "El grueso va a renta fija y efectivo, que es lo que menos se mueve. La porción en renta variable está para que la inflación no le vaya comiendo poder adquisitivo mientras esperas. Es una mezcla pensada para que la entrada de tu casa no dependa de cómo venga el mercado el mes de la firma."
+      },
+      "moderado|casa": {
+        "headline": "Tienes unos años por delante antes de comprar, así que equilibramos crecer con no llevarte un susto justo antes de firmar.",
+        "detail": "Repartimos entre renta variable, que es el motor de crecimiento a varios años vista, y renta fija más efectivo, que amortiguan los vaivenes. Merece la pena revisar esta mezcla según se acerque la fecha de compra: lo habitual es ir bajando el riesgo a medida que el plazo se acorta, para no depender del momento de mercado justo cuando necesitas el dinero."
+      },
+      "arriesgado|casa": {
+        "headline": "Si te sientes cómodo viendo subir y bajar el valor por el camino, podemos apuntar a más crecimiento mientras reúnes para la casa.",
+        "detail": "El grueso va a renta variable, buscando el mayor crecimiento posible en el tiempo del que dispones. Eso significa que verás bajadas más marcadas por el camino, meses en los que la cifra baja en lugar de subir, pero también más posibilidades de llegar con más dinero del que habrías reunido con algo más prudente. Merece mucho la pena revisar esta mezcla según se acerque la fecha, para ir rebajando riesgo con el tiempo."
+      },
+      "conservador|crecer": {
+        "headline": "No tienes una fecha concreta, así que priorizamos que el dinero crezca de forma tranquila y constante, sin sobresaltos.",
+        "detail": "Aunque no haya fecha límite, has elegido priorizar la estabilidad, y es una decisión perfectamente válida. La mayor parte va a renta fija, con una porción en renta variable para que el crecimiento no se quede en nada, más algo de efectivo. Vas a ver bastante menos movimiento en el gráfico que alguien con más apetito de riesgo, y eso es exactamente lo que se busca aquí."
+      },
+      "moderado|crecer": {
+        "headline": "Sin una fecha que te apriete y con una tolerancia al riesgo intermedia, buscamos crecer de forma sostenida sin pasarte de frenada.",
+        "detail": "Una mezcla equilibrada: renta variable para que el dinero crezca de verdad a largo plazo, y renta fija más efectivo para que las caídas se noten menos. Es el punto medio clásico, el que permite aguantar una mala racha sin perder de vista el crecimiento. Al no tener fecha límite, el tiempo juega a tu favor y puedes dejar que el interés compuesto haga su trabajo."
+      },
+      "arriesgado|crecer": {
+        "headline": "Sin prisa por una fecha y cómodo con la montaña rusa, apuntamos al máximo crecimiento posible dentro de esta mezcla.",
+        "detail": "La gran mayoría va a renta variable. Históricamente este tipo de mezcla tiende a crecer más que una prudente en horizontes largos, pero el camino no es una línea recta: en algún momento verás caídas del 20 %, del 30 % o más. La apuesta es que, al no tener una fecha límite que te obligue a vender en el peor momento, el tiempo acabe jugando a tu favor."
+      },
+      "conservador|jubilacion": {
+        "headline": "Para la jubilación el horizonte es largo, pero has preferido priorizar la tranquilidad antes que exprimir cada punto de crecimiento.",
+        "detail": "Aunque técnicamente tienes décadas por delante, que es lo que normalmente permitiría asumir más riesgo, tu prioridad es dormir tranquilo, y esa preferencia también cuenta. La mayor parte va a renta fija, con una porción en renta variable para que la inflación no se coma tus ahorros con los años. Merece la pena revisar este perfil de vez en cuando: con más experiencia sobre cuánto aguantas en la práctica, y no solo en teoría, la mezcla ideal suele cambiar."
+      },
+      "moderado|jubilacion": {
+        "headline": "Con décadas por delante hay tiempo de sobra para que las caídas se recuperen, así que equilibramos crecimiento con algo de protección.",
+        "detail": "La mitad en renta variable, aprovechando el tiempo del que dispones para que el interés compuesto haga su trabajo. La otra mitad en renta fija y efectivo, para que el camino se note menos brusco. Con un horizonte tan largo mucha gente acaba sintiéndose cómoda subiendo algo el riesgo con los años, pero empezar así es un punto de partida sólido."
+      },
+      "arriesgado|jubilacion": {
+        "headline": "Décadas de horizonte y comodidad con la volatilidad: es el escenario donde más sentido tiene apostar fuerte por el crecimiento.",
+        "detail": "La gran mayoría va a renta variable. Es la combinación con más potencial de crecimiento a largo plazo de todas las que ofrecemos, y también la que más se va a mover por el camino, con caídas fuertes en algunos años. Para la jubilación, con décadas de por medio, el tiempo es tu mejor herramienta frente a esa volatilidad: las bajadas tienen margen de sobra para recuperarse antes de que necesites tocar el dinero."
+      }
     },
-    "moderado|viaje": {
-      "headline": "Con una meta cercana no conviene arriesgar de más, así que buscamos un punto medio entre crecer y llegar con el dinero intacto.",
-      "detail": "Repartimos entre renta fija, que aporta la estabilidad, y renta variable, que aporta el crecimiento. La idea es que el dinero trabaje algo sin que un mal trimestre te obligue a cambiar de planes. Conforme se acerque la fecha tiene sentido ir moviendo peso hacia la parte estable: cuanto menos tiempo queda, menos margen hay para recuperarse de una caída."
-    },
-    "conservador|casa": {
-      "headline": "Comprar una casa es una meta con fecha, y prefieres ir sobre seguro: priorizamos que el dinero esté cuando toque firmar.",
-      "detail": "El grueso va a renta fija y efectivo, que es lo que menos se mueve. La porción en renta variable está para que la inflación no le vaya comiendo poder adquisitivo mientras esperas. Es una mezcla pensada para que la entrada de tu casa no dependa de cómo venga el mercado el mes de la firma."
-    },
-    "moderado|casa": {
-      "headline": "Tienes unos años por delante antes de comprar, así que equilibramos crecer con no llevarte un susto justo antes de firmar.",
-      "detail": "Repartimos entre renta variable, que es el motor de crecimiento a varios años vista, y renta fija más efectivo, que amortiguan los vaivenes. Merece la pena revisar esta mezcla según se acerque la fecha de compra: lo habitual es ir bajando el riesgo a medida que el plazo se acorta, para no depender del momento de mercado justo cuando necesitas el dinero."
-    },
-    "arriesgado|casa": {
-      "headline": "Si te sientes cómodo viendo subir y bajar el valor por el camino, podemos apuntar a más crecimiento mientras reúnes para la casa.",
-      "detail": "El grueso va a renta variable, buscando el mayor crecimiento posible en el tiempo del que dispones. Eso significa que verás bajadas más marcadas por el camino, meses en los que la cifra baja en lugar de subir, pero también más posibilidades de llegar con más dinero del que habrías reunido con algo más prudente. Merece mucho la pena revisar esta mezcla según se acerque la fecha, para ir rebajando riesgo con el tiempo."
-    },
-    "conservador|crecer": {
-      "headline": "No tienes una fecha concreta, así que priorizamos que el dinero crezca de forma tranquila y constante, sin sobresaltos.",
-      "detail": "Aunque no haya fecha límite, has elegido priorizar la estabilidad, y es una decisión perfectamente válida. La mayor parte va a renta fija, con una porción en renta variable para que el crecimiento no se quede en nada, más algo de efectivo. Vas a ver bastante menos movimiento en el gráfico que alguien con más apetito de riesgo, y eso es exactamente lo que se busca aquí."
-    },
-    "moderado|crecer": {
-      "headline": "Sin una fecha que te apriete y con una tolerancia al riesgo intermedia, buscamos crecer de forma sostenida sin pasarte de frenada.",
-      "detail": "Una mezcla equilibrada: renta variable para que el dinero crezca de verdad a largo plazo, y renta fija más efectivo para que las caídas se noten menos. Es el punto medio clásico, el que permite aguantar una mala racha sin perder de vista el crecimiento. Al no tener fecha límite, el tiempo juega a tu favor y puedes dejar que el interés compuesto haga su trabajo."
-    },
-    "arriesgado|crecer": {
-      "headline": "Sin prisa por una fecha y cómodo con la montaña rusa, apuntamos al máximo crecimiento posible dentro de esta mezcla.",
-      "detail": "La gran mayoría va a renta variable. Históricamente este tipo de mezcla tiende a crecer más que una prudente en horizontes largos, pero el camino no es una línea recta: en algún momento verás caídas del 20 %, del 30 % o más. La apuesta es que, al no tener una fecha límite que te obligue a vender en el peor momento, el tiempo acabe jugando a tu favor."
-    },
-    "conservador|jubilacion": {
-      "headline": "Para la jubilación el horizonte es largo, pero has preferido priorizar la tranquilidad antes que exprimir cada punto de crecimiento.",
-      "detail": "Aunque técnicamente tienes décadas por delante, que es lo que normalmente permitiría asumir más riesgo, tu prioridad es dormir tranquilo, y esa preferencia también cuenta. La mayor parte va a renta fija, con una porción en renta variable para que la inflación no se coma tus ahorros con los años. Merece la pena revisar este perfil de vez en cuando: con más experiencia sobre cuánto aguantas en la práctica, y no solo en teoría, la mezcla ideal suele cambiar."
-    },
-    "moderado|jubilacion": {
-      "headline": "Con décadas por delante hay tiempo de sobra para que las caídas se recuperen, así que equilibramos crecimiento con algo de protección.",
-      "detail": "La mitad en renta variable, aprovechando el tiempo del que dispones para que el interés compuesto haga su trabajo. La otra mitad en renta fija y efectivo, para que el camino se note menos brusco. Con un horizonte tan largo mucha gente acaba sintiéndose cómoda subiendo algo el riesgo con los años, pero empezar así es un punto de partida sólido."
-    },
-    "arriesgado|jubilacion": {
-      "headline": "Décadas de horizonte y comodidad con la volatilidad: es el escenario donde más sentido tiene apostar fuerte por el crecimiento.",
-      "detail": "La gran mayoría va a renta variable. Es la combinación con más potencial de crecimiento a largo plazo de todas las que ofrecemos, y también la que más se va a mover por el camino, con caídas fuertes en algunos años. Para la jubilación, con décadas de por medio, el tiempo es tu mejor herramienta frente a esa volatilidad: las bajadas tienen margen de sobra para recuperarse antes de que necesites tocar el dinero."
+    "en": {
+      "conservador|viaje": {
+        "headline": "Since you'll need this money soon, the priority is that it's there when you need it, not that it grows as much as possible.",
+        "detail": "Most of it goes to fixed income (loans to the state and to large companies, what finance calls \"bonds\"): they pay more predictable interest and move far less than shares from one day to the next. We leave a small slice in equities in case the plan stretches out a bit, plus a cash cushion so the money is available instantly. When the goal is close, squeezing out growth stops being the point: what matters is not losing what you've already put together."
+      },
+      "moderado|viaje": {
+        "headline": "With a near-term goal it's not worth over-reaching, so we aim for a middle ground between growing and arriving with the money intact.",
+        "detail": "We split between fixed income, which brings the stability, and equities, which bring the growth. The idea is that the money works a little without a bad quarter forcing you to change plans. As the date approaches it makes sense to shift weight towards the stable side: the less time left, the less room there is to recover from a fall."
+      },
+      "conservador|casa": {
+        "headline": "Buying a home is a goal with a date, and you'd rather play it safe: we prioritise the money being there when it's time to sign.",
+        "detail": "The bulk goes to fixed income and cash, which are what move least. The slice in equities is there so inflation doesn't quietly eat your purchasing power while you wait. It's a mix designed so that your deposit doesn't depend on how the market happens to be doing the month you sign."
+      },
+      "moderado|casa": {
+        "headline": "You have a few years before buying, so we balance growth against not getting a nasty surprise right before signing.",
+        "detail": "We split between equities, the growth engine over several years, and fixed income plus cash, which cushion the swings. It's worth revisiting this mix as the purchase date approaches: the usual move is to dial down risk as the deadline shortens, so you don't depend on market timing exactly when you need the money."
+      },
+      "arriesgado|casa": {
+        "headline": "If you're comfortable watching the value rise and fall along the way, we can aim for more growth while you save for the house.",
+        "detail": "The bulk goes to equities, seeking the most growth possible in the time you have. That means you'll see sharper drops along the way, months where the number falls instead of rising, but also a better chance of arriving with more than you'd have gathered with something more cautious. It's well worth revisiting this mix as the date approaches, to wind risk down over time."
+      },
+      "conservador|crecer": {
+        "headline": "You have no specific date, so we prioritise the money growing calmly and steadily, without shocks.",
+        "detail": "Even without a deadline, you've chosen to prioritise stability, and that's a perfectly valid call. Most goes to fixed income, with a slice in equities so growth doesn't end up at zero, plus some cash. You'll see considerably less movement in the chart than someone with a bigger appetite for risk, and that's exactly the point here."
+      },
+      "moderado|crecer": {
+        "headline": "With no date pressing you and a middling tolerance for risk, we aim to grow steadily without overdoing it.",
+        "detail": "A balanced mix: equities so the money genuinely grows over the long run, and fixed income plus cash so the falls are less noticeable. It's the classic middle ground, the one that lets you sit through a bad run without losing sight of growth. With no deadline, time is on your side and you can let compounding do its work."
+      },
+      "arriesgado|crecer": {
+        "headline": "No rush from a deadline and comfortable with the rollercoaster, so we aim for the most growth this mix allows.",
+        "detail": "The vast majority goes to equities. Historically this kind of mix tends to grow more than a cautious one over long horizons, but the path isn't a straight line: at some point you'll see drops of 20%, 30% or more. The bet is that, with no deadline forcing you to sell at the worst moment, time ends up working in your favour."
+      },
+      "conservador|jubilacion": {
+        "headline": "For retirement the horizon is long, but you've chosen peace of mind over squeezing out every point of growth.",
+        "detail": "Although you technically have decades ahead, which would normally allow more risk, your priority is sleeping soundly, and that preference counts too. Most goes to fixed income, with a slice in equities so inflation doesn't eat your savings over the years. It's worth revisiting this profile now and then: with more experience of how much you actually tolerate in practice, rather than in theory, the ideal mix tends to shift."
+      },
+      "moderado|jubilacion": {
+        "headline": "With decades ahead there's ample time for falls to recover, so we balance growth with some protection.",
+        "detail": "Half in equities, making use of the time you have so compounding can do its work. The other half in fixed income and cash, so the ride feels less abrupt. Over a horizon this long many people end up comfortable raising risk somewhat over the years, but starting here is a solid base."
+      },
+      "arriesgado|jubilacion": {
+        "headline": "Decades of horizon and comfort with volatility: this is the scenario where betting hard on growth makes the most sense.",
+        "detail": "The vast majority goes to equities. It's the combination with the most long-run growth potential of everything we offer, and also the one that will move most along the way, with heavy falls in some years. For retirement, with decades in between, time is your best tool against that volatility: the drops have ample room to recover before you need to touch the money."
+      }
     }
   }
 }

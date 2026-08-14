@@ -16,6 +16,7 @@ const CLOUD_FACTS = JSON.parse(read('cloudFacts.json'));
    código que ya no existía. Importar el motor real elimina esa clase entera
    de fallos, y solo es posible porque engine.js no toca el DOM. */
 import engine from '../engine.js';
+import dynamicModule from '../i18n/dynamic.js';
 
 const {
   sliderToTier, computeEffectiveRisk, getAllocationWeights, interpolateCurve,
@@ -164,15 +165,15 @@ const baseAnswers = () => ({
   for (const statedRisk of [10, 50, 100]) {
     for (const horizon of Object.keys(ALLOCATIONS.horizonMaxScore)) {
       const { effectiveRisk } = computeEffectiveRisk(statedRisk, horizon, 100, '31-45', ALLOCATIONS);
-      if (!ARCHETYPES.explanations[`${effectiveRisk}|${horizon}`]) missing.push(`${effectiveRisk}|${horizon}`);
+      if (!ARCHETYPES.explanations.es[`${effectiveRisk}|${horizon}`]) missing.push(`${effectiveRisk}|${horizon}`);
     }
   }
   assert(missing.length === 0, `faltan arquetipos para combinaciones alcanzables: ${missing.join(', ')}`);
-  for (const [key, entry] of Object.entries(ARCHETYPES.explanations)) {
+  for (const [key, entry] of Object.entries(ARCHETYPES.explanations.es)) {
     assert(entry.headline && entry.headline.length > 20, `${key}: titular demasiado corto o ausente`);
     assert(entry.detail && entry.detail.length > 60, `${key}: detalle demasiado corto o ausente`);
   }
-  console.log(`OK: los arquetipos cubren las ${Object.keys(ARCHETYPES.explanations).length} combinaciones alcanzables con contenido real`);
+  console.log(`OK: los arquetipos cubren las ${Object.keys(ARCHETYPES.explanations.es).length} combinaciones alcanzables con contenido real`);
 }
 
 /* ---- resolvePicks: selección múltiple, con respaldos sensatos ---- */
@@ -591,7 +592,7 @@ const baseAnswers = () => ({
     'realEstate', 'privateEquity', 'otrasInversiones', 'fondosIndexados', 'rebalanceo', 'dcaVsLumpSum', 'acciones',
   ];
   for (const topic of TOPICS) {
-    const facts = CLOUD_FACTS.facts[topic];
+    const facts = CLOUD_FACTS.facts.es[topic];
     // Como mucho caen 3 nubes a la vez, así que cada tema necesita al menos 3
     // datos para no repetir el mismo texto en dos nubes simultáneas.
     assert(Array.isArray(facts) && facts.length >= 3, `cloudFacts.json necesita al menos 3 datos para "${topic}" (hay ${facts ? facts.length : 0})`);
@@ -665,10 +666,49 @@ const baseAnswers = () => ({
   // Y el contenido generado debe tutear de verdad, no simplemente evitar el
   // voseo quedándose en impersonal.
   const arch = JSON.parse(sources['archetypes.json']);
-  const archText = Object.values(arch.explanations).map(e => e.headline + ' ' + e.detail).join(' ');
+  const archText = Object.values(arch.explanations.es).map(e => e.headline + ' ' + e.detail).join(' ');
   assert(/\b(?:tienes|puedes|prefieres|necesites|vas a|tu dinero)\b/i.test(archText),
     'las explicaciones deberían tutear en castellano de España');
   console.log(`OK: las ${Object.keys(sources).length} fuentes de texto están en castellano de España, sin una sola forma rioplatense`);
 }
+
+/* ---- los dos idiomas tienen que estar completos ---- */
+{
+  // Una traducción a medias es peor que no tenerla: deja huecos en español
+  // dentro de una pantalla en inglés. Esto falla si alguien añade contenido y
+  // se olvida del otro idioma.
+  const uiEs = JSON.parse(read('i18n/es.json'));
+  const uiEn = JSON.parse(read('i18n/en.json'));
+  const missingUi = Object.keys(uiEs).filter(k => !uiEn[k]);
+  assert(missingUi.length === 0, `faltan ${missingUi.length} textos del HTML en ingles: ${missingUi.slice(0, 5).join(', ')}`);
+  assert(Object.keys(uiEn).every(k => String(uiEn[k]).trim()), 'no deberia haber textos ingleses vacios');
+
+  const dyn = dynamicModule.DYNAMIC_STRINGS;
+  const missingDyn = Object.keys(dyn.es).filter(k => !dyn.en[k]);
+  assert(missingDyn.length === 0, `faltan ${missingDyn.length} textos dinamicos en ingles: ${missingDyn.slice(0, 5).join(', ')}`);
+
+  // Los marcadores {variable} tienen que coincidir: si una traduccion se deja
+  // uno fuera, esa cifra sencillamente no aparece en pantalla.
+  const marks = str => (String(str).match(/\{\w+\}/g) || []).sort().join(',');
+  const mismatched = Object.keys(dyn.es).filter(k => marks(dyn.es[k]) !== marks(dyn.en[k]));
+  assert(mismatched.length === 0, `estas traducciones no llevan los mismos marcadores: ${mismatched.join(', ')}`);
+
+  const cfEn = Object.keys(CLOUD_FACTS.facts.en);
+  assert(Object.keys(CLOUD_FACTS.facts.es).every(k => cfEn.includes(k)), 'faltan temas de datos curiosos en ingles');
+  cfEn.forEach(k => assert(CLOUD_FACTS.facts.en[k].length >= 3, `el tema "${k}" necesita al menos 3 datos en ingles`));
+
+  assert(Object.keys(ARCHETYPES.explanations.es).every(k => ARCHETYPES.explanations.en[k]), 'faltan arquetipos en ingles');
+  assert(Object.keys(ARCHETYPES.faq.es).every(k => ARCHETYPES.faq.en[k]), 'faltan entradas de FAQ en ingles');
+
+  let instruments = 0;
+  for (const group of ['equityIndexOptions', 'bondsOptions', 'realEstateSubtypes', 'alternativeSubtypes']) {
+    for (const [key, opt] of Object.entries(ALLOCATIONS[group])) {
+      assert(opt.en && opt.en.label, `el instrumento "${key}" no tiene traduccion inglesa`);
+      instruments += 1;
+    }
+  }
+  console.log(`OK: los dos idiomas estan completos — ${Object.keys(uiEs).length} textos de interfaz, ${Object.keys(dyn.es).length} dinamicos, ${instruments} instrumentos y todo el contenido, con los mismos marcadores`);
+}
+
 
 console.log('\nTODAS LAS PRUEBAS DE LÓGICA DE PATHFOLIO PASAN');

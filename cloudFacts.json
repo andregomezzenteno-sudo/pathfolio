@@ -1,80 +1,159 @@
 {
-  "_provenance": "Escrito por Claude (Anthropic) durante el desarrollo — datos curiosos de una sola frase (históricos, curiosos o simplemente informativos) que sueltan las nubes que caen, según la pregunta que tengas en pantalla. A propósito más breves que el contenido de las lecciones: esto es ambiente mientras respondes, no algo para pararse a estudiar. Cada tema tiene al menos 3 datos porque como mucho caen 3 nubes por pregunta.",
+  "_provenance": "Escrito por Claude (Anthropic) durante el desarrollo — datos curiosos de una sola frase (históricos, curiosos o simplemente informativos) que sueltan las nubes que caen, según la pregunta que tengas en pantalla. A propósito más breves que el contenido de las lecciones: esto es ambiente mientras respondes, no algo para pararse a estudiar. Cada tema tiene al menos 3 datos porque como mucho caen 3 nubes por pregunta. Indexado por idioma: facts.es / facts.en.",
   "facts": {
-    "acciones": [
-      "El S&P 500 ha dado de media un ~10% anual (antes de inflación) desde 1926.",
-      "Hay más de 58.000 empresas cotizando en bolsas de todo el mundo.",
-      "La acción más antigua que sigue cotizando es de una minera sueca fundada en 1288."
-    ],
-    "rentaVariable": [
-      "\"Renta variable\" significa justo eso: nadie te promete cuánto vas a ganar, varía.",
-      "Comprar una acción es literalmente comprar un trocito de la empresa, con sus beneficios y sus marrones.",
-      "La Bolsa de Madrid abrió en 1831; la de Ámsterdam, la primera del mundo, en 1602."
-    ],
-    "bonos": [
-      "El mercado global de bonos mueve más dinero que el de acciones: unos 130 billones de dólares.",
-      "El bono más antiguo que se conoce es de Venecia, del año 1171.",
-      "Japón tuvo tipos de interés a cero o negativos durante más de dos décadas."
-    ],
-    "efectivo": [
-      "El Banco Central Europeo tiene como objetivo una inflación del 2% anual.",
-      "El primer cajero automático del mundo abrió en Londres en 1967.",
-      "Solo una parte pequeñísima del dinero del mundo existe como billetes y monedas físicas."
-    ],
-    "indices": [
-      "El S&P 500 se creó en 1957 con 500 empresas — y hoy sigue teniendo ese número.",
-      "El NASDAQ fue, en 1971, el primer mercado bursátil 100% electrónico del mundo.",
-      "El MSCI World cubre unas 1.400 empresas de 23 países desarrollados.",
-      "El IBEX 35 arrancó en 1992 con las 35 empresas más líquidas del mercado español."
-    ],
-    "realEstate": [
-      "El primer REIT se creó en EE. UU. en 1960, con una ley que firmó el presidente Eisenhower.",
-      "Hoy hay REITs de casi todo: pisos, centros comerciales, centros de datos y hasta torres de móvil.",
-      "Por ley, un REIT en EE. UU. debe repartir al menos el 90% de sus beneficios como dividendos.",
-      "En España las SOCIMIs son el equivalente a los REITs, y existen desde 2009."
-    ],
-    "privateEquity": [
-      "Mercadona, El Corte Inglés e Ikea son gigantes que no cotizan en ninguna bolsa.",
-      "El private equity gestiona más de 8 billones de dólares en activos a nivel global.",
-      "KKR, una de las primeras grandes firmas de private equity, se fundó en 1976.",
-      "Los nuevos fondos ELTIF europeos buscan bajar el mínimo de entrada para inversores de a pie."
-    ],
-    "otrasInversiones": [
-      "Bitcoin nació en 2009, creado bajo el seudónimo Satoshi Nakamoto — nadie sabe quién es en realidad.",
-      "Solo van a existir 21 millones de bitcoins, para siempre: está escrito en el código.",
-      "El oro lleva más de 5.000 años usándose como reserva de valor, mucho antes que cualquier moneda.",
-      "Los bancos centrales del mundo guardan juntos más de 35.000 toneladas de oro.",
-      "Los fondos de materias primas suelen seguir contratos de futuros, no el producto físico en sí."
-    ],
-    "volatilidad": [
-      "El peor año del S&P 500 en el siglo XX fue 1931, con una caída de casi el 44%.",
-      "El mercado tardó unos 4 años en recuperarse de la crisis de 2008; de la de 2020, apenas 5 meses.",
-      "Casi todos los años el mercado estadounidense sufre en algún momento una caída de al menos el 10%."
-    ],
-    "interesCompuesto": [
-      "1.000 € al 7% anual son unos 2.000 € en 10 años, pero unos 4.000 € en 20 — el tiempo hace el trabajo duro.",
-      "Empezar 10 años antes suele importar más que doblar cuánto inviertes al mes.",
-      "Einstein no dijo lo del interés compuesto y la octava maravilla, pero la idea sigue siendo buena."
-    ],
-    "diversificacion": [
-      "Harry Markowitz ganó el Nobel de Economía en 1990, en parte por formalizar por qué diversificar reduce el riesgo.",
-      "Combinar activos que no se mueven igual es lo que suaviza el camino, no solo tener \"muchas cosas\".",
-      "Es el único almuerzo gratis que existe en finanzas, según el propio Markowitz."
-    ],
-    "rebalanceo": [
-      "Rebalancear una o dos veces al año suele bastar — hacerlo a diario no mejora el resultado.",
-      "\"Vender lo que ha subido y comprar lo que ha bajado\" es la base de varias estrategias profesionales.",
-      "Sin rebalancear, una cartera 50/50 puede acabar siendo 80/20 sin que te des cuenta."
-    ],
-    "fondosIndexados": [
-      "El primer fondo indexado para el público general se lanzó en 1976, creado por John Bogle.",
-      "Hoy buena parte del dinero en fondos de EE. UU. está en indexados, no en gestión activa.",
-      "La mayoría de fondos de gestión activa no le gana a su índice de referencia a 10 años vista."
-    ],
-    "dcaVsLumpSum": [
-      "Los estudios históricos dicen que invertirlo todo de golpe gana en la mayoría de los periodos.",
-      "Aun así, mucha gente prefiere ir poco a poco: duele menos si justo entras antes de una caída.",
-      "Aportar cada mes te quita de encima la pregunta imposible de \"¿es buen momento?\"."
-    ]
+    "es": {
+      "acciones": [
+        "El S&P 500 ha dado de media un ~10% anual (antes de inflación) desde 1926.",
+        "Hay más de 58.000 empresas cotizando en bolsas de todo el mundo.",
+        "La acción más antigua que sigue cotizando es de una minera sueca fundada en 1288."
+      ],
+      "rentaVariable": [
+        "\"Renta variable\" significa justo eso: nadie te promete cuánto vas a ganar, varía.",
+        "Comprar una acción es literalmente comprar un trocito de la empresa, con sus beneficios y sus marrones.",
+        "La Bolsa de Madrid abrió en 1831; la de Ámsterdam, la primera del mundo, en 1602."
+      ],
+      "bonos": [
+        "El mercado global de bonos mueve más dinero que el de acciones: unos 130 billones de dólares.",
+        "El bono más antiguo que se conoce es de Venecia, del año 1171.",
+        "Japón tuvo tipos de interés a cero o negativos durante más de dos décadas."
+      ],
+      "efectivo": [
+        "El Banco Central Europeo tiene como objetivo una inflación del 2% anual.",
+        "El primer cajero automático del mundo abrió en Londres en 1967.",
+        "Solo una parte pequeñísima del dinero del mundo existe como billetes y monedas físicas."
+      ],
+      "indices": [
+        "El S&P 500 se creó en 1957 con 500 empresas — y hoy sigue teniendo ese número.",
+        "El NASDAQ fue, en 1971, el primer mercado bursátil 100% electrónico del mundo.",
+        "El MSCI World cubre unas 1.400 empresas de 23 países desarrollados.",
+        "El IBEX 35 arrancó en 1992 con las 35 empresas más líquidas del mercado español."
+      ],
+      "realEstate": [
+        "El primer REIT se creó en EE. UU. en 1960, con una ley que firmó el presidente Eisenhower.",
+        "Hoy hay REITs de casi todo: pisos, centros comerciales, centros de datos y hasta torres de móvil.",
+        "Por ley, un REIT en EE. UU. debe repartir al menos el 90% de sus beneficios como dividendos.",
+        "En España las SOCIMIs son el equivalente a los REITs, y existen desde 2009."
+      ],
+      "privateEquity": [
+        "Mercadona, El Corte Inglés e Ikea son gigantes que no cotizan en ninguna bolsa.",
+        "El private equity gestiona más de 8 billones de dólares en activos a nivel global.",
+        "KKR, una de las primeras grandes firmas de private equity, se fundó en 1976.",
+        "Los nuevos fondos ELTIF europeos buscan bajar el mínimo de entrada para inversores de a pie."
+      ],
+      "otrasInversiones": [
+        "Bitcoin nació en 2009, creado bajo el seudónimo Satoshi Nakamoto — nadie sabe quién es en realidad.",
+        "Solo van a existir 21 millones de bitcoins, para siempre: está escrito en el código.",
+        "El oro lleva más de 5.000 años usándose como reserva de valor, mucho antes que cualquier moneda.",
+        "Los bancos centrales del mundo guardan juntos más de 35.000 toneladas de oro.",
+        "Los fondos de materias primas suelen seguir contratos de futuros, no el producto físico en sí."
+      ],
+      "volatilidad": [
+        "El peor año del S&P 500 en el siglo XX fue 1931, con una caída de casi el 44%.",
+        "El mercado tardó unos 4 años en recuperarse de la crisis de 2008; de la de 2020, apenas 5 meses.",
+        "Casi todos los años el mercado estadounidense sufre en algún momento una caída de al menos el 10%."
+      ],
+      "interesCompuesto": [
+        "1.000 € al 7% anual son unos 2.000 € en 10 años, pero unos 4.000 € en 20 — el tiempo hace el trabajo duro.",
+        "Empezar 10 años antes suele importar más que doblar cuánto inviertes al mes.",
+        "Einstein no dijo lo del interés compuesto y la octava maravilla, pero la idea sigue siendo buena."
+      ],
+      "diversificacion": [
+        "Harry Markowitz ganó el Nobel de Economía en 1990, en parte por formalizar por qué diversificar reduce el riesgo.",
+        "Combinar activos que no se mueven igual es lo que suaviza el camino, no solo tener \"muchas cosas\".",
+        "Es el único almuerzo gratis que existe en finanzas, según el propio Markowitz."
+      ],
+      "rebalanceo": [
+        "Rebalancear una o dos veces al año suele bastar — hacerlo a diario no mejora el resultado.",
+        "\"Vender lo que ha subido y comprar lo que ha bajado\" es la base de varias estrategias profesionales.",
+        "Sin rebalancear, una cartera 50/50 puede acabar siendo 80/20 sin que te des cuenta."
+      ],
+      "fondosIndexados": [
+        "El primer fondo indexado para el público general se lanzó en 1976, creado por John Bogle.",
+        "Hoy buena parte del dinero en fondos de EE. UU. está en indexados, no en gestión activa.",
+        "La mayoría de fondos de gestión activa no le gana a su índice de referencia a 10 años vista."
+      ],
+      "dcaVsLumpSum": [
+        "Los estudios históricos dicen que invertirlo todo de golpe gana en la mayoría de los periodos.",
+        "Aun así, mucha gente prefiere ir poco a poco: duele menos si justo entras antes de una caída.",
+        "Aportar cada mes te quita de encima la pregunta imposible de \"¿es buen momento?\"."
+      ]
+    },
+    "en": {
+      "acciones": [
+        "The S&P 500 has returned about 10% a year on average (before inflation) since 1926.",
+        "More than 58,000 companies are listed on exchanges around the world.",
+        "The oldest share still trading belongs to a Swedish mining firm founded in 1288."
+      ],
+      "rentaVariable": [
+        "\"Equity\" means exactly that: nobody promises you what you'll earn, it varies.",
+        "Buying a share is literally buying a small piece of the company, upsides and headaches included.",
+        "Madrid's exchange opened in 1831; Amsterdam's, the world's first, in 1602."
+      ],
+      "bonos": [
+        "The global bond market moves more money than the stock market: around $130 trillion.",
+        "The oldest known bond is Venetian, from the year 1171.",
+        "Japan held interest rates at zero or below for more than two decades."
+      ],
+      "efectivo": [
+        "The European Central Bank targets inflation of 2% a year.",
+        "The world's first cash machine opened in London in 1967.",
+        "Only a tiny fraction of the world's money exists as physical notes and coins."
+      ],
+      "indices": [
+        "The S&P 500 was created in 1957 with 500 companies — and still holds that number today.",
+        "In 1971 the NASDAQ became the world's first fully electronic stock market.",
+        "The MSCI World covers around 1,400 companies across 23 developed countries.",
+        "Spain's IBEX 35 launched in 1992 with the 35 most liquid companies on the market."
+      ],
+      "realEstate": [
+        "The first REIT was created in the US in 1960, under a law signed by President Eisenhower.",
+        "Today there are REITs for almost everything: flats, shopping centres, data centres, even mobile towers.",
+        "By law, a US REIT must pay out at least 90% of its profits as dividends.",
+        "In Spain, SOCIMIs are the equivalent of REITs, and have existed since 2009."
+      ],
+      "privateEquity": [
+        "Mercadona, El Corte Inglés and Ikea are giants that aren't listed on any exchange.",
+        "Private equity manages more than $8 trillion in assets globally.",
+        "KKR, one of the first big private equity firms, was founded in 1976.",
+        "Europe's new ELTIF funds aim to lower the entry minimum for ordinary investors."
+      ],
+      "otrasInversiones": [
+        "Bitcoin was born in 2009, created under the pseudonym Satoshi Nakamoto — nobody knows who that really is.",
+        "Only 21 million bitcoins will ever exist, forever: it's written into the code.",
+        "Gold has been used as a store of value for over 5,000 years, long before any currency.",
+        "The world's central banks together hold more than 35,000 tonnes of gold.",
+        "Commodity funds usually track futures contracts, not the physical product itself."
+      ],
+      "volatilidad": [
+        "The S&P 500's worst year in the 20th century was 1931, with a fall of almost 44%.",
+        "The market took about 4 years to recover from the 2008 crisis; from 2020's, barely 5 months.",
+        "In most years the US market suffers a drop of at least 10% at some point."
+      ],
+      "interesCompuesto": [
+        "€1,000 at 7% a year is about €2,000 in 10 years, but about €4,000 in 20 — time does the heavy lifting.",
+        "Starting 10 years earlier usually matters more than doubling how much you invest each month.",
+        "Einstein never said the thing about compound interest being the eighth wonder, but the idea still holds."
+      ],
+      "diversificacion": [
+        "Harry Markowitz won the 1990 Nobel in Economics partly for formalising why diversification reduces risk.",
+        "Combining assets that don't move together is what smooths the ride, not simply owning \"lots of things\".",
+        "It's the only free lunch in finance, according to Markowitz himself."
+      ],
+      "rebalanceo": [
+        "Rebalancing once or twice a year is usually enough — doing it daily doesn't improve the result.",
+        "\"Sell what went up, buy what went down\" is the basis of several professional strategies.",
+        "Without rebalancing, a 50/50 portfolio can drift to 80/20 without you noticing."
+      ],
+      "fondosIndexados": [
+        "The first index fund for the general public launched in 1976, created by John Bogle.",
+        "Today a large share of US fund money sits in index funds rather than active management.",
+        "Most actively managed funds fail to beat their benchmark over a 10-year horizon."
+      ],
+      "dcaVsLumpSum": [
+        "Historical studies say investing it all at once wins in most periods.",
+        "Even so, many people prefer to go gradually: it hurts less if you happen to buy right before a drop.",
+        "Contributing monthly takes the impossible \"is this a good moment?\" question off the table."
+      ]
+    }
   }
 }

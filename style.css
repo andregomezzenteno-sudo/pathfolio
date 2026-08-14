@@ -776,3 +776,22 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
   .mix-row { grid-template-columns: 1fr auto; }
   .mix-row input[type="range"] { grid-column: 1 / -1; }
 }
+
+
+/* Selector de idioma. Dos botones en vez de un desplegable: con solo dos
+   opciones, un desplegable esconde la mitad de la información tras un clic. */
+.header-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.lang-switch {
+  display: inline-flex;
+  border: 1px solid var(--baseline);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-1);
+}
+.lang-btn {
+  font: inherit; font-size: 0.78rem; font-weight: 700;
+  padding: 5px 12px; border: none; background: transparent;
+  color: var(--text-muted); cursor: pointer;
+}
+.lang-btn:hover { color: var(--text-primary); }
+.lang-btn.active { background: var(--brand); color: var(--brand-ink); }

@@ -6,10 +6,11 @@ históricos.** Sin backend, sin paso de compilación y sin coste de operación.
 
 [![Tests](https://github.com/andregomezzenteno-sudo/pathfolio/actions/workflows/test.yml/badge.svg)](https://github.com/andregomezzenteno-sudo/pathfolio/actions/workflows/test.yml)
 
-**[Ver demo en vivo →](https://andregomezzenteno-sudo.github.io/pathfolio/)**
+**[Ver demo en vivo →](https://andregomezzenteno-sudo.github.io/pathfolio/)** ·
+**[English version →](https://andregomezzenteno-sudo.github.io/pathfolio/?lang=en)**
 
-<!-- CAPTURAS: sustituir por imágenes reales (docs/screenshot-*.png).
-     Es lo primero que mira quien revisa el repo y ahora mismo falta. -->
+<!-- CAPTURAS: pendientes. Guardar en docs/ y enlazarlas aquí — es lo primero
+     que mira quien revisa el repo. -->
 | Cuestionario | Resultado |
 |---|---|
 | _(captura pendiente)_ | _(captura pendiente)_ |
@@ -41,6 +42,25 @@ inflaría el resultado está declarada en pantalla.**
   determinista auditable; el modelo solo explica en lenguaje llano algo ya
   decidido. Es la diferencia entre "educación" y "asesoramiento", que en la UE
   no es un matiz cosmético.
+
+## Bilingüe, sin framework
+
+La app entera funciona en español y en inglés: interfaz, lecciones, avisos,
+narración del cálculo, nombres de instrumentos y datos curiosos. El selector
+está en la cabecera, la elección se guarda y viaja en la URL, así que un
+enlace compartido llega en el idioma en que se compartió. Sin nada guardado
+se arranca en el idioma del navegador.
+
+Tres tipos de texto, resueltos de tres formas ([`i18n.js`](i18n.js)):
+atributos `data-i18n` para el HTML fijo, `t('clave', {vars})` con
+interpolación para lo que se genera con cifras dentro, y contenido de datos
+indexado por idioma dentro de sus propios JSON. Los pesos y los números viven
+en un único sitio y no se duplican por idioma.
+
+**La suite falla si una traducción se queda a medias**: comprueba que ambos
+catálogos tengan las mismas claves, que ninguna esté vacía y que los
+marcadores `{variable}` coincidan — porque una traducción a la que se le cae
+un marcador simplemente no enseña esa cifra.
 
 ## Lo que demuestra técnicamente
 

@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 const html = read('index.html');
+const i18nJs = read('i18n.js');
+const dynamicJs = read('i18n/dynamic.js');
 const engineJs = read('engine.js');
 const appJs = read('app.js');
 const allocationsJson = read('allocations.json');
@@ -44,7 +46,10 @@ const fixtures = {
 const fetchedUrls = [];
 
 async function main() {
-  const dom = new JSDOM(html, { url: 'https://example.com/', runScripts: 'dangerously', pretendToBeVisual: true });
+  // Idioma explícito: jsdom declara navigator.language en-US, así que sin esto
+  // la app arrancaría en inglés (que es justo lo que debe hacer para alguien
+  // de fuera, pero aquí queremos recorrer el flujo en español).
+  const dom = new JSDOM(html, { url: 'https://example.com/?lang=es', runScripts: 'dangerously', pretendToBeVisual: true });
   const { window } = dom;
   const doc = window.document;
 
@@ -56,6 +61,8 @@ async function main() {
     if (url.includes('allocations.json')) return { ok: true, json: async () => JSON.parse(allocationsJson) };
     if (url.includes('archetypes.json')) return { ok: true, json: async () => JSON.parse(archetypesJson) };
     if (url.includes('cloudFacts.json')) return { ok: true, json: async () => JSON.parse(cloudFactsJson) };
+    if (url.includes('i18n/es.json')) return { ok: true, json: async () => JSON.parse(read('i18n/es.json')) };
+    if (url.includes('i18n/en.json')) return { ok: true, json: async () => JSON.parse(read('i18n/en.json')) };
     if (url.includes('api.twelvedata.com')) {
       const symbol = new URL(url).searchParams.get('symbol');
       if (!fixtures[symbol]) throw new Error('ticker inesperado: ' + symbol);
@@ -65,7 +72,7 @@ async function main() {
   };
 
   // Mismo orden que index.html: primero el motor, luego la interfaz.
-  for (const src of [engineJs, appJs]) {
+  for (const src of [i18nJs, dynamicJs, engineJs, appJs]) {
     const script = doc.createElement('script');
     script.textContent = src;
     doc.body.appendChild(script);
@@ -133,7 +140,7 @@ async function main() {
   await flush();
   let clouds = doc.querySelectorAll('.falling-cloud');
   assert(clouds.length >= 1 && clouds.length <= 3, `debería haber entre 1 y 3 nubes, hay ${clouds.length}`);
-  const ageTopicFacts = CLOUD_FACTS.facts.interesCompuesto;
+  const ageTopicFacts = CLOUD_FACTS.facts.es.interesCompuesto;
   clouds.forEach(c => {
     const text = c.querySelector('.cloud-bubble p').textContent;
     assert(ageTopicFacts.includes(text), `en la pregunta de edad la nube debería llevar un dato de interés compuesto, llevaba: "${text}"`);
@@ -514,6 +521,46 @@ async function main() {
   assert(dirty.answers.horizon === null, 'un horizonte inventado debería descartarse');
   assert(dirty.answers.equityIndex.join() === 'sp500', 'de una multiselección debería quedarse solo lo válido');
   console.log('OK: el enlace guarda y restaura la cartera, y descarta cualquier valor inventado antes de que llegue al motor');
+
+  /* ---------- cambio de idioma ---------- */
+  const enBtn = doc.querySelector('.lang-btn[data-lang="en"]');
+  assert(enBtn, 'debería existir el selector de idioma');
+  assert(doc.querySelector('.lang-btn[data-lang="es"]').classList.contains('active'),
+    'el idioma activo debería estar marcado');
+
+  click(enBtn);
+  await flush(30);
+
+  assert(doc.documentElement.lang === 'en', 'el idioma del documento debería cambiar a en');
+  assert(enBtn.classList.contains('active'), 'el botón EN debería quedar marcado');
+  assert(window.location.href.includes('lang=en'),
+    'el idioma debería viajar en la URL para que un enlace compartido llegue igual');
+
+  // Interfaz traducida, incluido lo que se genera desde JS.
+  const restart = doc.getElementById('restartBtn').textContent;
+  assert(restart === 'Start over', `el HTML debería estar traducido, decía "${restart}"`);
+  const tagEn = doc.getElementById('dashProfileTag').textContent;
+  assert(/profile/i.test(tagEn), `las cadenas dinámicas deberían traducirse, decía "${tagEn}"`);
+  const statsEn = doc.getElementById('statGrid').textContent;
+  assert(statsEn.includes('Final value') && statsEn.includes('Currency effect'),
+    'las cifras destacadas deberían estar en inglés');
+  const narrativeEn = doc.getElementById('narrativeList').textContent;
+  assert(/effective profile/i.test(narrativeEn), 'la narración debería estar en inglés');
+  assert(!/renta variable|Perfil |Valor final/.test(statsEn + narrativeEn + restart),
+    'no debería quedar ningún resto en español al cambiar a inglés');
+
+  // El contenido de datos también: instrumentos y datos curiosos.
+  const legendEn = doc.getElementById('donutLegend').textContent;
+  assert(legendEn.includes('Equities') && legendEn.includes('Fixed income'),
+    `las categorías deberían traducirse, decía: "${legendEn.slice(0, 90)}"`);
+  console.log('OK: el selector cambia HTML, cadenas dinámicas, narración y contenido de datos, y el idioma viaja en la URL');
+
+  // Y de vuelta al español sin perder la cartera.
+  click(doc.querySelector('.lang-btn[data-lang="es"]'));
+  await flush(30);
+  assert(doc.getElementById('restartBtn').textContent === 'Volver a empezar', 'debería poder volverse al español');
+  assert(!doc.getElementById('screen-dashboard').hidden, 'cambiar de idioma no debería sacarte del resultado');
+  console.log('OK: se puede volver al español sin perder el resultado que ya estaba en pantalla');
 
   assert(doc.getElementById('shareBtn'), 'debería existir el botón de copiar enlace');
 

@@ -239,7 +239,8 @@ function buildLegend(container, items) {
    Los segmentos se animan desde su estado ANTERIOR (no desde cero) para que
    la vista previa en vivo se reacomode con suavidad cada vez que respondes,
    en lugar de dar un salto. */
-function renderDonut(svg, segments, { centerLabel = 'Tu cartera', tooltipEl = null, amount = null } = {}) {
+function renderDonut(svg, segments, { centerLabel = null, tooltipEl = null, amount = null } = {}) {
+  centerLabel = centerLabel || t('donut.center');
   const rect = svg.getBoundingClientRect();
   const size = Math.max(150, Math.min(260, rect.width || 200));
   svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
@@ -326,7 +327,7 @@ function renderDonut(svg, segments, { centerLabel = 'Tu cartera', tooltipEl = nu
   label.textContent = centerLabel;
   svg.appendChild(label);
   const sublabel = svgEl('text', { x: cx, y: cy + 15, 'text-anchor': 'middle', 'font-size': size * 0.055, fill: 'var(--text-muted)' });
-  sublabel.textContent = segments.length === 1 ? '1 bloque' : `${segments.length} bloques`;
+  sublabel.textContent = segments.length === 1 ? t('donut.block') : t('donut.blocks', { n: segments.length });
   svg.appendChild(sublabel);
 }
 
@@ -429,7 +430,7 @@ function buildDonutLegend(container, segments, { showMembers = false, amount = n
     spacer.className = 'legend-swatch dot is-empty';
     const label = document.createElement('span');
     label.className = 'donut-legend-text';
-    label.textContent = 'Total';
+    label.textContent = t('legend.total');
     const pct = document.createElement('span');
     pct.className = 'donut-legend-pct';
     pct.textContent = formatPctValue(segments.reduce((s, x) => s + x.displayPct, 0), 1);
@@ -641,37 +642,39 @@ function renderProgress() {
   const total = effectiveQuestionCount();
   const pos = effectivePosition(currentStep);
   progressBarFill.style.width = Math.round((pos / total) * 100) + '%';
-  progressLabel.textContent = `Pregunta ${pos} de ${total}`;
+  progressLabel.textContent = t('progress', { pos, total });
   backBtn.hidden = pos <= 1;
 }
 
 /* "Hilar las cosas": una frase corta arriba de algunas pantallas que nombra
    la respuesta recién dada antes de preguntar lo siguiente, para que el flujo
    se lea como una conversación y no como un montón de campos sueltos. */
-const HORIZON_PHRASE = { viaje: 'para un viaje o una meta cercana', casa: 'para comprar una casa', crecer: 'para que crezca, sin prisa', jubilacion: 'para tu jubilación' };
-const RISK_PHRASE = v => (v <= 20 ? 'muy baja' : v <= 40 ? 'baja' : v <= 60 ? 'media' : v <= 80 ? 'alta' : 'muy alta');
+const tierLabel = tier => t('tier.' + tier);
+const horizonPhrase = h => t('horizon.' + h);
+const RISK_PHRASE = v => t('riskPhrase.' + (v <= 20 ? 1 : v <= 40 ? 2 : v <= 60 ? 3 : v <= 80 ? 4 : 5));
 const listPhrase = arr => arr.length <= 1 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1];
-const labelsOf = (keys, map) => (keys || []).map(k => map[k] && map[k].label).filter(Boolean);
+const labelsOf = (keys, map) => (keys || []).map(k => map[k] && localized(map[k]).label).filter(Boolean);
 
 const CONNECTORS = {
-  risk: a => a.age ? `Con ${a.age} años, pensemos en cómo encajas las bajadas.` : null,
-  rvKnowledge: a => a.horizon ? `Ya que esto es ${HORIZON_PHRASE[a.horizon]}, empecemos por el bloque más grande de casi cualquier cartera.` : null,
-  indexKnowledge: () => 'Vale, y dentro de la renta variable no todos los fondos compran lo mismo.',
-  equityIndex: () => 'Puedes marcar varios, y decidir cuánto pesa cada uno.',
-  equityTiltAsk: () => 'Ya tienes la base. Ahora, si quieres, la afinamos.',
+  risk: a => a.age ? t('connector.risk', { age: a.age }) : null,
+  rvKnowledge: a => a.horizon ? t('connector.rvKnowledge', { horizon: horizonPhrase(a.horizon) }) : null,
+  indexKnowledge: () => t('connector.indexKnowledge'),
+  equityIndex: () => t('connector.equityIndex'),
+  equityTiltAsk: () => t('connector.equityTiltAsk'),
   bondsKnowledge: a => {
     const picks = labelsOf(a.equityIndex, ALLOCATIONS ? ALLOCATIONS.equityIndexOptions : {});
-    return picks.length ? `Con ${listPhrase(picks)} en la parte de renta variable, vamos con la otra mitad clásica: la renta fija.` : null;
+    return picks.length ? t('connector.bondsKnowledge', { picks: listPhrase(picks) }) : null;
   },
-  bondsChoice: () => 'Igual que antes, puedes marcar más de una.',
-  realEstateKnowledge: () => 'Más allá de acciones y bonos hay otras piezas que puedes sumar. Empecemos por los ladrillos.',
-  realEstateType: () => 'Puedes quedarte con las dos si te interesan las dos.',
-  peKnowledge: a => a.realEstateChoice === 'si' ? 'Con el ladrillo dentro, otra pieza bastante menos conocida: empresas que no cotizan en bolsa.' : 'Otra pieza bastante menos conocida: empresas que no cotizan en bolsa.',
-  altKnowledge: () => 'Y una última familia opcional, bastante más movida que el resto.',
-  altType: () => 'Marca todas las que te interesen: el peso se reparte entre ellas.',
-  volatility: a => `Dijiste que tu tolerancia al riesgo es ${RISK_PHRASE(a.risk)} — vamos a ponerla a prueba con un escenario real.`,
-  amount: () => 'Tu perfil ya está casi listo, solo falta ponerle números.',
+  bondsChoice: () => t('connector.bondsChoice'),
+  realEstateKnowledge: () => t('connector.realEstateKnowledge'),
+  realEstateType: () => t('connector.realEstateType'),
+  peKnowledge: () => t('connector.peKnowledge'),
+  altKnowledge: () => t('connector.altKnowledge'),
+  altType: () => t('connector.altType'),
+  volatility: a => t('connector.volatility', { risk: RISK_PHRASE(a.risk) }),
+  amount: () => t('connector.amount'),
 };
+
 
 // Al volver atrás hay que repintar lo que ya estaba elegido, tanto en
 // selección simple como múltiple.
@@ -709,7 +712,7 @@ function renderMixPanel(qKey) {
   panel.textContent = '';
   const title = document.createElement('p');
   title.className = 'mix-title';
-  title.textContent = '¿Cuánto peso le das a cada uno?';
+  title.textContent = t('mix.title');
   panel.appendChild(title);
 
   selected.forEach(key => {
@@ -725,7 +728,7 @@ function renderMixPanel(qKey) {
     slider.type = 'range';
     slider.min = '1'; slider.max = '10'; slider.step = '1';
     slider.value = String(value);
-    slider.setAttribute('aria-label', `Peso de ${labelOf(key)}`);
+    slider.setAttribute('aria-label', t('mix.aria', { name: labelOf(key) }));
 
     const pct = document.createElement('span');
     pct.className = 'mix-pct';
@@ -749,8 +752,8 @@ function syncMultiButton(qKey) {
   if (!btn) return;
   const count = (answers[qKey] || []).length;
   btn.disabled = count === 0;
-  btn.textContent = count === 0 ? 'Elige al menos una opción'
-    : count === 1 ? 'Continuar con 1 opción →' : `Continuar con ${count} opciones →`;
+  btn.textContent = count === 0 ? t('multi.none')
+    : count === 1 ? t('multi.one') : t('multi.many', { n: count });
 }
 
 function showStep(step) {
@@ -834,14 +837,14 @@ const riskReadout = document.getElementById('riskReadout');
 const volatilitySlider = document.getElementById('volatilitySlider');
 const volatilityReadout = document.getElementById('volatilityReadout');
 
-const TIER_LABEL = { conservador: 'Conservador', moderado: 'Moderado', arriesgado: 'Arriesgado' };
+
 
 function updateRiskPreview() {
   const v = parseInt(riskSlider.value, 10);
   answers.risk = v;
   riskFillGrowth.style.width = v + '%';
   riskFillStability.style.width = (100 - v) + '%';
-  riskReadout.textContent = `${v} / 100 · perfil ${TIER_LABEL[sliderToTier(v)]}`;
+  riskReadout.textContent = t('slider.risk', { v, tier: tierLabel(sliderToTier(v)) });
   renderPreview();
   syncUrl();
 }
@@ -852,7 +855,7 @@ riskSlider.addEventListener('input', updateRiskPreview);
 // volatility == null en computeEffectiveRisk().
 function renderVolatilityReadout() {
   const v = parseInt(volatilitySlider.value, 10);
-  volatilityReadout.textContent = `${v} / 100 · aguantarías una caída ${RISK_PHRASE(v)}`;
+  volatilityReadout.textContent = t('slider.volatility', { v, phrase: RISK_PHRASE(v) });
 }
 function commitVolatility() {
   answers.volatility = parseInt(volatilitySlider.value, 10);
@@ -900,12 +903,20 @@ restartBtn.addEventListener('click', () => {
 /* Vista previa en vivo: la misma cartera que verás al final, recalculada con
    cada respuesta, para que se vea cómo se va construyendo el donut en lugar
    de aparecer de golpe al terminar. */
+// El catálogo del HTML no se expone; para restaurar el texto de un botón tras
+// un mensaje temporal se relee del propio atributo.
+function getCatalogText(key) {
+  const el = document.querySelector(`[data-i18n="${key}"]`);
+  return el ? el.textContent : '';
+}
+
 function renderPreview() {
   if (!ALLOCATIONS || !previewDonut) return;
   const result = computeAllocation(answers, ALLOCATIONS);
-  renderDonut(previewDonut, result.segments, { centerLabel: 'Ahora' });
+  result.segments.forEach(seg => { seg.name = t('cat.' + seg.key); });
+  renderDonut(previewDonut, result.segments, { centerLabel: t('preview.center') });
   buildDonutLegend(previewLegend, result.segments);
-  previewRiskLabel.textContent = `Perfil ${TIER_LABEL[result.effectiveRisk]}`;
+  previewRiskLabel.textContent = t('preview.risk', { tier: tierLabel(result.effectiveRisk) });
 }
 
 /* ---------- Estado en la URL ----------
@@ -1024,7 +1035,8 @@ function laneIsBusy(side) {
 
 function spawnFallingCloud() {
   if (liveCloudCount() >= MAX_CLOUDS) return;
-  const pool = (CLOUD_FACTS && CLOUD_FACTS.facts[currentCloudTopic]) || [];
+  const byLang = CLOUD_FACTS && (CLOUD_FACTS.facts[getLang()] || CLOUD_FACTS.facts.es);
+  const pool = (byLang && byLang[currentCloudTopic]) || [];
   if (!pool.length) return;
 
   // Si el lado que toca está ocupado se prueba el otro; si lo están los dos,
@@ -1105,7 +1117,7 @@ const layer3Toggle = document.getElementById('layer3Toggle');
 const layer3Body = document.getElementById('layer3Body');
 
 document.getElementById('retryBtn').addEventListener('click', () => {
-  backtestStory.textContent = 'Cargando datos históricos reales…';
+  backtestStory.textContent = t('loading');
   retryRow.hidden = true;
   runDashboard();
 });
@@ -1115,6 +1127,90 @@ layer3Toggle.addEventListener('click', () => {
   layer3Toggle.setAttribute('aria-expanded', String(!expanded));
   layer3Body.hidden = expanded;
 });
+
+
+/* La respuesta real a "explícamelo todo": la cadena completa de cómo se llegó
+   a cada porcentaje, con TUS números. Vive aquí y no en el motor porque es
+   presentación: el motor solo produce cifras, esto las cuenta. */
+function buildAllocationNarrative(result, answers, allocations) {
+  const steps = [];
+  const base = result.baseWeights;
+  const tilted = result.tiltedWeights;
+  const w = result.weights;
+  const hasAmount = answers.amount > 0;
+  const money = v => hasAmount ? ` (${formatEUR(answers.amount * v, 0)})` : '';
+  const score = Math.round(result.riskScore);
+
+  const caps = [];
+  if (result.wasCappedByHorizon) caps.push(t('narr.cap.horizon'));
+  if (result.wasCappedByVolatility) caps.push(t('narr.cap.volatility'));
+  if (result.wasCappedByAge) caps.push(t('narr.cap.age'));
+  steps.push({
+    title: t('narr.profile.title', { tier: tierLabel(result.effectiveRisk) }),
+    text: caps.length
+      ? t('narr.profile.capped', { stated: answers.risk, caps: listPhrase(caps), score, tier: result.effectiveRisk })
+      : t('narr.profile.free', { stated: answers.risk, vol: answers.volatility, score, tier: result.effectiveRisk }),
+  });
+
+  const basePcts = displayPercents([base.equities, base.bonds, base.cash], 1);
+  steps.push({
+    title: t('narr.base.title'),
+    text: t('narr.base.text', { score, equities: formatPctValue(basePcts[0]), bonds: formatPctValue(basePcts[1]), cash: formatPctValue(basePcts[2]) }),
+  });
+
+  const eqNames = listPhrase(result.equityPicks.map(p => p.label));
+  const bondNames = listPhrase(result.bondsPicks.map(p => p.label));
+  if (result.wasTilted) {
+    steps.push({
+      title: t('narr.tilt.title'),
+      text: t('narr.tilt.text', {
+        equity: eqNames, bonds: bondNames,
+        dir: t(tilted.equities < base.equities ? 'narr.tilt.down' : 'narr.tilt.up'),
+        from: formatPct(base.equities, 1), to: formatPct(tilted.equities, 1), bondsTo: formatPct(tilted.bonds, 1),
+      }),
+    });
+  } else {
+    steps.push({ title: t('narr.noTilt.title'), text: t('narr.noTilt.text', { equity: eqNames, bonds: bondNames }) });
+  }
+
+  let running = tilted.equities;
+  const sleeve = (key, weight, titleKey, textKey, extra) => {
+    if (weight <= 0) return;
+    const after = running - weight;
+    steps.push({
+      title: t(titleKey),
+      text: t(textKey, { score, pct: formatPct(weight, 1), money: money(weight),
+                         from: formatPct(running, 1), to: formatPct(after, 1), ...extra }),
+    });
+    running = after;
+  };
+  sleeve('realEstate', w.realEstate, 'narr.re.title', 'narr.re.text',
+    { frac: formatPct(interpolateCurve(allocations.realEstateFractionCurve, result.riskScore, 'fraction'), 0) });
+  sleeve('alternative', w.alternative, 'narr.alt.title', 'narr.alt.text',
+    { frac: formatPct(interpolateCurve(allocations.alternativeFractionCurve, result.riskScore, 'fraction'), 0),
+      picks: listPhrase(result.altPicks.map(p => p.label)) });
+  sleeve('privateEquity', w.privateEquity, 'narr.pe.title', 'narr.pe.text',
+    { frac: formatPct(interpolateCurve(allocations.privateEquityFractionCurve, result.riskScore, 'fraction'), 0),
+      amount: formatEUR(answers.amount, 0), min: formatEUR(allocations.privateEquityMinAmount, 0),
+      minScore: allocations.privateEquityMinScore });
+
+  result.segments.forEach(seg => {
+    if (!seg.members || seg.members.length < 2) return;
+    steps.push({
+      title: t('narr.inside.title', { pct: formatPctValue(seg.displayPct, 1), name: seg.name.toLowerCase() }),
+      text: t('narr.inside.text', { n: seg.members.length, list: seg.members
+        .map(m => `${m.label} ${formatPctValue(m.displayPct, 1)}${hasAmount ? ` (${formatEUR(answers.amount * m.weight, 0)})` : ''}`)
+        .join(', ') }),
+    });
+  });
+
+  steps.push({
+    title: t('narr.final.title'),
+    text: result.segments.map(s => `${s.name} ${formatPctValue(s.displayPct, 1)}${money(s.weight)}`).join(' · ')
+      + t('narr.final.sum', { total: formatPctValue(result.segments.reduce((x, s) => x + s.displayPct, 0), 1) }),
+  });
+  return steps;
+}
 
 function buildNarrative(container, steps) {
   container.textContent = '';
@@ -1161,50 +1257,61 @@ async function runDashboard() {
   screenQuiz.hidden = true;
   quizChrome.hidden = true;
   screenDashboard.hidden = false;
-  backtestStory.textContent = 'Cargando datos históricos reales…';
+  backtestStory.textContent = t('loading');
   statGrid.textContent = '';
   currentCloudTopic = 'dcaVsLumpSum';
   clearClouds();
 
   const result = computeAllocation(answers, ALLOCATIONS);
   const { effectiveRisk, weights: finalWeights, holdings, segments } = result;
-  const explanation = getExplanation(effectiveRisk, answers.horizon, ARCHETYPES);
+  // El efectivo lo etiqueta el motor en español; aquí se traduce al idioma
+  // activo antes de pintarlo en leyenda, tabla y tooltip.
+  holdings.forEach(h => { if (h.key === 'cash') { h.label = t('cash.label'); h.name = t('cash.name'); } });
+  // Los nombres de categoría los define el motor en español; se traducen aquí,
+  // al pintar, para que el motor siga sin saber nada de idiomas.
+  segments.forEach(seg => { seg.name = t('cat.' + seg.key); });
+  const archetypesForLang = { explanations: ARCHETYPES.explanations[getLang()] || ARCHETYPES.explanations.es };
+  const explanation = getExplanation(effectiveRisk, answers.horizon, archetypesForLang);
 
   dashHeadline.textContent = explanation ? explanation.headline : '—';
-  dashProfileTag.textContent = `Perfil ${TIER_LABEL[effectiveRisk]}`;
+  dashProfileTag.textContent = t('profileTag', { tier: tierLabel(effectiveRisk) });
 
   capNotice.hidden = !result.wasCappedByHorizon;
-  if (result.wasCappedByHorizon) capNotice.textContent = ARCHETYPES.horizonCapNotice;
+  if (result.wasCappedByHorizon) capNotice.textContent = ARCHETYPES.horizonCapNotice[getLang()] || ARCHETYPES.horizonCapNotice.es;
   volNotice.hidden = !result.wasCappedByVolatility;
   if (result.wasCappedByVolatility) {
-    volNotice.textContent = 'Dijiste que tolerarías más riesgo, pero tu respuesta sobre caídas reales apunta a lo contrario — hemos ajustado la mezcla hacia algo más prudente. Mejor prevenir que vender presa del pánico.';
+    volNotice.textContent = t('notice.volatility');
   }
   ageNotice.hidden = !result.wasCappedByAge;
   if (result.wasCappedByAge) {
-    ageNotice.textContent = 'Con 60+ años queda menos tiempo para que una mala racha se recupere antes de necesitar el dinero, así que hemos ajustado la mezcla hacia algo más prudente, al margen de tu tolerancia al riesgo.';
+    ageNotice.textContent = t('notice.age', { age: answers.age });
   }
   tiltNotice.hidden = !result.wasTilted;
   if (result.wasTilted) {
-    const dir = finalWeights.equities < result.baseWeights.equities ? 'algo menos' : 'algo más';
+    const dir = t(finalWeights.equities < result.baseWeights.equities ? 'notice.tilt.less' : 'notice.tilt.more');
     const eqNames = listPhrase(result.equityPicks.map(p => p.label));
     const bondNames = listPhrase(result.bondsPicks.map(p => p.label));
-    tiltNotice.textContent = `${eqNames} y ${bondNames} no son igual de volátiles que nuestras opciones de referencia, así que le hemos dado a la renta variable ${dir} de peso del que te habría tocado por defecto — buscando mantener el riesgo total parecido, sea cual sea el instrumento concreto que elijas.`;
+    tiltNotice.textContent = t('notice.tilt', { equity: eqNames, bonds: bondNames, dir });
   }
   // Cada subtipo tiene su propio umbral, así que se dice exactamente cuál se
   // ha quedado fuera y por qué, en vez de excluir la familia entera de golpe.
   const rejected = [...result.realEstateRejected, ...result.altRejected];
   altNotice.hidden = rejected.length === 0;
   if (rejected.length) {
-    altNotice.textContent = `Pediste ${listPhrase(rejected.map(r => r.label.toLowerCase()))}, pero tu puntuación de riesgo final es ${Math.round(result.riskScore)}/100 y hace falta al menos ${listPhrase(rejected.map(r => `${r.minScore} para ${r.label.toLowerCase()}`))}. Cada activo tiene su propio umbral: el oro entra en carteras moderadas, el bitcoin no.`;
+    altNotice.textContent = t('notice.rejected', {
+      items: listPhrase(rejected.map(r => r.label.toLowerCase())),
+      score: Math.round(result.riskScore),
+      thresholds: listPhrase(rejected.map(r => t('notice.rejected.threshold', { score: r.minScore, label: r.label.toLowerCase() }))),
+    });
   }
   peNotice.hidden = !result.privateEquityRequestedButExcluded;
   if (result.privateEquityRequestedButExcluded) {
     const motivos = {
-      horizonte: 'este dinero se queda inmovilizado años y tu horizonte es demasiado corto',
-      riesgo: `tu puntuación de riesgo (${Math.round(result.riskScore)}) no llega al mínimo de ${ALLOCATIONS.privateEquityMinScore}`,
-      capital: `no llegas al importe mínimo habitual de estos fondos (${formatEUR(ALLOCATIONS.privateEquityMinAmount, 0)})`,
+      horizonte: t('notice.pe.horizonte'),
+      riesgo: t('notice.pe.riesgo', { score: Math.round(result.riskScore), min: ALLOCATIONS.privateEquityMinScore }),
+      capital: t('notice.pe.capital', { min: formatEUR(ALLOCATIONS.privateEquityMinAmount, 0) }),
     };
-    peNotice.textContent = `Pediste sumar private equity, pero ${listPhrase(result.privateEquityExcludedReasons.map(r => motivos[r]))} — así que lo hemos dejado fuera.`;
+    peNotice.textContent = t('notice.pe', { reasons: listPhrase(result.privateEquityExcludedReasons.map(r => motivos[r])) });
   }
 
   renderDonut(allocationDonut, segments, { tooltipEl: donutTooltip, amount: answers.amount });
@@ -1318,41 +1425,45 @@ async function runDashboard() {
       .reduce((a, w, i) => a + (tickerHoldings[i].category === 'equities' ? w : 0), 0);
 
     backtestStory.textContent = hasMonthly
-      ? `Si hubieras invertido ${formatEUR(answers.amount, 0)} hace ${years.toFixed(1)} años (${shortDate(blend.dates[0])}) y hubieras aportado ${formatEUR(answers.monthly, 0)} más cada mes, hoy tendrías unos ${formatEUR(dcaSeries[n - 1], 0)} habiendo puesto ${formatEUR(totalInvested, 0)} de tu bolsillo — frente a ${formatEUR(finalValue, 0)} si solo hubieras puesto el importe inicial y nada más.`
-      : `Si hubieras invertido ${formatEUR(answers.amount, 0)} así hace ${years.toFixed(1)} años (${shortDate(blend.dates[0])}), hoy tendrías unos ${formatEUR(finalValue, 0)}. Dejarlo todo en efectivo, en cambio, habría dado ${formatEUR(cashOnlyValue, 0)}.`;
+      ? t('story.monthly', { amount: formatEUR(answers.amount, 0), years: years.toFixed(1), date: shortDate(blend.dates[0]),
+          monthly: formatEUR(answers.monthly, 0), final: formatEUR(dcaSeries[n - 1], 0),
+          invested: formatEUR(totalInvested, 0), lump: formatEUR(finalValue, 0) })
+      : t('story.plain', { amount: formatEUR(answers.amount, 0), years: years.toFixed(1), date: shortDate(blend.dates[0]),
+          final: formatEUR(finalValue, 0), cash: formatEUR(cashOnlyValue, 0) });
 
     buildStatTiles(statGrid, [
-      { label: 'Valor final', animate: true, value: hasMonthly ? dcaSeries[n - 1] : finalValue, format: v => formatEUR(v, 0), note: `Partiendo de ${formatEUR(answers.amount, 0)}` },
-      { label: 'Rentabilidad total', animate: true, value: growth - 1, format: v => formatSignedPct(v, 1), tone: growth >= 1 ? 'good' : 'bad', note: `En ${years.toFixed(1)} años` },
-      { label: 'Rentabilidad anualizada', animate: true, value: cagr, format: v => formatSignedPct(v, 1), tone: cagr >= 0 ? 'good' : 'bad', note: 'TAE equivalente (CAGR)' },
-      { label: 'Volatilidad anual', animate: true, value: vol, format: v => formatPct(v, 1), note: 'Cuánto se movió por el camino' },
-      { label: 'Máxima caída', animate: true, value: dd, format: v => formatPct(v, 1), tone: 'bad', note: `Habrías visto ${formatEUR(ddPeakEUR, 0)} convertirse en ${formatEUR(ddTroughEUR, 0)}` },
-      { label: 'Ventaja sobre el efectivo', animate: true, value: finalValue - cashOnlyValue, format: v => formatEUR(v, 0), tone: finalValue >= cashOnlyValue ? 'good' : 'bad', note: `El efectivo habría dado ${formatEUR(cashOnlyValue, 0)}` },
-      best ? { label: 'Mejor año', text: `${formatSignedPct(best.ret, 1)}`, tone: 'good', note: `Año ${best.year}` } : null,
-      worst ? { label: 'Peor año', text: `${formatSignedPct(worst.ret, 1)}`, tone: 'bad', note: `Año ${worst.year}` } : null,
-      { label: 'Rebalanceando cada año', animate: true, value: rebalanceEdge, format: v => formatEUR(v, 0), tone: rebalanceEdge >= 0 ? 'good' : 'bad', note: `Frente a no tocar nada nunca (${formatEUR(driftedValue, 0)})` },
-      { label: 'Se han llevado las comisiones', animate: true, value: -feesPaid, format: v => formatEUR(v, 0), tone: 'bad', note: 'Los TER de tus fondos, ya descontados arriba' },
-      { label: 'Valor real, en euros de hoy', animate: true, value: realEnd, format: v => formatEUR(v, 0), note: `Descontando un ${formatPct(inflation, 0)} de inflación anual` },
-      { label: 'Efecto del tipo de cambio', animate: true, value: fxEffect, format: v => formatEUR(v, 0), tone: fxEffect >= 0 ? 'good' : 'bad', note: 'Los fondos cotizan en dólares; tú inviertes en euros' },
-      { label: 'Respaldado por datos reales', animate: true, value: realDataShare, format: v => formatPct(v, 0), note: estimatedShare > 0.0001 ? `El resto usa tasas estimadas` : 'Toda la cartera tiene precios reales' },
+      { label: t('stat.finalValue'), animate: true, value: hasMonthly ? dcaSeries[n - 1] : finalValue, format: v => formatEUR(v, 0), note: t('stat.finalValue.note', { amount: formatEUR(answers.amount, 0) }) },
+      { label: t('stat.totalReturn'), animate: true, value: growth - 1, format: v => formatSignedPct(v, 1), tone: growth >= 1 ? 'good' : 'bad', note: t('stat.totalReturn.note', { years: years.toFixed(1) }) },
+      { label: t('stat.cagr'), animate: true, value: cagr, format: v => formatSignedPct(v, 1), tone: cagr >= 0 ? 'good' : 'bad', note: t('stat.cagr.note') },
+      { label: t('stat.vol'), animate: true, value: vol, format: v => formatPct(v, 1), note: t('stat.vol.note') },
+      { label: t('stat.maxDD'), animate: true, value: dd, format: v => formatPct(v, 1), tone: 'bad', note: t('stat.maxDD.note', { peak: formatEUR(ddPeakEUR, 0), trough: formatEUR(ddTroughEUR, 0) }) },
+      { label: t('stat.vsCash'), animate: true, value: finalValue - cashOnlyValue, format: v => formatEUR(v, 0), tone: finalValue >= cashOnlyValue ? 'good' : 'bad', note: t('stat.vsCash.note', { cash: formatEUR(cashOnlyValue, 0) }) },
+      best ? { label: t('stat.bestYear'), text: `${formatSignedPct(best.ret, 1)}`, tone: 'good', note: t('stat.year.note', { year: best.year }) } : null,
+      worst ? { label: t('stat.worstYear'), text: `${formatSignedPct(worst.ret, 1)}`, tone: 'bad', note: t('stat.year.note', { year: worst.year }) } : null,
+      { label: t('stat.rebalance'), animate: true, value: rebalanceEdge, format: v => formatEUR(v, 0), tone: rebalanceEdge >= 0 ? 'good' : 'bad', note: t('stat.rebalance.note', { drifted: formatEUR(driftedValue, 0) }) },
+      { label: t('stat.fees'), animate: true, value: -feesPaid, format: v => formatEUR(v, 0), tone: 'bad', note: t('stat.fees.note') },
+      { label: t('stat.real'), animate: true, value: realEnd, format: v => formatEUR(v, 0), note: t('stat.real.note', { rate: formatPct(inflation, 0) }) },
+      { label: t('stat.fx'), animate: true, value: fxEffect, format: v => formatEUR(v, 0), tone: fxEffect >= 0 ? 'good' : 'bad', note: t('stat.fx.note') },
+      { label: t('stat.coverage'), animate: true, value: realDataShare, format: v => formatPct(v, 0), note: t(estimatedShare > 0.0001 ? 'stat.coverage.partial' : 'stat.coverage.full') },
     ].filter(Boolean));
 
-    fxNotice.textContent = `Todos estos fondos cotizan en dólares, así que a tu resultado en euros le afecta también el tipo de cambio: aquí lo hemos convertido con el cambio EUR/USD de cada día, y esa conversión ${fxEffect >= 0 ? 'ha sumado' : 'ha restado'} ${formatEUR(Math.abs(fxEffect), 0)}. Es riesgo divisa: puedes acertar de pleno con la inversión y aun así ganar menos porque el dólar se debilitó frente al euro.`;
-    inflationNotice.textContent = `Las cifras de arriba son nominales salvo donde se indica. Con una inflación del ${formatPct(inflation, 0)} anual, los ${formatEUR(nominalEnd, 0)} de dentro de ${years.toFixed(1)} años comprarían hoy lo que ${formatEUR(realEnd, 0)} — la diferencia no la pierdes en el mercado, la pierde el dinero por el mero paso del tiempo. Es también la razón por la que dejarlo todo en efectivo no es la opción segura que parece.`;
+    fxNotice.textContent = t('notice.fx', { dir: t(fxEffect >= 0 ? 'notice.fx.added' : 'notice.fx.removed'), amount: formatEUR(Math.abs(fxEffect), 0) });
+    inflationNotice.textContent = t('notice.inflation', { rate: formatPct(inflation, 0), nominal: formatEUR(nominalEnd, 0), years: years.toFixed(1), real: formatEUR(realEnd, 0) });
 
     // Avisos metodológicos: los dos son cosas que inflan el resultado si no se
     // dicen, así que se dicen.
-    driftNotice.textContent = `Estas cifras suponen que rebalanceas una vez al año, volviendo a los porcentajes de arriba. Si no lo hicieras, tras ${years.toFixed(1)} años la renta variable habría derivado hasta pesar ${formatPct(driftedEquityWeight, 0)} y acabarías con ${formatEUR(driftedValue, 0)} en lugar de ${formatEUR(finalValue, 0)}.`;
+    driftNotice.textContent = t('notice.drift', { years: years.toFixed(1), weight: formatPct(driftedEquityWeight, 0),
+      drifted: formatEUR(driftedValue, 0), actual: formatEUR(finalValue, 0) });
     coverageNotice.hidden = estimatedShare <= 0.0001;
     if (!coverageNotice.hidden) {
-      coverageNotice.textContent = `Ojo: el ${formatPct(estimatedShare, 0)} de esta cartera (crowdfunding inmobiliario y/o private equity) no tiene cotización diaria pública, así que se modela con una tasa anual fija. Eso significa que la volatilidad y la caída máxima de arriba son un suelo: en la realidad esa parte también se movería, y las cifras serían algo peores.`;
+      coverageNotice.textContent = t('notice.coverage', { share: formatPct(estimatedShare, 0) });
     }
 
     const chartSeries = [
-      { name: hasMonthly ? 'Solo aporte inicial' : 'Tu cartera', color: 'var(--series-1)', data: blend.portfolioEquity.map(v => answers.amount * v) },
+      { name: t(hasMonthly ? 'chart.lumpOnly' : 'chart.yours'), color: 'var(--series-1)', data: blend.portfolioEquity.map(v => answers.amount * v) },
     ];
-    if (hasMonthly) chartSeries.push({ name: 'Con aportación mensual', color: 'var(--series-2)', data: dcaSeries });
-    chartSeries.push({ name: 'Solo efectivo', color: 'var(--series-3)', data: blend.cashOnlyEquity.map(v => answers.amount * v) });
+    if (hasMonthly) chartSeries.push({ name: t('chart.monthly'), color: 'var(--series-2)', data: dcaSeries });
+    chartSeries.push({ name: t('chart.cashOnly'), color: 'var(--series-3)', data: blend.cashOnlyEquity.map(v => answers.amount * v) });
 
     renderLineChart({
       svg: document.getElementById('pfChart'),
@@ -1376,8 +1487,8 @@ async function runDashboard() {
       return s > 0 ? w.map(x => x / s) : null;
     };
     const zeroFlats = flatAssets.map(f => ({ ...f, weight: 0 }));
-    const comparisons = [{ name: 'Tu cartera', sim: blend, highlight: true }];
-    [['equities', 'Solo renta variable'], ['bonds', 'Solo renta fija']].forEach(([cat, label]) => {
+    const comparisons = [{ name: t('compare.you'), sim: blend, highlight: true }];
+    [['equities', t('compare.equitiesOnly')], ['bonds', t('compare.bondsOnly')]].forEach(([cat, label]) => {
       const w = onlyOf(cat);
       if (w) comparisons.push({ name: label, sim: runSim(w, 0, zeroFlats, 'annual') });
     });
@@ -1399,7 +1510,7 @@ async function runDashboard() {
       comparisonTableBody.appendChild(row);
     });
     const cashRow = document.createElement('tr');
-    ['Solo efectivo', formatEUR(cashOnlyValue, 0), formatSignedPct(cashAnnualRate, 1), formatPct(0, 1), formatPct(0, 1)]
+    [t('compare.cashOnly'), formatEUR(cashOnlyValue, 0), formatSignedPct(cashAnnualRate, 1), formatPct(0, 1), formatPct(0, 1)]
       .forEach((text, ci) => {
         const td = document.createElement('td');
         td.textContent = text;
@@ -1409,10 +1520,12 @@ async function runDashboard() {
     comparisonTableBody.appendChild(cashRow);
 
     // La lectura de la comparativa, escrita para que no haya que deducirla.
-    const equityOnly = comparisons.find(c => c.name === 'Solo renta variable');
+    const equityOnly = comparisons.find(c => c.name === t('compare.equitiesOnly'));
     comparisonTakeaway.textContent = equityOnly
-      ? `Fíjate en las dos últimas columnas más que en la primera: llevarlo todo a renta variable habría dado ${formatEUR(answers.amount * equityOnly.sim.portfolioEquity[equityOnly.sim.portfolioEquity.length - 1], 0)}, pero con una caída máxima del ${formatPct(Math.abs(maxDrawdown(equityOnly.sim.portfolioEquity)), 0)} en vez del ${formatPct(Math.abs(dd), 0)}. Diversificar no busca ganar más, busca que el camino sea aguantable — porque la cartera que abandonas a mitad no te sirve de nada.`
-      : 'Diversificar no busca ganar más, busca que el camino sea lo bastante aguantable como para no abandonarlo a mitad.';
+      ? t('compare.takeaway', {
+          value: formatEUR(answers.amount * equityOnly.sim.portfolioEquity[equityOnly.sim.portfolioEquity.length - 1], 0),
+          theirDD: formatPct(Math.abs(maxDrawdown(equityOnly.sim.portfolioEquity)), 0), yourDD: formatPct(Math.abs(dd), 0) })
+      : t('compare.takeaway.fallback');
 
     // Las filas con datos reales comparten la volatilidad anualizada de la
     // cartera; el efectivo y los sleeves de tasa fija (crowdfunding, private
@@ -1425,7 +1538,7 @@ async function runDashboard() {
     segments.forEach(seg => {
       const groupRow = document.createElement('tr');
       groupRow.className = 'group-row';
-      const groupCells = [seg.name, `${seg.members.length} ${seg.members.length === 1 ? 'instrumento' : 'instrumentos'}`, '',
+      const groupCells = [seg.name, seg.members.length === 1 ? t('table.instrumentCount.one') : t('table.instrumentCount', { n: seg.members.length }), '',
         formatPctValue(seg.displayPct, 1), '', formatEUR(answers.amount * seg.weight, 0)];
       groupCells.forEach((text, ci) => {
         const td = document.createElement('td');
@@ -1440,7 +1553,7 @@ async function runDashboard() {
         const tr = document.createElement('tr');
         tr.className = 'member-row';
         const cells = [
-          '', h.label, h.ticker || 'Estimación',
+          '', h.label, h.ticker || t('table.estimate'),
           formatPctValue(h.displayPct, 1),
           h.hasRealData ? formatPct(vol, 1) : '—',
           h.expenseRatio == null ? '—' : formatPct(h.expenseRatio, 2),
@@ -1457,7 +1570,7 @@ async function runDashboard() {
     });
     const totalRow = document.createElement('tr');
     totalRow.className = 'total-row';
-    ['Cartera completa', '', '',
+    [t('table.total'), '', '',
       formatPctValue(segments.reduce((a, s) => a + s.displayPct, 0), 1),
       formatPct(vol, 1), formatEUR(answers.amount, 0),
     ].forEach((text, ci) => {
@@ -1474,7 +1587,7 @@ async function runDashboard() {
     // mal" genérico, y ofrece reintentar: con el plan gratuito (8 peticiones
     // por minuto) y una selección amplia, el 429 es un escenario real y
     // esperable, no un caso raro.
-    backtestStory.textContent = `${err.message}. El plan gratuito de datos permite 8 peticiones por minuto y has elegido bastantes instrumentos, así que puede ser eso — espera unos segundos y reinténtalo.`;
+    backtestStory.textContent = t('error.fetch', { message: err.message });
     driftNotice.textContent = '';
     coverageNotice.hidden = true;
     retryRow.hidden = false;
@@ -1550,14 +1663,41 @@ document.getElementById('shareBtn').addEventListener('click', async () => {
   const btn = document.getElementById('shareBtn');
   try {
     await navigator.clipboard.writeText(location.href);
-    btn.textContent = '¡Enlace copiado!';
+    btn.textContent = t('share.copied');
   } catch (e) {
-    btn.textContent = 'Copia la URL de la barra de direcciones';
+    btn.textContent = t('share.manual');
   }
-  setTimeout(() => { btn.textContent = 'Copiar enlace a esta cartera'; }, 2600);
+  setTimeout(() => { btn.textContent = getCatalogText('dash.share'); }, 2600);
 });
 
+/* Cambio de idioma: recarga el catálogo, repinta el HTML marcado y vuelve a
+   dibujar lo que ya estuviera en pantalla, sin perder ninguna respuesta. */
+function markActiveLang() {
+  document.querySelectorAll('.lang-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.lang === getLang()));
+}
+
+async function switchLanguage(lang) {
+  await loadLanguage(lang, { dynamic: DYNAMIC_STRINGS });
+  markActiveLang();
+  const url = new URL(location.href);
+  url.searchParams.set('lang', lang);
+  history.replaceState(null, '', url);
+  renderVolatilityReadout();
+  updateRiskPreview();
+  if (!screenQuiz.hidden) showStep(currentStep);
+  if (!screenDashboard.hidden) runDashboard();
+}
+
+document.querySelectorAll('.lang-btn').forEach(btn =>
+  btn.addEventListener('click', () => switchLanguage(btn.dataset.lang)));
+
 renderAllSketchIcons();
-updateRiskPreview();
-renderVolatilityReadout();
-loadContent().then(() => restoreFromUrl());
+loadLanguage(detectLang(), { dynamic: DYNAMIC_STRINGS })
+  .then(() => {
+    markActiveLang();
+    updateRiskPreview();
+    renderVolatilityReadout();
+    return loadContent();
+  })
+  .then(() => restoreFromUrl());

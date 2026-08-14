@@ -120,7 +120,10 @@ function getAllocationWeights(riskScore, allocations) {
 function resolvePicks(selected, optionsMap, defaultKey) {
   const keys = (Array.isArray(selected) ? selected : [selected]).filter(k => k && optionsMap[k]);
   const finalKeys = keys.length ? keys : [defaultKey];
-  return finalKeys.map(k => ({ key: k, ...optionsMap[k] }));
+  // localized() lo aporta i18n.js en el navegador; en Node no existe y se
+  // devuelve el objeto tal cual, que ya está en español.
+  const loc = (typeof localized === 'function') ? localized : (o => o);
+  return finalKeys.map(k => ({ key: k, ...loc(optionsMap[k]) }));
 }
 
 // Hace que la ELECCIÓN DE INSTRUMENTO mueva de verdad los porcentajes del
@@ -314,104 +317,6 @@ function computeAllocation(answers, allocations) {
     privateEquityRequestedButExcluded: peWanted && !peIncluded,
     privateEquityExcludedReasons: peReasons,
   };
-}
-
-/* La respuesta real a "explícamelo todo": la cadena completa de cómo se llegó
-   a cada porcentaje, con TUS números y no con generalidades — perfil, reparto
-   de partida, ajuste por instrumento, cada recorte opcional y el reparto
-   final. Cada paso dice de qué cifra se viene y a cuál se va. */
-function buildAllocationNarrative(result, answers, allocations) {
-  const steps = [];
-  const base = result.baseWeights;
-  const tilted = result.tiltedWeights;
-  const w = result.weights;
-  const hasAmount = answers.amount > 0;
-  const money = v => hasAmount ? ` (${formatEUR(answers.amount * v, 0)})` : '';
-
-  /* 1 — de dónde sale el nivel de riesgo */
-  const caps = [];
-  if (result.wasCappedByHorizon) caps.push('el horizonte que elegiste');
-  if (result.wasCappedByVolatility) caps.push('la caída que dijiste que aguantarías');
-  if (result.wasCappedByAge) caps.push('tu franja de edad');
-  steps.push({
-    title: `Tu perfil efectivo es ${TIER_LABEL[result.effectiveRisk]}`,
-    text: caps.length
-      ? `Colocaste el riesgo en ${answers.risk}/100. Pero ${listPhrase(caps)} ${caps.length > 1 ? 'obligan' : 'obliga'} a rebajarlo hasta ${Math.round(result.riskScore)}/100 ("${result.effectiveRisk}"). Estas señales solo pueden bajar la puntuación, nunca subirla — y la rebajan al punto exacto que corresponde, no a un escalón fijo.`
-      : `Colocaste el riesgo en ${answers.risk}/100 y dijiste que aguantarías una caída de ${answers.volatility}/100. Ni el horizonte, ni esa tolerancia, ni tu edad obligan a rebajarlo, así que la puntuación se queda en ${Math.round(result.riskScore)}/100 ("${result.effectiveRisk}").`,
-  });
-
-  /* 2 — el reparto de partida de ese nivel */
-  const basePcts = displayPercents([base.equities, base.bonds, base.cash], 1);
-  steps.push({
-    title: 'El reparto de partida de ese perfil',
-    text: `La curva de riesgo, evaluada en tu puntuación exacta de ${Math.round(result.riskScore)}/100, da un ${formatPctValue(basePcts[0])} en renta variable, un ${formatPctValue(basePcts[1])} en renta fija y un ${formatPctValue(basePcts[2])} en efectivo. Es el punto de partida antes de mirar qué instrumentos concretos elegiste.`,
-  });
-
-  /* 3 — cómo mueven los pesos los instrumentos elegidos */
-  const eqNames = listPhrase(result.equityPicks.map(p => p.label));
-  const bondNames = listPhrase(result.bondsPicks.map(p => p.label));
-  if (result.wasTilted) {
-    const dir = tilted.equities < base.equities ? 'baja' : 'sube';
-    steps.push({
-      title: 'Ajuste por los instrumentos que elegiste',
-      text: `Elegiste ${eqNames} en renta variable y ${bondNames} en renta fija. Como no son igual de volátiles que nuestras referencias, la renta variable ${dir} de ${formatPct(base.equities, 1)} a ${formatPct(tilted.equities, 1)}, y la renta fija pasa a ${formatPct(tilted.bonds, 1)}. El efectivo no se toca: es el suelo de seguridad que fija tu perfil, no el fondo concreto.`,
-    });
-  } else {
-    steps.push({
-      title: 'Los instrumentos que elegiste no mueven los pesos',
-      text: `Elegiste ${eqNames} y ${bondNames}, que son justo nuestras opciones de referencia en volatilidad. Al no ser ni más ni menos movidas de lo esperado, el reparto se queda tal cual estaba.`,
-    });
-  }
-
-  /* 4 — cada recorte opcional, con el antes y el después */
-  let runningEquity = tilted.equities;
-  if (w.realEstate > 0) {
-    const frac = interpolateCurve(allocations.realEstateFractionCurve, result.riskScore, 'fraction');
-    const after = runningEquity - w.realEstate;
-    steps.push({
-      title: 'Apartas una parte para inversión inmobiliaria',
-      text: `A una puntuación de riesgo de ${Math.round(result.riskScore)}/100 le corresponde reservar el ${formatPct(frac, 0)} de la renta variable para ladrillo. Eso son ${formatPct(w.realEstate, 1)} del total${money(w.realEstate)}, que salen de la renta variable: baja de ${formatPct(runningEquity, 1)} a ${formatPct(after, 1)}. La renta fija y el efectivo no se tocan.`,
-    });
-    runningEquity = after;
-  }
-  if (w.alternative > 0) {
-    const after = runningEquity - w.alternative;
-    steps.push({
-      title: 'Apartas una parte para otras inversiones',
-      text: `Se reserva el ${formatPct(interpolateCurve(allocations.alternativeFractionCurve, result.riskScore, 'fraction'), 0)} de lo que queda de renta variable, es decir ${formatPct(w.alternative, 1)} del total${money(w.alternative)}, repartido entre ${listPhrase(result.altPicks.map(p => p.label))}. La renta variable baja de ${formatPct(runningEquity, 1)} a ${formatPct(after, 1)}.`,
-    });
-    runningEquity = after;
-  }
-  if (w.privateEquity > 0) {
-    const after = runningEquity - w.privateEquity;
-    steps.push({
-      title: 'Apartas una parte para private equity',
-      text: `Tu horizonte permite inmovilizar dinero varios años, tu puntuación de riesgo (${Math.round(result.riskScore)}) supera el mínimo de ${allocations.privateEquityMinScore} y tu importe (${formatEUR(answers.amount, 0)}) supera el mínimo de referencia de ${formatEUR(allocations.privateEquityMinAmount, 0)}, así que entra: el ${formatPct(interpolateCurve(allocations.privateEquityFractionCurve, result.riskScore, 'fraction'), 0)} de la renta variable restante, o sea ${formatPct(w.privateEquity, 1)} del total${money(w.privateEquity)}. La renta variable queda en ${formatPct(after, 1)}.`,
-    });
-    runningEquity = after;
-  }
-
-  /* 5 — dentro de cada bloque, qué hay y cuánto */
-  result.segments.forEach(seg => {
-    if (!seg.members || seg.members.length < 2) return;
-    const inner = seg.members
-      .map(m => `${m.label} ${formatPctValue(m.displayPct, 1)}${hasAmount ? ` (${formatEUR(answers.amount * m.weight, 0)})` : ''}`)
-      .join(', ');
-    steps.push({
-      title: `Dentro de ese ${formatPctValue(seg.displayPct, 1)} de ${seg.name.toLowerCase()}`,
-      text: `Como elegiste ${seg.members.length} opciones, ese bloque se reparte a partes iguales entre ellas: ${inner}.`,
-    });
-  });
-
-  /* 6 — el reparto final, cuadrado */
-  steps.push({
-    title: 'Y así queda el reparto final',
-    text: result.segments
-      .map(s => `${s.name} ${formatPctValue(s.displayPct, 1)}${money(s.weight)}`)
-      .join(' · ') + `. Suma ${formatPctValue(result.segments.reduce((a, s) => a + s.displayPct, 0), 1)}.`,
-  });
-
-  return steps;
 }
 
 function getExplanation(effectiveRisk, horizon, archetypes) {
@@ -618,7 +523,7 @@ function shortDate(iso) {
   return {
     sliderToTier, computeEffectiveRisk, getAllocationWeights,
     resolvePicks, weightedRiskMultiplier, sliderToTier, getAllocationWeights, splitByMix, adjustWeightsForInstrumentRisk, applySleeves,
-    CATEGORY_META, computeAllocation, buildAllocationNarrative, getExplanation,
+    CATEGORY_META, computeAllocation, getExplanation,
     alignSeriesSet, simulatePortfolio, simulateDCA, annualizedVol, maxDrawdown,
     calendarYearReturns, realValue, interpolateCurve, convertToEur, formatEUR, formatPct, formatPctValue, displayPercents,
     formatSignedPct, shortDate, TIER_LABEL, listPhrase,
