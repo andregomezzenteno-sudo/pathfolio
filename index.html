@@ -634,9 +634,13 @@
         </div>
         <h2 id="dashHeadline">—</h2>
         <div class="donut-wrap">
-          <svg id="allocationDonut" class="viz-root" role="img" aria-label="Distribución de la cartera recomendada"></svg>
+          <div class="donut-holder">
+            <svg id="allocationDonut" class="viz-root" role="img" aria-label="Distribución de la cartera recomendada"></svg>
+            <div class="donut-tooltip" id="donutTooltip" hidden></div>
+          </div>
           <div class="donut-legend" id="donutLegend"></div>
         </div>
+        <p class="donut-hint">Pasa el ratón por cada trozo del donut para ver qué lleva dentro y cuánto pesa cada cosa.</p>
         <p class="cap-note" id="capNotice" hidden></p>
         <p class="cap-note" id="volNotice" hidden></p>
         <p class="cap-note" id="ageNotice" hidden></p>
@@ -656,6 +660,12 @@
         <div class="legend" id="pfLegend"></div>
       </div>
 
+      <div class="dash-card layer-narrative">
+        <h2>De dónde sale cada porcentaje</h2>
+        <p class="dash-story">La cadena completa, paso a paso y con tus cifras — sin ninguna caja negra.</p>
+        <ol class="narrative-list" id="narrativeList"></ol>
+      </div>
+
       <div class="dash-card layer-3">
         <button class="layer3-toggle" id="layer3Toggle" type="button" aria-expanded="false">
           <span>Ver el detalle técnico</span>
@@ -668,7 +678,7 @@
               <thead>
                 <tr>
                   <th>Categoría</th><th>Instrumento</th><th>Ticker</th>
-                  <th>Peso</th><th>Volatilidad anual</th><th>Coste (TER)</th>
+                  <th>Peso</th><th>Volatilidad anual</th><th>Coste (TER) / importe</th>
                 </tr>
               </thead>
               <tbody id="detailTableBody"></tbody>

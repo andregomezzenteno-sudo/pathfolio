@@ -63,18 +63,34 @@ function jitterPathD(d, seed) {
   return d.replace(/-?\d+(\.\d+)?/g, m => (parseFloat(m) + (rand() - 0.5) * 2.2).toFixed(1));
 }
 
+const BOIL_CYCLE_MS = 1400;
+let boilPhaseCounter = 0;
+
 function renderSketchIcon(container, iconKey, size) {
   const d = SKETCH_ICONS[iconKey];
   if (!d || !container) return;
   container.textContent = '';
   const svg = svgEl('svg', { viewBox: '0 0 64 64', width: size || 40, height: size || 40, class: 'sketch-icon' });
   const seedBase = [...iconKey].reduce((a, c) => a + c.charCodeAt(0), 0);
+
+  // Desfase por icono. Si todos los iconos de la página cambian de fotograma
+  // en el mismo instante, lo que se percibe no es un dibujo temblando sino
+  // la pantalla entera parpadeando de golpe. Repartiendo la fase, cada icono
+  // hierve por su cuenta y el conjunto se lee como algo dibujado a mano.
+  // El desfase es NEGATIVO para que la animación ya esté en marcha en t=0 y
+  // ningún fotograma se quede sin su opacidad definitiva al cargar.
+  const phase = -((boilPhaseCounter++ * 137) % BOIL_CYCLE_MS);
+  const third = BOIL_CYCLE_MS / 3;
+
   [d, jitterPathD(d, seedBase + 11), jitterPathD(d, seedBase + 47)].forEach((frameD, i) => {
-    svg.appendChild(svgEl('path', {
+    const path = svgEl('path', {
       d: frameD, fill: 'none', stroke: 'currentColor', 'stroke-width': 3,
       'stroke-linecap': 'round', 'stroke-linejoin': 'round',
       class: `frame frame-${i + 1}`,
-    }));
+    });
+    path.style.animationDuration = BOIL_CYCLE_MS + 'ms';
+    path.style.animationDelay = (phase - i * third) + 'ms';
+    svg.appendChild(path);
   });
   container.appendChild(svg);
   container.classList.add('icon-ready');
@@ -314,13 +330,124 @@ function computeAllocation(answers, allocations) {
     .map(key => ({
       key, weight: w[key], name: CATEGORY_META[key].name,
       color: CATEGORY_META[key].color, icon: CATEGORY_META[key].icon,
-      members: holdings.filter(h => h.category === key).map(h => h.label).join(' · '),
+      // Los miembros van como objetos, no como texto: la leyenda, el tooltip
+      // del donut y el desglose técnico necesitan el peso de cada uno por
+      // separado para poder decir "de ese 40% de renta fija, 20% es deuda
+      // pública y 20% corporativa".
+      members: holdings.filter(h => h.category === key),
     }));
 
+  // Los porcentajes que se muestran se calculan una sola vez, aquí, con
+  // reparto de resto mayor, y se cuelgan del propio segmento/posición. Así
+  // la leyenda, el tooltip, la tabla y la narración enseñan exactamente los
+  // mismos números y el total cuadra en 100 % en todos ellos.
+  const segPcts = displayPercents(segments.map(s => s.weight), 1);
+  segments.forEach((s, i) => { s.displayPct = segPcts[i]; });
+  const holdPcts = displayPercents(holdings.map(h => h.weight), 1);
+  holdings.forEach((h, i) => { h.displayPct = holdPcts[i]; });
+
   return {
-    ...risk, ...sleeved, effectiveRisk, baseWeights, weights: w, wasTilted,
+    ...risk, ...sleeved, effectiveRisk, baseWeights, tiltedWeights: tilted, weights: w, wasTilted,
     equityPicks, bondsPicks, realEstatePicks, altPicks, holdings, segments,
   };
+}
+
+/* La respuesta real a "explícamelo todo": la cadena completa de cómo se llegó
+   a cada porcentaje, con TUS números y no con generalidades — perfil, reparto
+   de partida, ajuste por instrumento, cada recorte opcional y el reparto
+   final. Cada paso dice de qué cifra se viene y a cuál se va. */
+function buildAllocationNarrative(result, answers, allocations) {
+  const steps = [];
+  const base = result.baseWeights;
+  const tilted = result.tiltedWeights;
+  const w = result.weights;
+  const hasAmount = answers.amount > 0;
+  const money = v => hasAmount ? ` (${formatEUR(answers.amount * v, 0)})` : '';
+
+  /* 1 — de dónde sale el nivel de riesgo */
+  const caps = [];
+  if (result.wasCappedByHorizon) caps.push('el horizonte que elegiste');
+  if (result.wasCappedByVolatility) caps.push('la caída que dijiste que aguantarías');
+  if (result.wasCappedByAge) caps.push('tu franja de edad');
+  steps.push({
+    title: `Tu perfil efectivo es ${TIER_LABEL[result.effectiveRisk]}`,
+    text: caps.length
+      ? `Colocaste el riesgo en ${answers.risk}/100, que por sí solo daría "${sliderToTier(answers.risk)}". Pero ${listPhrase(caps)} ${caps.length > 1 ? 'obligan' : 'obliga'} a rebajarlo hasta "${result.effectiveRisk}". Estas señales solo pueden bajar el riesgo, nunca subirlo.`
+      : `Colocaste el riesgo en ${answers.risk}/100 y dijiste que aguantarías una caída de ${answers.volatility}/100. Ni el horizonte, ni esa tolerancia, ni tu edad obligan a rebajarlo, así que el nivel se queda en "${result.effectiveRisk}".`,
+  });
+
+  /* 2 — el reparto de partida de ese nivel */
+  const basePcts = displayPercents([base.equities, base.bonds, base.cash], 1);
+  steps.push({
+    title: 'El reparto de partida de ese perfil',
+    text: `La tabla de asignación fija, para "${result.effectiveRisk}", un ${formatPctValue(basePcts[0])} en renta variable, un ${formatPctValue(basePcts[1])} en renta fija y un ${formatPctValue(basePcts[2])} en efectivo. Es el punto de partida antes de mirar qué instrumentos concretos elegiste.`,
+  });
+
+  /* 3 — cómo mueven los pesos los instrumentos elegidos */
+  const eqNames = listPhrase(result.equityPicks.map(p => p.label));
+  const bondNames = listPhrase(result.bondsPicks.map(p => p.label));
+  if (result.wasTilted) {
+    const dir = tilted.equities < base.equities ? 'baja' : 'sube';
+    steps.push({
+      title: 'Ajuste por los instrumentos que elegiste',
+      text: `Elegiste ${eqNames} en renta variable y ${bondNames} en renta fija. Como no son igual de volátiles que nuestras referencias, la renta variable ${dir} de ${formatPct(base.equities, 1)} a ${formatPct(tilted.equities, 1)}, y la renta fija pasa a ${formatPct(tilted.bonds, 1)}. El efectivo no se toca: es el suelo de seguridad que fija tu perfil, no el fondo concreto.`,
+    });
+  } else {
+    steps.push({
+      title: 'Los instrumentos que elegiste no mueven los pesos',
+      text: `Elegiste ${eqNames} y ${bondNames}, que son justo nuestras opciones de referencia en volatilidad. Al no ser ni más ni menos movidas de lo esperado, el reparto se queda tal cual estaba.`,
+    });
+  }
+
+  /* 4 — cada recorte opcional, con el antes y el después */
+  let runningEquity = tilted.equities;
+  if (w.realEstate > 0) {
+    const frac = allocations.realEstateFractionByTier[result.effectiveRisk];
+    const after = runningEquity - w.realEstate;
+    steps.push({
+      title: 'Apartas una parte para inversión inmobiliaria',
+      text: `Al perfil "${result.effectiveRisk}" le corresponde reservar el ${formatPct(frac, 0)} de la renta variable para ladrillo. Eso son ${formatPct(w.realEstate, 1)} del total${money(w.realEstate)}, que salen de la renta variable: baja de ${formatPct(runningEquity, 1)} a ${formatPct(after, 1)}. La renta fija y el efectivo no se tocan.`,
+    });
+    runningEquity = after;
+  }
+  if (w.alternative > 0) {
+    const after = runningEquity - w.alternative;
+    steps.push({
+      title: 'Apartas una parte para otras inversiones',
+      text: `Se reserva el ${formatPct(allocations.alternativeFraction, 0)} de lo que queda de renta variable, es decir ${formatPct(w.alternative, 1)} del total${money(w.alternative)}, repartido entre ${listPhrase(result.altPicks.map(p => p.label))}. La renta variable baja de ${formatPct(runningEquity, 1)} a ${formatPct(after, 1)}.`,
+    });
+    runningEquity = after;
+  }
+  if (w.privateEquity > 0) {
+    const after = runningEquity - w.privateEquity;
+    steps.push({
+      title: 'Apartas una parte para private equity',
+      text: `Tu perfil llega a "arriesgado" y tu importe (${formatEUR(answers.amount, 0)}) supera el mínimo de referencia de ${formatEUR(allocations.privateEquityMinAmount, 0)}, así que entra: el ${formatPct(allocations.privateEquityFraction, 0)} de la renta variable restante, o sea ${formatPct(w.privateEquity, 1)} del total${money(w.privateEquity)}. La renta variable queda en ${formatPct(after, 1)}.`,
+    });
+    runningEquity = after;
+  }
+
+  /* 5 — dentro de cada bloque, qué hay y cuánto */
+  result.segments.forEach(seg => {
+    if (!seg.members || seg.members.length < 2) return;
+    const inner = seg.members
+      .map(m => `${m.label} ${formatPctValue(m.displayPct, 1)}${hasAmount ? ` (${formatEUR(answers.amount * m.weight, 0)})` : ''}`)
+      .join(', ');
+    steps.push({
+      title: `Dentro de ese ${formatPctValue(seg.displayPct, 1)} de ${seg.name.toLowerCase()}`,
+      text: `Como elegiste ${seg.members.length} opciones, ese bloque se reparte a partes iguales entre ellas: ${inner}.`,
+    });
+  });
+
+  /* 6 — el reparto final, cuadrado */
+  steps.push({
+    title: 'Y así queda el reparto final',
+    text: result.segments
+      .map(s => `${s.name} ${formatPctValue(s.displayPct, 1)}${money(s.weight)}`)
+      .join(' · ') + `. Suma ${formatPctValue(result.segments.reduce((a, s) => a + s.displayPct, 0), 1)}.`,
+  });
+
+  return steps;
 }
 
 function getExplanation(effectiveRisk, horizon, archetypes) {
@@ -454,6 +581,27 @@ function formatPct(v, decimals = 1) {
   if (v == null || Number.isNaN(v)) return '—';
   return (v * 100).toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' %';
 }
+// Para valores YA expresados en porcentaje (0-100), sin volver a multiplicar.
+function formatPctValue(p, decimals = 1) {
+  if (p == null || Number.isNaN(p)) return '—';
+  return p.toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' %';
+}
+// Reparte el redondeo con el método del resto mayor: los porcentajes que se
+// ven en pantalla suman EXACTAMENTE 100, en lugar de quedarse en 99,9 o
+// pasarse a 100,1 por redondeos independientes. Importa porque toda la
+// cartera se lee como porcentajes que deben cuadrar entre sí.
+function displayPercents(weights, decimals = 1) {
+  const factor = Math.pow(10, decimals);
+  const target = Math.round(100 * factor);
+  const raw = weights.map(w => w * target);
+  const out = raw.map(Math.floor);
+  let remainder = target - out.reduce((a, b) => a + b, 0);
+  const byFraction = raw
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac);
+  for (let k = 0; k < byFraction.length && remainder > 0; k++, remainder--) out[byFraction[k].i] += 1;
+  return out.map(v => v / factor);
+}
 function formatSignedPct(v, decimals = 1) {
   if (v == null || Number.isNaN(v)) return '—';
   return (v >= 0 ? '+' : '') + formatPct(v, decimals);
@@ -536,26 +684,35 @@ function buildLegend(container, items) {
    Los segmentos se animan desde su estado ANTERIOR (no desde cero) para que
    la vista previa en vivo se reacomode con suavidad cada vez que respondes,
    en lugar de dar un salto. */
-function renderDonut(svg, segments, { centerLabel = 'Tu cartera' } = {}) {
+function renderDonut(svg, segments, { centerLabel = 'Tu cartera', tooltipEl = null, amount = null } = {}) {
   const rect = svg.getBoundingClientRect();
-  const size = Math.max(150, Math.min(230, rect.width || 200));
+  const size = Math.max(150, Math.min(260, rect.width || 200));
   svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
   svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
   while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-  const cx = size / 2, cy = size / 2, r = size * 0.34, strokeW = size * 0.19;
+  const cx = size / 2, cy = size / 2, r = size * 0.355, strokeW = size * 0.155;
   const circumference = 2 * Math.PI * r;
+  const gap = segments.length > 1 ? Math.min(3, circumference * 0.006) : 0;
   const prev = svg.__prevDonut || new Map();
   const next = new Map();
 
   svg.appendChild(svgEl('circle', { cx, cy, r, fill: 'none', stroke: 'var(--gridline)', 'stroke-width': strokeW }));
 
+  const hoverGroup = svgEl('g', { class: 'donut-segments' });
+  svg.appendChild(hoverGroup);
+
   let offset = 0;
   segments.forEach(seg => {
-    const segLen = Math.max(0, seg.weight * circumference - 2); // 2px de aire entre segmentos
+    // El hueco entre segmentos se descuenta del arco, nunca por debajo de
+    // cero: un bloque de 0,5 % debe seguir viéndose como una rayita, no
+    // desaparecer ni invertirse por restarle más de lo que mide.
+    const full = seg.weight * circumference;
+    const segLen = Math.max(circumference * 0.004, full - gap);
     const thisOffset = offset;
     const before = prev.get(seg.key) || { len: 0, offset: thisOffset };
-    const circle = svgEl('circle', {
+
+    const arc = svgEl('circle', {
       cx, cy, r, fill: 'none', stroke: seg.color, 'stroke-width': strokeW,
       'stroke-linecap': 'butt',
       'stroke-dasharray': `${before.len} ${circumference - before.len}`,
@@ -564,28 +721,100 @@ function renderDonut(svg, segments, { centerLabel = 'Tu cartera' } = {}) {
       filter: 'url(#sketchWobbleChart)',
       class: 'donut-seg',
     });
-    const title = svgEl('title', {});
-    title.textContent = `${seg.name}: ${formatPct(seg.weight, 0)}`;
-    circle.appendChild(title);
-    svg.appendChild(circle);
+    hoverGroup.appendChild(arc);
     requestAnimationFrame(() => {
-      circle.setAttribute('stroke-dasharray', `${segLen} ${circumference - segLen}`);
-      circle.setAttribute('stroke-dashoffset', -thisOffset);
+      arc.setAttribute('stroke-dasharray', `${segLen} ${circumference - segLen}`);
+      arc.setAttribute('stroke-dashoffset', -thisOffset);
     });
+
+    if (tooltipEl) {
+      // Zona de detección propia, invisible y más gruesa que el arco pintado,
+      // para que apuntar a un segmento fino no sea un ejercicio de puntería.
+      const hit = svgEl('circle', {
+        cx, cy, r, fill: 'none', stroke: 'transparent', 'stroke-width': strokeW * 1.5,
+        'stroke-dasharray': `${segLen} ${circumference - segLen}`,
+        'stroke-dashoffset': -thisOffset,
+        transform: `rotate(-90 ${cx} ${cy})`,
+        class: 'donut-hit',
+      });
+      hit.addEventListener('pointerenter', () => {
+        svg.classList.add('has-hover');
+        arc.classList.add('is-hovered');
+        showDonutTooltip(tooltipEl, seg, amount);
+      });
+      hit.addEventListener('pointerleave', () => {
+        svg.classList.remove('has-hover');
+        arc.classList.remove('is-hovered');
+        tooltipEl.hidden = true;
+      });
+      hoverGroup.appendChild(hit);
+    }
+
     next.set(seg.key, { len: segLen, offset: thisOffset });
-    offset += seg.weight * circumference;
+    offset += full;
   });
   svg.__prevDonut = next;
 
-  const label = svgEl('text', { x: cx, y: cy - 1, 'text-anchor': 'middle', 'font-size': size * 0.105, 'font-weight': 700, fill: 'var(--text-primary)' });
+  const label = svgEl('text', { x: cx, y: cy - 1, 'text-anchor': 'middle', 'font-size': size * 0.1, 'font-weight': 700, fill: 'var(--text-primary)' });
   label.textContent = centerLabel;
   svg.appendChild(label);
-  const sublabel = svgEl('text', { x: cx, y: cy + 15, 'text-anchor': 'middle', 'font-size': size * 0.058, fill: 'var(--text-muted)' });
+  const sublabel = svgEl('text', { x: cx, y: cy + 15, 'text-anchor': 'middle', 'font-size': size * 0.055, fill: 'var(--text-muted)' });
   sublabel.textContent = segments.length === 1 ? '1 bloque' : `${segments.length} bloques`;
   svg.appendChild(sublabel);
 }
 
-function buildDonutLegend(container, segments, { showMembers = false } = {}) {
+// El tooltip del donut no se queda en "Renta fija 40 %": desglosa qué hay
+// dentro de ese 40 % y cuánto pesa cada cosa, que es justo lo que hace falta
+// para entender de dónde sale el número.
+function showDonutTooltip(tooltipEl, seg, amount) {
+  tooltipEl.textContent = '';
+  tooltipEl.hidden = false;
+
+  const head = document.createElement('div');
+  head.className = 'dt-head';
+  const swatch = document.createElement('span');
+  swatch.className = 'dt-swatch';
+  swatch.style.background = seg.color;
+  const name = document.createElement('span');
+  name.className = 'dt-name';
+  name.textContent = seg.name;
+  const pct = document.createElement('span');
+  pct.className = 'dt-pct';
+  pct.textContent = formatPctValue(seg.displayPct, 1);
+  head.append(swatch, name, pct);
+  tooltipEl.appendChild(head);
+
+  if (amount != null) {
+    const money = document.createElement('div');
+    money.className = 'dt-money';
+    money.textContent = `${formatEUR(amount * seg.weight, 0)} de ${formatEUR(amount, 0)}`;
+    tooltipEl.appendChild(money);
+  }
+
+  const members = seg.members || [];
+  if (members.length) {
+    const list = document.createElement('div');
+    list.className = 'dt-members';
+    members.forEach(m => {
+      const row = document.createElement('div');
+      row.className = 'dt-member';
+      const label = document.createElement('span');
+      label.textContent = m.label + (m.ticker ? ` (${m.ticker})` : '');
+      const mp = document.createElement('span');
+      mp.className = 'dt-member-pct';
+      mp.textContent = formatPctValue(m.displayPct, 1);
+      row.append(label, mp);
+      list.appendChild(row);
+    });
+    tooltipEl.appendChild(list);
+  }
+}
+
+// Leyenda anidada: cada categoría con su porcentaje y, debajo, qué hay dentro
+// y cuánto pesa cada pieza — "Renta fija 40 %: deuda pública 20 %, deuda
+// corporativa 20 %". Cierra con una fila de total que deja ver que todo suma
+// exactamente 100 %.
+function buildDonutLegend(container, segments, { showMembers = false, amount = null } = {}) {
   container.textContent = '';
   segments.forEach(seg => {
     const row = document.createElement('div');
@@ -593,24 +822,53 @@ function buildDonutLegend(container, segments, { showMembers = false } = {}) {
     const swatch = document.createElement('span');
     swatch.className = 'legend-swatch dot';
     swatch.style.background = seg.color;
+
     const textWrap = document.createElement('span');
     textWrap.className = 'donut-legend-text';
-    const name = document.createElement('span');
-    name.className = 'donut-legend-name';
-    name.textContent = seg.name;
-    textWrap.appendChild(name);
-    if (showMembers && seg.members) {
-      const members = document.createElement('span');
-      members.className = 'donut-legend-members';
-      members.textContent = seg.members;
-      textWrap.appendChild(members);
+    const nameLine = document.createElement('span');
+    nameLine.className = 'donut-legend-name';
+    nameLine.textContent = seg.name;
+    textWrap.appendChild(nameLine);
+
+    if (showMembers && seg.members && seg.members.length) {
+      const sub = document.createElement('span');
+      sub.className = 'donut-legend-members';
+      seg.members.forEach(m => {
+        const line = document.createElement('span');
+        line.className = 'legend-member-line';
+        const label = document.createElement('span');
+        label.textContent = m.label;
+        const mp = document.createElement('span');
+        mp.className = 'legend-member-pct';
+        mp.textContent = formatPctValue(m.displayPct, 1) +
+          (amount != null ? ` · ${formatEUR(amount * m.weight, 0)}` : '');
+        line.append(label, mp);
+        sub.appendChild(line);
+      });
+      textWrap.appendChild(sub);
     }
+
     const pct = document.createElement('span');
     pct.className = 'donut-legend-pct';
-    pct.textContent = formatPct(seg.weight, 0);
+    pct.textContent = formatPctValue(seg.displayPct, showMembers ? 1 : 0);
     row.append(swatch, textWrap, pct);
     container.appendChild(row);
   });
+
+  if (showMembers) {
+    const total = document.createElement('div');
+    total.className = 'donut-legend-row legend-total';
+    const spacer = document.createElement('span');
+    spacer.className = 'legend-swatch dot is-empty';
+    const label = document.createElement('span');
+    label.className = 'donut-legend-text';
+    label.textContent = 'Total';
+    const pct = document.createElement('span');
+    pct.className = 'donut-legend-pct';
+    pct.textContent = formatPctValue(segments.reduce((s, x) => s + x.displayPct, 0), 1);
+    total.append(spacer, label, pct);
+    container.appendChild(total);
+  }
 }
 
 function renderLineChart({ svg, tooltipEl, dates, series, yFormat, tooltipFormat }) {
@@ -1033,13 +1291,25 @@ function clearClouds() {
   document.querySelectorAll('.falling-cloud').forEach(el => el.remove());
 }
 
+// Un carril con una nube abierta está "ocupado": mientras estés leyendo esa,
+// no deben seguir cayéndote nubes por ese mismo lado y taparla.
+function laneIsBusy(side) {
+  const lane = cloudLanes[side];
+  return !lane || !!lane.querySelector('.falling-cloud.expanded');
+}
+
 function spawnFallingCloud() {
   if (liveCloudCount() >= MAX_CLOUDS) return;
   const pool = (CLOUD_FACTS && CLOUD_FACTS.facts[currentCloudTopic]) || [];
   if (!pool.length) return;
 
-  const lane = cloudLanes[cloudNextSide];
-  cloudNextSide = cloudNextSide === 'left' ? 'right' : 'left';
+  // Si el lado que toca está ocupado se prueba el otro; si lo están los dos,
+  // no se genera nada hasta que se cierre alguna.
+  let side = cloudNextSide;
+  if (laneIsBusy(side)) side = side === 'left' ? 'right' : 'left';
+  if (laneIsBusy(side)) return;
+  const lane = cloudLanes[side];
+  cloudNextSide = side === 'left' ? 'right' : 'left';
   if (!lane) return;
 
   const fact = pool[cloudFactCursor % pool.length];
@@ -1095,6 +1365,8 @@ const altNotice = document.getElementById('altNotice');
 const peNotice = document.getElementById('peNotice');
 const allocationDonut = document.getElementById('allocationDonut');
 const donutLegend = document.getElementById('donutLegend');
+const donutTooltip = document.getElementById('donutTooltip');
+const narrativeList = document.getElementById('narrativeList');
 const backtestStory = document.getElementById('backtestStory');
 const statGrid = document.getElementById('statGrid');
 const explanationDetail = document.getElementById('explanationDetail');
@@ -1107,6 +1379,26 @@ layer3Toggle.addEventListener('click', () => {
   layer3Toggle.setAttribute('aria-expanded', String(!expanded));
   layer3Body.hidden = expanded;
 });
+
+function buildNarrative(container, steps) {
+  container.textContent = '';
+  steps.forEach((s, i) => {
+    const item = document.createElement('li');
+    item.className = 'narrative-step';
+    const num = document.createElement('span');
+    num.className = 'narrative-num';
+    num.textContent = String(i + 1);
+    const body = document.createElement('div');
+    body.className = 'narrative-body';
+    const title = document.createElement('strong');
+    title.textContent = s.title;
+    const text = document.createElement('p');
+    text.textContent = s.text;
+    body.append(title, text);
+    item.append(num, body);
+    container.appendChild(item);
+  });
+}
 
 function buildStatTiles(container, tiles) {
   container.textContent = '';
@@ -1176,8 +1468,13 @@ async function runDashboard() {
     }[result.privateEquityExcludedReason] + ' — así que lo hemos dejado fuera.';
   }
 
-  renderDonut(allocationDonut, segments);
-  buildDonutLegend(donutLegend, segments, { showMembers: true });
+  renderDonut(allocationDonut, segments, { tooltipEl: donutTooltip, amount: answers.amount });
+  buildDonutLegend(donutLegend, segments, { showMembers: true, amount: answers.amount });
+
+  // "Explícamelo todo" es esto: la cadena completa con tus cifras, no un
+  // párrafo genérico. Se muestra siempre; lo que cambia con la respuesta de
+  // estilo es si el bloque técnico arranca abierto o plegado.
+  buildNarrative(narrativeList, buildAllocationNarrative(result, answers, ALLOCATIONS));
 
   const styleDetail = answers.style === 'detalle';
   layer3Toggle.setAttribute('aria-expanded', String(styleDetail));
@@ -1249,35 +1546,55 @@ async function runDashboard() {
     // cartera; el efectivo y los sleeves de tasa fija (crowdfunding, private
     // equity) no tienen precios diarios reales con los que calcularla, así
     // que muestran "—" en vez de un número inventado.
+    // La tabla se agrupa por categoría, con una fila de subtotal por bloque,
+    // para responder directamente a "de ese 40 % de renta fija, ¿cuánto es
+    // pública y cuánto corporativa?" sin tener que sumar a mano.
     detailTableBody.textContent = '';
-    holdings.forEach(h => {
-      const tr = document.createElement('tr');
-      const cells = [
-        CATEGORY_META[h.category].name,
-        h.label,
-        h.ticker || 'Estimación',
-        formatPct(h.weight, 1),
-        h.hasRealData ? formatPct(vol, 1) : '—',
-        h.expenseRatio == null ? '—' : formatPct(h.expenseRatio, 2),
-      ];
-      cells.forEach((text, ci) => {
+    segments.forEach(seg => {
+      const groupRow = document.createElement('tr');
+      groupRow.className = 'group-row';
+      const groupCells = [seg.name, `${seg.members.length} ${seg.members.length === 1 ? 'instrumento' : 'instrumentos'}`, '',
+        formatPctValue(seg.displayPct, 1), '', formatEUR(answers.amount * seg.weight, 0)];
+      groupCells.forEach((text, ci) => {
         const td = document.createElement('td');
         td.textContent = text;
         if (ci >= 3) td.classList.add('num');
-        if (ci === 2 && !h.hasRealData) td.classList.add('estimated');
-        tr.appendChild(td);
+        if (ci === 0) { const sw = document.createElement('span'); sw.className = 'row-swatch'; sw.style.background = seg.color; td.prepend(sw); }
+        groupRow.appendChild(td);
       });
-      detailTableBody.appendChild(tr);
+      detailTableBody.appendChild(groupRow);
+
+      seg.members.forEach(h => {
+        const tr = document.createElement('tr');
+        tr.className = 'member-row';
+        const cells = [
+          '', h.label, h.ticker || 'Estimación',
+          formatPctValue(h.displayPct, 1),
+          h.hasRealData ? formatPct(vol, 1) : '—',
+          h.expenseRatio == null ? '—' : formatPct(h.expenseRatio, 2),
+        ];
+        cells.forEach((text, ci) => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          if (ci >= 3) td.classList.add('num');
+          if (ci === 2 && !h.hasRealData) td.classList.add('estimated');
+          tr.appendChild(td);
+        });
+        detailTableBody.appendChild(tr);
+      });
     });
-    const ddRow = document.createElement('tr');
-    ddRow.className = 'total-row';
-    ['Cartera completa', '', '', formatPct(1, 1), formatPct(vol, 1), ''].forEach((text, ci) => {
+    const totalRow = document.createElement('tr');
+    totalRow.className = 'total-row';
+    ['Cartera completa', '', '',
+      formatPctValue(segments.reduce((a, s) => a + s.displayPct, 0), 1),
+      formatPct(vol, 1), formatEUR(answers.amount, 0),
+    ].forEach((text, ci) => {
       const td = document.createElement('td');
       td.textContent = text;
       if (ci >= 3) td.classList.add('num');
-      ddRow.appendChild(td);
+      totalRow.appendChild(td);
     });
-    detailTableBody.appendChild(ddRow);
+    detailTableBody.appendChild(totalRow);
   } catch (err) {
     console.error(err);
     backtestStory.textContent = 'No hemos podido cargar los datos históricos ahora mismo (puede ser el límite de la API gratuita). Inténtalo de nuevo en unos segundos.';

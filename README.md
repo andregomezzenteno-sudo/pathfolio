@@ -45,7 +45,10 @@ roles (Revolut, Kraken, BVNK, Affirm, UST, and similar).
    change question, so you never read a fact about something you already left
    behind (see `SCREEN_TO_TOPIC` and [`cloudFacts.json`](cloudFacts.json)).
    Each cloud is collapsed to just an icon; click one to pause its fall and
-   read it, click again to let it go.
+   read it, click again to let it go. While a cloud is open, that lane stops
+   spawning new ones so nothing falls over what you're reading, and the
+   expanded bubble deliberately breaks out of the narrow lane so the fact is
+   never clipped.
 3. **Everything is sketch-styled**, not just the icons — every card, button,
    and tile carries a second, hand-jittered outline (an SVG
    `feTurbulence`/`feDisplacementMap` filter) layered over its normal crisp
@@ -68,16 +71,30 @@ roles (Revolut, Kraken, BVNK, Affirm, UST, and similar).
    actually touch or confirm it. See *Why the allocation is deterministic*.
 5. **A three-layer dashboard:**
    - **Capa 1** — headline, risk-profile tag, and a donut of the allocation
-     (3 to 6 segments depending on which optional sleeves qualified), with a
-     legend that also names the instruments inside each category
+     (3 to 6 segments depending on which optional sleeves qualified). Hover
+     any slice and it grows while the rest dim, with a tooltip breaking that
+     category down: its %, its € amount, and every instrument inside it with
+     its own weight. The legend does the same statically — nested sub-rows
+     per instrument (`Renta fija 40 %` → `Deuda pública 20 % · 2.000 €`,
+     `Deuda corporativa 20 % · 2.000 €`) and a **Total** row that visibly
+     closes at exactly 100 %
    - **Capa 2** — the plain-language story ("si hubieras invertido X hace N
      años…"), a row of **stat tiles** (final value, total return, annualized
      return/CAGR, annualized volatility, max drawdown, edge over cash, best
      and worst calendar year — all counting up on load), and the equity-curve
      chart with a crosshair tooltip
-   - **Capa 3** — per-instrument technical detail: every holding on its own
-     row with its ticker, weight, volatility and expense ratio — expanded or
-     collapsed by default depending on your "detalle vs. resultados" answer
+   - **De dónde sale cada porcentaje** — the real answer to "explícamelo
+     todo": a numbered chain that derives your allocation step by step with
+     *your* figures — which signals capped your risk tier and to what, the
+     starting split for that tier, how your chosen instruments tilted it
+     (from X % to Y %), each optional sleeve carved out of equities (again,
+     from X % to Y %, in both % and €), how each block splits between the
+     options you ticked, and a final line that adds up to 100 %
+   - **Capa 3** — per-instrument technical detail, grouped by category with a
+     subtotal row per block, so "of that 40 % in renta fija, how much is
+     government and how much corporate?" is answered by reading, not by doing
+     arithmetic — expanded or collapsed by default depending on your
+     "detalle vs. resultados" answer
 6. Every explanation and lesson shown was written by **Claude (Anthropic)** —
    see *How the explanation text was generated* below.
 
@@ -202,6 +219,20 @@ for context but was deliberately left out of the sub-type choice entirely:
 there's no defensible way to back it with either real data or an illustrative
 rate.
 
+## Percentages that actually add up
+
+Every percentage on screen is computed once, in `computeAllocation()`, using
+**largest-remainder rounding** (`displayPercents()` in [app.js](app.js)) and
+then carried on the segment/holding itself. Rounding each slice independently
+is how a portfolio ends up displaying `33,3 % + 33,3 % + 33,3 % = 99,9 %`;
+here the leftover hundredths are handed to the slices with the largest
+truncated remainders, so the donut legend, the hover tooltip, the narrative
+and the technical table all print the *same* numbers and the total closes at
+exactly 100 %. A block that is real but tiny is never rounded away to 0 %.
+
+Sub-allocations follow the same rule: a block's weight splits evenly between
+whatever you ticked inside it, and those parts always sum back to the block.
+
 ## The sketch system
 
 Two SVG filters (`#sketchWobble` for UI chrome, `#sketchWobbleChart` for
@@ -222,7 +253,11 @@ use **negative** delays so all of them are already mid-cycle at t=0; with
 positive delays there was a window at load where no frame had reached its
 final opacity yet and the icons visibly flickered before settling. Each slot
 is also only revealed once its SVG is actually in the DOM (`.icon-ready`), so
-an icon is never seen half-drawn.
+an icon is never seen half-drawn. Crucially, each icon also gets its **own
+phase offset** (`renderSketchIcon` in [app.js](app.js)): when sixty icons
+switch frames on the very same tick, what you perceive is not a drawing
+wobbling but the whole page strobing. Spreading the phase makes each icon
+boil on its own clock.
 
 ## How the explanation text was generated
 

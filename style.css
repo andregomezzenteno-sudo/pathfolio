@@ -92,10 +92,15 @@ body {
 }
 .sketch-icon-slot.icon-ready { opacity: 1; }
 .sketch-icon { overflow: visible; }
-.sketch-icon .frame { opacity: 0; animation: sketch-boil 1000ms steps(1, end) infinite; }
-.sketch-icon .frame-1 { animation-delay:    0ms; }
-.sketch-icon .frame-2 { animation-delay: -667ms; }
-.sketch-icon .frame-3 { animation-delay: -334ms; }
+/* La duración y el retardo concretos los pone app.js por icono (fase
+   desincronizada, ver renderSketchIcon); aquí solo va el patrón común. */
+.sketch-icon .frame {
+  opacity: 0;
+  animation-name: sketch-boil;
+  animation-duration: 1400ms;
+  animation-timing-function: steps(1, end);
+  animation-iteration-count: infinite;
+}
 @keyframes sketch-boil {
   0%,   33.2% { opacity: 1; }
   33.3%, 100% { opacity: 0; }
@@ -457,19 +462,83 @@ body {
 .cap-note[hidden] { display: none; }
 
 .donut-wrap { display: flex; align-items: center; gap: 30px; flex-wrap: wrap; }
-#allocationDonut { width: 210px; height: 210px; flex: none; }
-.donut-seg { transition: stroke-dasharray 0.6s cubic-bezier(.4,0,.2,1), stroke-dashoffset 0.6s cubic-bezier(.4,0,.2,1); }
+.donut-holder { position: relative; flex: none; }
+#allocationDonut { width: 240px; height: 240px; flex: none; }
+.donut-seg {
+  transition: stroke-dasharray 0.6s cubic-bezier(.4,0,.2,1),
+              stroke-dashoffset 0.6s cubic-bezier(.4,0,.2,1),
+              stroke-width 0.15s ease, opacity 0.15s ease;
+}
+/* Al apuntar a un trozo, ese engorda y el resto se atenúa, para que quede
+   claro de cuál está hablando el tooltip. */
+.viz-root.has-hover .donut-seg { opacity: 0.35; }
+.viz-root.has-hover .donut-seg.is-hovered { opacity: 1; stroke-width: 42px; }
+.donut-hit { pointer-events: stroke; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .donut-seg { transition: none; } }
 
-.donut-legend { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 210px; }
+.donut-tooltip {
+  position: absolute;
+  left: 50%; top: 100%;
+  transform: translate(-50%, 8px);
+  min-width: 210px; max-width: 280px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.14);
+  font-size: 0.8rem;
+  z-index: 6;
+  pointer-events: none;
+}
+.donut-tooltip[hidden] { display: none; }
+.dt-head { display: flex; align-items: center; gap: 7px; }
+.dt-swatch { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.dt-name { font-weight: 700; color: var(--text-primary); }
+.dt-pct { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.dt-money { font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; }
+.dt-members { margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--gridline); display: flex; flex-direction: column; gap: 3px; }
+.dt-member { display: flex; gap: 10px; font-size: 0.76rem; color: var(--text-secondary); }
+.dt-member-pct { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
+.donut-hint { margin: 0; font-size: 0.78rem; color: var(--text-muted); }
+
+.donut-legend { display: flex; flex-direction: column; gap: 11px; flex: 1; min-width: 250px; }
 .donut-legend.compact { gap: 6px; width: 100%; }
 .donut-legend-row { display: flex; align-items: flex-start; gap: 9px; font-size: 0.88rem; }
 .donut-legend.compact .donut-legend-row { font-size: 0.78rem; }
 .legend-swatch.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin-top: 6px; }
-.donut-legend-text { display: flex; flex-direction: column; min-width: 0; }
-.donut-legend-name { color: var(--text-secondary); }
-.donut-legend-members { font-size: 0.75rem; color: var(--text-muted); }
+.legend-swatch.dot.is-empty { background: transparent; }
+.donut-legend-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.donut-legend-name { color: var(--text-primary); font-weight: 600; }
+.donut-legend-members { display: flex; flex-direction: column; gap: 2px; margin-top: 3px; }
+.legend-member-line {
+  display: flex; gap: 10px;
+  font-size: 0.78rem; color: var(--text-muted);
+  padding-left: 10px; border-left: 1px solid var(--gridline);
+}
+.legend-member-pct { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .donut-legend-pct { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; padding-left: 10px; }
+.donut-legend-row.legend-total {
+  border-top: 1px solid var(--baseline);
+  padding-top: 9px; margin-top: 2px;
+  font-weight: 700; color: var(--text-primary);
+}
+
+/* Narración paso a paso: la respuesta larga a "explícamelo todo" */
+.narrative-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; counter-reset: none; }
+.narrative-step { display: flex; gap: 14px; align-items: flex-start; }
+.narrative-num {
+  flex: none;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--brand) 15%, var(--surface-1));
+  color: var(--brand);
+  font-size: 0.78rem; font-weight: 700;
+  margin-top: 1px;
+}
+.narrative-body { min-width: 0; }
+.narrative-body strong { display: block; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 2px; }
+.narrative-body p { margin: 0; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55; }
 
 /* Cifras destacadas */
 .stat-grid {
@@ -534,7 +603,18 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
 .detail-table td.num { font-variant-numeric: tabular-nums; text-align: right; }
 .detail-table th:nth-child(n+4) { text-align: right; }
 .detail-table td.estimated { color: var(--text-muted); font-style: italic; }
+.detail-table .group-row td {
+  font-weight: 700; color: var(--text-primary);
+  background: var(--surface-2);
+  border-bottom: none;
+}
+.detail-table .group-row td:first-child { display: flex; align-items: center; gap: 8px; }
+.row-swatch { width: 9px; height: 9px; border-radius: 50%; flex: none; display: inline-block; }
+.detail-table .member-row td { color: var(--text-secondary); }
+.detail-table .member-row td:nth-child(2) { padding-left: 22px; }
 .detail-table .total-row td { font-weight: 700; border-top: 1.5px solid var(--baseline); border-bottom: none; }
+.dash-card.layer-narrative { animation-delay: 0.16s; }
+.dash-card.layer-3 { animation-delay: 0.24s; }
 .table-footnote { font-size: 0.78rem !important; color: var(--text-muted) !important; }
 
 /* Nubes que caen — sustituyen al antiguo cajón lateral y, antes de eso, a la
@@ -568,22 +648,35 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
 .cloud-shape svg.sketch-icon path.frame { fill: var(--surface-1); }
 .falling-cloud:hover .cloud-shape { color: var(--brand); }
 
+/* Cerrada ocupa cero. Abierta se sale del ancho del carril a propósito: el
+   carril mide ~118px y ahí no cabe una frase entera, así que la burbuja se
+   posiciona por encima de la página con ancho propio y el texto se lee
+   completo, sin recortes ni scroll. */
 .falling-cloud .cloud-bubble {
-  max-width: 0; max-height: 0;
-  margin-top: 0; padding: 0; opacity: 0;
+  width: 0; opacity: 0;
+  margin-top: 0; padding: 0;
   overflow: hidden; border-width: 0;
   background: var(--surface-1);
   border-color: var(--border); border-style: solid;
   border-radius: 12px;
-  transition: max-width 0.25s ease, max-height 0.25s ease, opacity 0.2s ease,
-              padding 0.25s ease, margin-top 0.25s ease, border-width 0.25s ease;
+  transition: opacity 0.18s ease;
 }
 .falling-cloud.expanded .cloud-bubble {
-  max-width: 112px; max-height: 260px;
-  margin-top: 4px; padding: 9px 11px;
+  position: absolute;
+  top: 100%;
+  width: 232px;
+  margin-top: 4px; padding: 10px 12px;
   opacity: 1; border-width: 1px;
+  overflow: visible;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  z-index: 2;
 }
-.cloud-bubble p { margin: 0; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; }
+.cloud-lane-left  .falling-cloud.expanded .cloud-bubble { left: 6px; }
+.cloud-lane-right .falling-cloud.expanded .cloud-bubble { right: 6px; }
+.cloud-bubble p { margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.45; }
+/* Una nube abierta debe poder desbordar su carril, que si no la recorta. */
+.cloud-lane:has(.falling-cloud.expanded) { overflow: visible; }
+.falling-cloud.expanded { z-index: 3; }
 
 @keyframes cloud-fall {
   from { top: -90px; }
