@@ -5,6 +5,8 @@ turns your answers into an illustrative investment allocation — explained in
 everyday language, backed by a real historical backtest on real market data.
 No backend, no build step, no ongoing cost to run.
 
+[![Tests](https://github.com/andregomezzenteno-sudo/pathfolio/actions/workflows/test.yml/badge.svg)](https://github.com/andregomezzenteno-sudo/pathfolio/actions/workflows/test.yml)
+
 **[Live demo →](https://andregomezzenteno-sudo.github.io/pathfolio/)**
 
 Built as a portfolio piece connecting finance + applied AI, targeting fintech
@@ -103,7 +105,12 @@ roles (Revolut, Kraken, BVNK, Affirm, UST, and similar).
      government and how much corporate?" is answered by reading, not by doing
      arithmetic — expanded or collapsed by default depending on your
      "detalle vs. resultados" answer
-6. Every explanation and lesson shown was written by **Claude (Anthropic)** —
+6. **Every answer lives in the URL**, so reloading no longer throws the whole
+   session away, and "Copiar enlace a esta cartera" hands you a link that
+   rebuilds *your* portfolio for whoever opens it. Incoming values are
+   validated against the options that actually exist — an invented key is
+   dropped rather than reaching the engine.
+7. Every explanation and lesson shown was written by **Claude (Anthropic)** —
    see *How the explanation text was generated* below.
 
 ## Fase 1 vs. Fase 2
@@ -291,6 +298,43 @@ repeatedly would mean a real bill, not just a 429. Pre-generating the content
 at build time removes that risk entirely while keeping every explanation
 genuinely LLM-authored, not templated filler.
 
+## Architecture: engine vs. UI
+
+[`engine.js`](engine.js) holds every decision that touches money — risk
+tiering, the allocation table, the sleeve carve-outs, the portfolio
+simulation, the percentage rounding — and **never touches the DOM**.
+[`app.js`](app.js) holds the questionnaire, rendering and everything else.
+
+That split is not decoration. It means the test suite `import`s the engine and
+exercises **the exact code that runs in production**. The suite used to
+re-declare those functions inside the test file, and that copy silently drifted
+from the original more than once — tests passing against code that no longer
+existed. A browser-free engine deletes that entire class of bug.
+
+No bundler and no build step: the browser loads `engine.js` with a plain
+`<script>` and it publishes its functions as globals; Node `require`s the same
+file. One file, no transpilation.
+
+## Tests and CI
+
+```bash
+npm install
+npm test              # engine + integration
+npm run test:engine   # pure logic, no DOM, ~0.2s
+npm run test:dom      # loads the real index.html + engine.js + app.js in jsdom
+```
+
+Both suites run on every push and PR ([`.github/workflows/test.yml`](.github/workflows/test.yml)).
+The integration suite drives the actual UI — clicking through the whole
+questionnaire, going back, toggling multi-selects, hovering donut segments —
+against a mocked market API, and asserts on the rendered DOM.
+
+They earn their keep: writing them surfaced a live bug (an unanswered
+volatility slider was capping the risk tier before the user had answered it),
+proved the backtest model change was sound, and caught the whole-page icon
+flicker. The dialect guard alone found Rioplatense Spanish still shipping in
+the generated content after the app had been converted to Spain Spanish.
+
 ## The backtest model (and what it assumes)
 
 Earlier versions blended the portfolio as `Σ wₖ · rₖ` — a weighted sum of daily
@@ -308,7 +352,12 @@ The regression suite asserts that `'daily'` reproduces the old model
 bit-for-bit, which is both a migration safety net and the proof that the old
 model was daily rebalancing all along.
 
-Two consequences are surfaced in the UI rather than buried:
+**Costs are charged, not just displayed.** Each fund's TER is deducted every
+session, the way funds actually accrue it, and the dashboard shows what those
+fees took **in euros** — a 0.20 % that reads as a rounding error in the
+prospectus stops reading like one over ten years.
+
+Three consequences are surfaced in the UI rather than buried:
 
 - **The rebalancing assumption is stated**, together with what would have
   happened without it — the final € figure *and* how far the equity weight
@@ -319,6 +368,11 @@ Two consequences are surfaced in the UI rather than buried:
   bound**, not the real figure. The dashboard shows what share of the
   portfolio is backed by real prices and says so explicitly when it is below
   100 %.
+- **Inflation is applied**, not ignored. Every headline figure is nominal, so
+  the dashboard also gives the value in *today's* euros using a documented
+  assumption (`assumedAnnualInflation`, the ECB's 2 % target). Over a
+  retirement horizon this is not a footnote, and it is also what makes the
+  "cash is the safe option" intuition visibly wrong.
 
 ## Backtest data
 

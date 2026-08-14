@@ -1,0 +1,15 @@
+{
+  "name": "pathfolio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cuestionario ilustrado de inversión con motor determinista y backtest sobre datos reales.",
+  "scripts": {
+    "test": "node tests/engine.test.mjs && node tests/dom.test.mjs",
+    "test:engine": "node tests/engine.test.mjs",
+    "test:dom": "node tests/dom.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
+  },
+  "engines": { "node": ">=20" }
+}

@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      # El motor no toca el DOM, así que se prueba importándolo directamente.
+      - name: Pruebas del motor determinista
+        run: npm run test:engine
+      # La integración carga index.html + engine.js + app.js reales en jsdom y
+      # recorre el cuestionario entero como lo haría una persona.
+      - name: Pruebas de integración (jsdom)
+        run: npm run test:dom
+      - name: Validar los JSON de contenido
+        run: |
+          for f in allocations.json archetypes.json cloudFacts.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8')); console.log('$f OK')"
+          done

@@ -734,3 +734,6 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
   .donut-wrap { gap: 18px; }
   #allocationDonut { width: 100%; max-width: 220px; height: 200px; margin: 0 auto; }
 }
+
+.dash-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+#shareBtn { min-width: 232px; }
