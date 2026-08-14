@@ -10,11 +10,12 @@
   --border:         rgba(36,31,26,0.10);
   --success-text:   #1a6b1a;
 
-  --series-1: #2a78d6; /* blue    — equities        */
-  --series-2: #eb6834; /* orange  — bonds           */
-  --series-3: #1baf7a; /* aqua    — cash            */
-  --series-4: #eda100; /* yellow  — REITs (optional) */
-  --series-5: #e87ba4; /* magenta — crypto (optional) */
+  --series-1: #2a78d6; /* blue    — renta variable          */
+  --series-2: #eb6834; /* orange  — renta fija               */
+  --series-3: #1baf7a; /* aqua    — efectivo                 */
+  --series-4: #eda100; /* yellow  — inversión inmobiliaria (optional) */
+  --series-5: #e87ba4; /* magenta — otras inversiones (optional) */
+  --series-6: #8b5fbf; /* purple  — private equity (optional) */
 
   --status-good:     #0ca30c;
   --status-critical: #d03b3b;
@@ -45,6 +46,7 @@
   --series-3: #199e70;
   --series-4: #c98500;
   --series-5: #d55181;
+  --series-6: #7c6fe0;
 
   --status-good:     #0ca30c;
   --status-critical: #e66767;
@@ -468,52 +470,83 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
 .detail-table th { color: var(--text-muted); font-weight: 600; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.02em; }
 .detail-table td.num { font-variant-numeric: tabular-nums; }
 
-/* Floating fact cloud — replaces the old side drawer. Drifts very slowly
-   across the top of the screen; the bubble underneath swaps to a new fact
-   every few seconds, contextual to whichever question is currently on
-   screen (topic lookup in app.js). Purely ambient — pointer-events: none so
-   it never blocks a click, and it's the one sketch element that ISN'T
-   double-outlined (see the sketch-wobble frame rule above), since it's
-   already a hand-drawn shape by construction. */
-.fact-cloud {
+/* Falling fact clouds — replace the old side drawer (and, before that, the
+   single horizontally-drifting cloud). Small clouds spawn periodically in
+   app.js and fall straight down the left/right margins, one per lane at a
+   time visually alternating sides. Each is collapsed (icon only) by default
+   — pointer-events stay off for the lane itself so it never blocks a click
+   on the page underneath, but each individual cloud opts back into pointer
+   events so it's clickable. Click toggles .expanded (reveals the bubble,
+   pauses the fall) and .paused (stops the keyframe) together. */
+.cloud-lane {
   position: fixed;
-  top: 84px;
-  left: -25%;
+  top: 0;
+  width: 130px;
+  height: 100vh;
   z-index: 15;
+  pointer-events: none;
+}
+.cloud-lane-left { left: 0; }
+.cloud-lane-right { right: 0; }
+
+.falling-cloud {
+  position: absolute;
+  top: -80px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  pointer-events: none;
-  animation: cloud-drift 90s linear infinite;
+  width: 100%;
+  pointer-events: auto;
+  cursor: pointer;
+  animation-name: cloud-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
 }
+.cloud-lane-left .falling-cloud { align-items: flex-start; padding-left: 6px; }
+.cloud-lane-right .falling-cloud { align-items: flex-end; padding-right: 6px; }
+.falling-cloud.paused { animation-play-state: paused; }
+
 .cloud-shape { color: var(--baseline); }
 .cloud-shape svg.sketch-icon path.frame { fill: var(--surface-1); }
-.cloud-bubble {
-  max-width: 180px;
-  margin-top: -20px;
+
+.falling-cloud .cloud-bubble {
+  max-width: 0;
+  max-height: 0;
+  margin-top: 0;
+  padding: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-width: 0;
   background: var(--surface-1);
-  border: 1px solid var(--border);
   border-radius: 12px;
+  transition: max-width 0.25s ease, max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease, margin-top 0.25s ease, border-width 0.25s ease;
+}
+.falling-cloud.expanded .cloud-bubble {
+  max-width: 170px;
+  max-height: 240px;
+  margin-top: 6px;
   padding: 8px 12px;
+  opacity: 1;
+  border-width: 1px;
+  border-color: var(--border);
+  border-style: solid;
 }
 .cloud-bubble p {
   margin: 0;
   font-size: 0.74rem;
   color: var(--text-secondary);
   line-height: 1.4;
-  text-align: center;
-  transition: opacity 0.4s ease;
 }
-.cloud-bubble p.fading { opacity: 0; }
-@keyframes cloud-drift {
-  0%   { left: -25%; }
-  100% { left: 115%; }
+
+@keyframes cloud-fall {
+  from { top: -80px; }
+  to   { top: 100vh; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fact-cloud { animation: none; left: 12px; }
+  .falling-cloud { animation: none; }
 }
 @media (max-width: 760px) {
-  .fact-cloud { display: none; }
+  .cloud-lane { display: none; }
 }
 
 /* Footer */

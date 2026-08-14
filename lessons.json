@@ -51,14 +51,14 @@
         "Por eso suele cobrar comisiones mucho más bajas que un fondo tradicional."
       ]
     },
-    "reits": {
-      "title": "¿Qué es un REIT (bienes raíces)?",
+    "realEstate": {
+      "title": "¿Cómo se invierte en bienes raíces sin comprar un edificio?",
       "icon": "building",
-      "hook": "Invertir en inmuebles sin comprar un edificio.",
+      "hook": "REITs cotizados, o crowdfunding inmobiliario.",
       "facts": [
-        "Es una empresa que posee y alquila propiedades — comprás una acción de ella.",
-        "Por ley, reparte gran parte de sus ganancias como dividendos.",
-        "Te da exposición a bienes raíces con la liquidez de una acción."
+        "Un REIT es una empresa que posee y alquila propiedades — comprás una acción de ella, con toda su liquidez.",
+        "El crowdfunding inmobiliario financia un proyecto concreto junto a otros inversores — mínimos más bajos, pero menos líquido.",
+        "Por ley, un REIT reparte gran parte de sus ganancias como dividendos."
       ]
     },
     "cripto": {
@@ -68,7 +68,7 @@
       "facts": [
         "Mucho más volátiles que acciones o bonos.",
         "Todavía sin el historial largo que tienen otros activos.",
-        "Por eso PathFolio no las incluye en esta cartera de ejemplo."
+        "Por eso, cuando PathFolio la incluye, siempre es una porción chica y solo si el perfil de riesgo lo permite."
       ]
     },
     "interesCompuesto": {
@@ -88,7 +88,7 @@
       "facts": [
         "Tradicionalmente, solo para inversores institucionales o con mucho capital.",
         "Tu dinero queda encerrado varios años (iliquidez).",
-        "No lo incluimos acá: no hay datos reales y gratuitos para mostrarte."
+        "No existe una cotización diaria pública, así que PathFolio usa una tasa anual estimada en vez de datos de mercado reales."
       ]
     },
     "volatilidad": {

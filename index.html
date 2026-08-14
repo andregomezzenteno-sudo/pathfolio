@@ -244,11 +244,11 @@
         </div>
       </div>
 
-      <!-- REITs knowledge gate -->
-      <div class="quiz-card" id="q-reitsKnowledge" data-question="reitsKnowledge" hidden>
+      <!-- real estate knowledge gate -->
+      <div class="quiz-card" id="q-realEstateKnowledge" data-question="realEstateKnowledge" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Sabés qué es un REIT — invertir en bienes raíces sin comprar una propiedad?</h2>
-        <div class="knowledge-gate" data-options="reitsKnowledge">
+        <h2>¿Sabés que hay formas de invertir en bienes raíces sin comprar una propiedad?</h2>
+        <div class="knowledge-gate" data-options="realEstateKnowledge">
           <button class="option-card knowledge-card" type="button" data-value="si">
             <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
             <span class="option-label">Sí, ya sé</span>
@@ -260,36 +260,36 @@
         </div>
       </div>
 
-      <!-- REITs lesson (conditional) -->
-      <div class="quiz-card lesson-card" id="q-reitsLesson" data-question="reitsLesson" hidden>
+      <!-- real estate lesson (conditional) -->
+      <div class="quiz-card lesson-card" id="q-realEstateLesson" data-question="realEstateLesson" hidden>
         <p class="quiz-eyebrow">Una explicación rápida</p>
-        <h2>Un REIT es una empresa dueña de inmuebles — comprás una acción de ella</h2>
+        <h2>Varias formas de invertir en inmuebles — sin ser el dueño de un edificio vos mismo</h2>
         <div class="lesson-trio">
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="building" data-size="44"></span>
-            <strong>Posee y alquila</strong>
-            <p>Departamentos, oficinas, shoppings, centros de datos — la empresa cobra el alquiler.</p>
+            <strong>REITs cotizados</strong>
+            <p>Una empresa dueña de inmuebles. Comprás una acción de ella — liquidez total, por ley reparte gran parte de sus ganancias como dividendos.</p>
           </div>
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="cash" data-size="44"></span>
-            <strong>Reparte dividendos</strong>
-            <p>Por ley, entrega gran parte de sus ganancias a los accionistas.</p>
+            <strong>Crowdfunding inmobiliario</strong>
+            <p>Financiás un proyecto concreto junto a otros. Mínimos bajos, pero tu dinero queda comprometido más tiempo (menos líquido).</p>
           </div>
           <div class="lesson-trio-item">
-            <span class="sketch-icon-slot" data-icon="check" data-size="44"></span>
-            <strong>Liquidez de acción</strong>
-            <p>A diferencia de un inmueble real, lo comprás y vendés al instante.</p>
+            <span class="sketch-icon-slot" data-icon="house" data-size="44"></span>
+            <strong>Propiedad directa</strong>
+            <p>Comprar un inmueble vos mismo. Requiere mucho capital y no es líquido — por eso no lo modelamos acá.</p>
           </div>
         </div>
-        <button class="btn-primary" data-advance="reitsLesson" type="button">Ya entendí, continuar →</button>
+        <button class="btn-primary" data-advance="realEstateLesson" type="button">Ya entendí, continuar →</button>
       </div>
 
-      <!-- REITs choice: real, carves a slice out of the equities weight -->
-      <div class="quiz-card" id="q-reitsChoice" data-question="reitsChoice" hidden>
+      <!-- real estate choice: real, carves a slice out of the equities weight -->
+      <div class="quiz-card" id="q-realEstateChoice" data-question="realEstateChoice" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2>¿Querés sumarle una porción en bienes raíces a tu cartera?</h2>
-        <p class="quiz-hint">Si decís que sí, le restamos una parte a "empresas grandes" para dársela a REITs — tu riesgo total no cambia mucho.</p>
-        <div class="quiz-options" data-options="reitsChoice">
+        <p class="quiz-hint">Si decís que sí, le restamos una parte a "renta variable" para dársela a bienes raíces — tu riesgo total no cambia mucho.</p>
+        <div class="quiz-options" data-options="realEstateChoice">
           <button class="option-card" type="button" data-value="si">
             <span class="sketch-icon-slot" data-icon="building" data-size="40"></span>
             <span class="option-label">Sí, sumala</span>
@@ -301,11 +301,29 @@
         </div>
       </div>
 
-      <!-- crypto knowledge gate -->
-      <div class="quiz-card" id="q-cryptoKnowledge" data-question="cryptoKnowledge" hidden>
+      <!-- real estate TYPE: discovers which sub-type fits, real, changes the backtest data source -->
+      <div class="quiz-card" id="q-realEstateType" data-question="realEstateType" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Sabés qué son las criptomonedas?</h2>
-        <div class="knowledge-gate" data-options="cryptoKnowledge">
+        <h2>¿Cuál de las dos te queda mejor a vos?</h2>
+        <div class="quiz-options" data-options="realEstateType">
+          <button class="option-card" type="button" data-value="reits">
+            <span class="sketch-icon-slot" data-icon="building" data-size="40"></span>
+            <span class="option-label">REITs cotizados</span>
+            <span class="option-sublabel">Líquido, empezás con poco capital</span>
+          </button>
+          <button class="option-card" type="button" data-value="crowdfunding">
+            <span class="sketch-icon-slot" data-icon="cash" data-size="40"></span>
+            <span class="option-label">Crowdfunding inmobiliario</span>
+            <span class="option-sublabel">Mínimos bajos, menos líquido</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- private equity knowledge gate -->
+      <div class="quiz-card" id="q-peKnowledge" data-question="peKnowledge" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Sabés qué es el private equity — invertir en empresas que no cotizan en bolsa?</h2>
+        <div class="knowledge-gate" data-options="peKnowledge">
           <button class="option-card knowledge-card" type="button" data-value="si">
             <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
             <span class="option-label">Sí, ya sé</span>
@@ -317,43 +335,128 @@
         </div>
       </div>
 
-      <!-- crypto lesson (conditional) -->
-      <div class="quiz-card lesson-card" id="q-cryptoLesson" data-question="cryptoLesson" hidden>
+      <!-- private equity lesson (conditional) -->
+      <div class="quiz-card lesson-card" id="q-peLesson" data-question="peLesson" hidden>
         <p class="quiz-eyebrow">Una explicación rápida</p>
-        <h2>Activos digitales, sin banco central detrás</h2>
+        <h2>Ser dueño de una empresa que no cotiza en ninguna bolsa</h2>
         <div class="lesson-trio">
           <div class="lesson-trio-item">
-            <span class="sketch-icon-slot" data-icon="coin" data-size="44"></span>
-            <strong>Muy volátiles</strong>
-            <p>Sube y baja mucho más fuerte que acciones o bonos.</p>
+            <span class="sketch-icon-slot" data-icon="vault" data-size="44"></span>
+            <strong>Empresas privadas</strong>
+            <p>No cotizan en bolsa — se compran directamente, no con un click.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="document" data-size="44"></span>
+            <strong>Mínimo de entrada alto</strong>
+            <p>Tradicionalmente reservado a inversores institucionales, con fondos que piden mucho capital.</p>
           </div>
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="calendar" data-size="44"></span>
-            <strong>Historial corto</strong>
-            <p>Bitcoin existe desde 2009 — poco tiempo comparado con acciones o bonos.</p>
-          </div>
-          <div class="lesson-trio-item">
-            <span class="sketch-icon-slot" data-icon="rollercoaster" data-size="44"></span>
-            <strong>Solo si sobra riesgo</strong>
-            <p>Por eso acá es una porción chica, y solo si tu perfil lo permite.</p>
+            <strong>Dinero comprometido</strong>
+            <p>No hay forma de vender al instante — queda encerrado varios años.</p>
           </div>
         </div>
-        <button class="btn-primary" data-advance="cryptoLesson" type="button">Ya entendí, continuar →</button>
+        <button class="btn-primary" data-advance="peLesson" type="button">Ya entendí, continuar →</button>
       </div>
 
-      <!-- crypto choice: real, but only actually applied if the FINAL risk tier qualifies -->
-      <div class="quiz-card" id="q-cryptoChoice" data-question="cryptoChoice" hidden>
+      <!-- private equity choice: real, but only applied if BOTH the final risk tier AND capital qualify -->
+      <div class="quiz-card" id="q-peChoice" data-question="peChoice" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Te gustaría sumar una porción chica y opcional en bitcoin?</h2>
+        <h2>¿Te gustaría sumar una porción en private equity, si tu capital lo permite?</h2>
+        <p class="quiz-hint">Los fondos minoristas de private equity suelen pedir un monto inicial más alto que un ETF — te avisamos si el tuyo no alcanza, o si tu perfil de riesgo final no da.</p>
+        <div class="quiz-options" data-options="peChoice">
+          <button class="option-card" type="button" data-value="si">
+            <span class="sketch-icon-slot" data-icon="vault" data-size="40"></span>
+            <span class="option-label">Sí, si mi perfil y capital dan</span>
+          </button>
+          <button class="option-card" type="button" data-value="no">
+            <span class="sketch-icon-slot" data-icon="check" data-size="40"></span>
+            <span class="option-label">No, gracias</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- "otras inversiones" knowledge gate -->
+      <div class="quiz-card" id="q-altKnowledge" data-question="altKnowledge" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Sabés qué son las "otras inversiones" — cripto, oro, materias primas, coleccionables?</h2>
+        <div class="knowledge-gate" data-options="altKnowledge">
+          <button class="option-card knowledge-card" type="button" data-value="si">
+            <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
+            <span class="option-label">Sí, ya sé</span>
+          </button>
+          <button class="option-card knowledge-card" type="button" data-value="no">
+            <span class="sketch-icon-slot" data-icon="question" data-size="36"></span>
+            <span class="option-label">No, explicame</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- "otras inversiones" lesson (conditional) -->
+      <div class="quiz-card lesson-card" id="q-altLesson" data-question="altLesson" hidden>
+        <p class="quiz-eyebrow">Una explicación rápida</p>
+        <h2>Cuatro familias de activos, fuera de acciones y bonos</h2>
+        <div class="lesson-trio">
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="coin" data-size="44"></span>
+            <strong>Criptomonedas</strong>
+            <p>Activos digitales, sin banco central detrás. La más volátil de las cuatro.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="ingot" data-size="44"></span>
+            <strong>Metales preciosos</strong>
+            <p>Oro y similares — el refugio clásico en momentos de incertidumbre.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="barrel" data-size="44"></span>
+            <strong>Materias primas</strong>
+            <p>Petróleo, trigo, cobre — se mueven con la economía global, no solo con las tasas.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="frame" data-size="44"></span>
+            <strong>Coleccionables</strong>
+            <p>Arte, vinos, autos clásicos. Sin precio de mercado diario real — por eso no los incluimos como opción acá.</p>
+          </div>
+        </div>
+        <button class="btn-primary" data-advance="altLesson" type="button">Ya entendí, continuar →</button>
+      </div>
+
+      <!-- "otras inversiones" choice: real, but only actually applied if the FINAL risk tier qualifies -->
+      <div class="quiz-card" id="q-altChoice" data-question="altChoice" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Te gustaría sumar una porción chica y opcional en "otras inversiones"?</h2>
         <p class="quiz-hint">Solo la incluimos si, al final, tu perfil de riesgo da para "arriesgado" — si no, te avisamos y la dejamos afuera.</p>
-        <div class="quiz-options" data-options="cryptoChoice">
+        <div class="quiz-options" data-options="altChoice">
           <button class="option-card" type="button" data-value="si">
             <span class="sketch-icon-slot" data-icon="coin" data-size="40"></span>
             <span class="option-label">Sí, si mi perfil da</span>
           </button>
           <button class="option-card" type="button" data-value="no">
             <span class="sketch-icon-slot" data-icon="check" data-size="40"></span>
-            <span class="option-label">No, prefiero sin cripto</span>
+            <span class="option-label">No, gracias</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- "otras inversiones" TYPE: discovers which sub-type, real, changes the backtest data source -->
+      <div class="quiz-card" id="q-altType" data-question="altType" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Cuál de las tres te interesa más?</h2>
+        <div class="quiz-options" data-options="altType">
+          <button class="option-card" type="button" data-value="crypto">
+            <span class="sketch-icon-slot" data-icon="coin" data-size="40"></span>
+            <span class="option-label">Criptomonedas</span>
+            <span class="option-sublabel">Bitcoin — la más volátil</span>
+          </button>
+          <button class="option-card" type="button" data-value="metales">
+            <span class="sketch-icon-slot" data-icon="ingot" data-size="40"></span>
+            <span class="option-label">Metales preciosos</span>
+            <span class="option-sublabel">Oro — el refugio clásico</span>
+          </button>
+          <button class="option-card" type="button" data-value="materiasPrimas">
+            <span class="sketch-icon-slot" data-icon="barrel" data-size="40"></span>
+            <span class="option-label">Materias primas</span>
+            <span class="option-sublabel">Petróleo, trigo, cobre y más</span>
           </button>
         </div>
       </div>
@@ -422,7 +525,8 @@
         <p class="cap-note" id="volNotice" hidden></p>
         <p class="cap-note" id="ageNotice" hidden></p>
         <p class="cap-note" id="tiltNotice" hidden></p>
-        <p class="cap-note" id="cryptoNotice" hidden></p>
+        <p class="cap-note" id="peNotice" hidden></p>
+        <p class="cap-note" id="altNotice" hidden></p>
       </div>
 
       <div class="dash-card layer-2">
@@ -456,13 +560,12 @@
 
   </main>
 
-  <!-- ===================== FLOATING FACT CLOUD ===================== -->
-  <div class="fact-cloud" id="factCloud" aria-hidden="true">
-    <div class="cloud-shape sketch-icon-slot" data-icon="cloud" data-size="150"></div>
-    <div class="cloud-bubble">
-      <p id="cloudFactText">—</p>
-    </div>
-  </div>
+  <!-- ===================== FALLING FACT CLOUDS ===================== -->
+  <!-- Small clouds spawn periodically and drift straight down the left/right
+       margins (app.js: spawnFallingCloud). Collapsed by default; click one to
+       pause it and read its fact, click again to let it keep falling. -->
+  <div class="cloud-lane cloud-lane-left" id="cloudLaneLeft" aria-hidden="true"></div>
+  <div class="cloud-lane cloud-lane-right" id="cloudLaneRight" aria-hidden="true"></div>
 
   <footer class="app-footer">
     <p><strong>Esto es una simulación educativa.</strong> No es asesoramiento financiero, no ejecuta operaciones reales, y no debería ser la única base para decisiones de inversión. Consultá a un asesor financiero registrado antes de invertir dinero real.</p>

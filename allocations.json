@@ -13,7 +13,7 @@
     "crecer": null,
     "jubilacion": null
   },
-  "_riskTiltComment": "riskMultiplier (on every equity/bonds option below) and tiltDampening together make the equity/bonds INSTRUMENT choice actually move the donut percentages, not just swap a ticker label — picking a more volatile instrument (e.g. NASDAQ 100, riskMultiplier 1.35) trims that bucket's weight and hands the difference to the other bucket, so the portfolio's overall risk budget stays closer to constant regardless of which specific fund you picked. Multipliers are illustrative estimates of each instrument's historical volatility relative to its baseline (msci=1.0 for equities, mixed=1.0 for bonds), not live-computed — see adjustWeightsForInstrumentRisk() in app.js and 'The risk tilt' in README.md.",
+  "_riskTiltComment": "riskMultiplier (on every equity/bonds option below) and tiltDampening together make the equity/bonds INSTRUMENT choice actually move the donut percentages, not just swap a ticker label — picking a more volatile instrument (e.g. NASDAQ 100, riskMultiplier 1.35) trims that bucket's weight and hands the difference to the other bucket, so the portfolio's overall risk budget stays closer to constant regardless of which specific fund you picked. Multipliers are illustrative estimates of each instrument's historical volatility relative to its baseline (msci=1.0 for equities, mixed=1.0 for bonds), not live-computed — see adjustWeightsForInstrumentRisk() in app.js and 'The risk tilt' in README.md. Sleeve subtype choices below (real estate / alternative) intentionally do NOT carry a riskMultiplier: their real-world impact comes from swapping which real ticker gets fetched (different actual historical volatility/drawdown), the same mechanism already proven for the equity-index picker — a decorative multiplier that no function reads would be exactly the kind of fake 'choice that doesn't move anything' this project explicitly avoids.",
   "tiltDampening": 0.35,
   "equityIndexOptions": {
     "sp500": {
@@ -51,15 +51,49 @@
     }
   },
   "defaultBondsChoice": "mixed",
-  "_sleevesComment": "Optional sleeves (REITs, crypto) are real, user-chosen carve-outs FROM the equities weight, applied after the risk tilt above — not decorative extras. reitsFractionByTier scales with risk tier (more room in a bigger equities slice); crypto is flat and only ever actually applied when the FINAL effective risk tier is 'arriesgado', regardless of what the user picked, because a small-but-real allocation only makes sense once every other signal (horizon, drawdown tolerance, age) has already agreed the person can carry that much risk. See applySleeves() in app.js.",
-  "reitsFractionByTier": { "conservador": 0.08, "moderado": 0.12, "arriesgado": 0.15 },
-  "cryptoFraction": 0.08,
-  "cryptoRequiresTier": "arriesgado",
-  "reitsInstrument": {
-    "ticker": "VNQ", "label": "Bienes raíces (REITs)", "name": "Vanguard Real Estate ETF", "expenseRatio": 0.0013, "riskMultiplier": 1.10
+  "_sleevesComment": "Three optional sleeves (real estate, alternative, private equity) are real, user-chosen carve-outs FROM the equities weight, applied after the risk tilt above, in this order — never decorative, never from bonds/cash. Real estate and alternative each offer a sub-type CHOICE that resolves to a real fetchable ticker where one realistically exists (hasRealData:true) or a documented flat illustrative annual rate where it doesn't (hasRealData:false, e.g. real-estate crowdfunding or private equity, which has no public daily price feed at all — this project never fabricates a fake ticker to stand in for one, same principle already applied to the plain cash bucket). Real estate scales with the tier, same as before; alternative and private equity are flat fractions but strictly gated: alternative only applies at the FINAL effective risk tier 'arriesgado', and private equity additionally requires the stated initial amount to clear privateEquityMinAmount — real feeder-fund/ELTIF-style retail private equity vehicles typically carry a real minimum ticket, so a request that doesn't clear it is honestly excluded with a notice, not silently granted. See applySleeves() in app.js.",
+  "realEstateFractionByTier": { "conservador": 0.08, "moderado": 0.12, "arriesgado": 0.15 },
+  "realEstateSubtypes": {
+    "reits": {
+      "ticker": "VNQ", "label": "REITs cotizados", "name": "Vanguard Real Estate ETF", "expenseRatio": 0.0013, "hasRealData": true,
+      "shortDesc": "Cotiza como una acción — mucha liquidez, empezás con poco capital.",
+      "blurb": "La forma más simple y líquida: comprás y vendés al instante, como cualquier ETF, con la ventaja de no tener que lidiar con inquilinos ni mantenimiento."
+    },
+    "crowdfunding": {
+      "ticker": null, "illustrativeAnnualRate": 0.07, "label": "Crowdfunding inmobiliario", "name": "Estimado ilustrativo (sin cotización pública)", "expenseRatio": null, "hasRealData": false,
+      "shortDesc": "Financiás un proyecto concreto junto a otros inversores — mínimos bajos, pero mucho menos líquido.",
+      "blurb": "En vez de comprar una acción de una empresa inmobiliaria grande, ponés dinero en un proyecto específico (un edificio, una reforma). Suele pedir menos capital de entrada que comprar una propiedad, pero tu dinero queda comprometido más tiempo — no hay una cotización diaria real que podamos mostrarte, así que usamos una tasa anual estimada en vez de datos de mercado."
+    }
   },
-  "cryptoInstrument": {
-    "ticker": "BTC/USD", "label": "Bitcoin", "name": "Bitcoin", "expenseRatio": 0, "riskMultiplier": 3.0
+  "defaultRealEstateSubtype": "reits",
+  "alternativeFraction": 0.08,
+  "alternativeRequiresTier": "arriesgado",
+  "alternativeSubtypes": {
+    "crypto": {
+      "ticker": "BTC/USD", "label": "Bitcoin", "name": "Bitcoin", "expenseRatio": 0, "hasRealData": true,
+      "shortDesc": "El más volátil de los tres — y el que menos historial tiene.",
+      "blurb": "Un activo digital sin banco central detrás. Es, con diferencia, la opción más volátil de esta cartera — por eso solo entra si tu perfil de riesgo final da para 'arriesgado'."
+    },
+    "metales": {
+      "ticker": "GLD", "label": "Oro", "name": "SPDR Gold Shares", "expenseRatio": 0.004, "hasRealData": true,
+      "shortDesc": "El refugio clásico en momentos de incertidumbre.",
+      "blurb": "Un metal físico que históricamente conserva valor cuando otros activos caen — no genera dividendos ni intereses, su rendimiento viene solo de cuánto suba o baje su precio."
+    },
+    "materiasPrimas": {
+      "ticker": "DBC", "label": "Materias primas", "name": "Invesco DB Commodity Index Tracking Fund", "expenseRatio": 0.0087, "hasRealData": true,
+      "shortDesc": "Petróleo, trigo, cobre y más, todo junto en un fondo.",
+      "blurb": "Un fondo que sigue una canasta de materias primas físicas — se mueve mucho con la economía global (energía, agricultura, metales industriales), no solo con las tasas de interés."
+    }
+  },
+  "defaultAlternativeSubtype": "crypto",
+  "_collectiblesComment": "Coleccionables (arte, vinos, autos clásicos) is deliberately NOT a selectable subtype here — no liquid, public, dailyprice feed exists for it, so there is no honest way to back it with either real data or a defensible illustrative rate. It's still explained in the alternative-investments lesson content for context, just never offered as a real allocation choice.",
+  "privateEquityFraction": 0.10,
+  "privateEquityRequiresTier": "arriesgado",
+  "privateEquityMinAmount": 10000,
+  "privateEquityInstrument": {
+    "label": "Private Equity", "illustrativeAnnualRate": 0.11, "name": "Estimado ilustrativo (sin cotización pública)", "expenseRatio": null, "hasRealData": false,
+    "shortDesc": "Empresas que no cotizan en bolsa — acceso minorista limitado.",
+    "blurb": "Invertir en empresas privadas casi siempre requiere un monto de entrada real más alto que un ETF, y tu dinero queda comprometido varios años (no hay forma de venderlo al instante). No existe una cotización diaria pública para calcular un backtest real, así que usamos una tasa anual estimada basada en rendimientos históricos típicos de largo plazo del sector — no una garantía de resultado."
   },
   "instruments": {
     "cash": { "illustrativeAnnualRate": 0.02 }

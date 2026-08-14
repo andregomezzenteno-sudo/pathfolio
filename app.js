@@ -52,6 +52,9 @@ const SKETCH_ICONS = {
   building:     'M16 12 H48 V56 H16 Z M22 20 H28 M36 20 H42 M22 30 H28 M36 30 H42 M22 40 H28 M36 40 H42 M26 48 H38 V56 H26 Z',
   coin:         'M32 12 C42 12 50 20 50 30 C50 40 42 48 32 48 C22 48 14 40 14 30 C14 20 22 12 32 12 Z M26 24 H38 M26 36 H38 M30 20 V40',
   spiral:       'M33 40 C29 40 26 37 26 33 C26 28 30 24 35 24 C41 24 46 29 46 35 C46 42 40 48 32 48 C23 48 16 41 16 32 C16 22 24 14 34 14',
+  ingot:        'M10 44 L18 20 H46 L54 44 Z M10 44 H54 M18 20 L24 30 H40 L46 20',
+  barrel:       'M20 8 H44 V56 H20 Z M20 8 C14 14 14 50 20 56 M44 8 C50 14 50 50 44 56 M20 20 H44 M20 44 H44',
+  frame:        'M8 8 H56 V50 H8 Z M16 16 H48 V42 H16 Z M16 42 L28 28 L36 36 L48 22 V42 Z M22 24 C24 24 26 22 26 20 C26 18 24 16 22 16 C20 16 18 18 18 20 C18 22 20 24 22 24 Z',
 };
 
 function jitterPathD(d, seed) {
@@ -168,33 +171,56 @@ function adjustWeightsForInstrumentRisk(baseWeights, equityRiskMultiplier, bonds
   return { equities, bonds, cash };
 }
 
-// Optional REITs/crypto sleeves are real carve-outs FROM the equities weight
-// (not a new fixed bucket, not decorative) — each takes a tier-scaled slice
-// of whatever the equities weight already is after the instrument tilt, and
-// that slice comes straight out of equities, leaving bonds/cash untouched.
-// Crypto only ever actually lands here if the FINAL effective risk tier
-// qualifies, regardless of what the user picked earlier — a small-but-real
-// allocation only makes sense once every other signal has already agreed
-// the person can carry that much risk, so this re-checks it at the end
-// rather than trusting an answer given before the full picture was in.
-function applySleeves(weights, { includeReits, includeCrypto, effectiveRisk }, allocations) {
-  const result = { equities: weights.equities, bonds: weights.bonds, cash: weights.cash, reits: 0, crypto: 0 };
+// Three optional sleeves (real estate, alternative, private equity) are real
+// carve-outs FROM the equities weight (never a new fixed bucket, never
+// decorative) — applied in this order, each taking a slice of whatever the
+// equities weight already is after the previous one. Real estate scales with
+// the tier, same as before generalizing to 3 sleeves. Alternative only ever
+// actually lands here if the FINAL effective risk tier qualifies, regardless
+// of what the user picked earlier — a small-but-real allocation only makes
+// sense once every other signal has already agreed the person can carry that
+// much risk, so this re-checks it at the end rather than trusting an answer
+// given before the full picture was in. Private equity carries that same
+// risk-tier check PLUS a minimum initial-amount check, mirroring how real
+// retail private-equity vehicles (feeder funds, ELTIFs) gate on a minimum
+// ticket size — requesting it without enough capital is honestly excluded,
+// not silently downgraded or silently granted.
+function applySleeves(weights, { includeRealEstate, includeAlternative, includePrivateEquity, effectiveRisk, initialAmount }, allocations) {
+  const result = { equities: weights.equities, bonds: weights.bonds, cash: weights.cash, realEstate: 0, alternative: 0, privateEquity: 0 };
 
-  if (includeReits) {
-    const frac = allocations.reitsFractionByTier[effectiveRisk] || 0;
+  if (includeRealEstate) {
+    const frac = allocations.realEstateFractionByTier[effectiveRisk] || 0;
     const sleeve = result.equities * frac;
     result.equities -= sleeve;
-    result.reits = sleeve;
+    result.realEstate = sleeve;
   }
 
-  const cryptoQualifies = includeCrypto && effectiveRisk === allocations.cryptoRequiresTier;
-  if (cryptoQualifies) {
-    const sleeve = result.equities * allocations.cryptoFraction;
+  const alternativeQualifies = includeAlternative && effectiveRisk === allocations.alternativeRequiresTier;
+  if (alternativeQualifies) {
+    const sleeve = result.equities * allocations.alternativeFraction;
     result.equities -= sleeve;
-    result.crypto = sleeve;
+    result.alternative = sleeve;
   }
 
-  return { weights: result, cryptoIncluded: cryptoQualifies, cryptoRequestedButExcluded: includeCrypto && !cryptoQualifies };
+  const peQualifiesRisk = effectiveRisk === allocations.privateEquityRequiresTier;
+  const peQualifiesCapital = (initialAmount || 0) >= allocations.privateEquityMinAmount;
+  const peQualifies = includePrivateEquity && peQualifiesRisk && peQualifiesCapital;
+  if (peQualifies) {
+    const sleeve = result.equities * allocations.privateEquityFraction;
+    result.equities -= sleeve;
+    result.privateEquity = sleeve;
+  }
+
+  return {
+    weights: result,
+    alternativeIncluded: alternativeQualifies,
+    alternativeRequestedButExcluded: includeAlternative && !alternativeQualifies,
+    privateEquityIncluded: peQualifies,
+    privateEquityRequestedButExcluded: includePrivateEquity && !peQualifies,
+    privateEquityExcludedReason: includePrivateEquity && !peQualifies
+      ? (!peQualifiesRisk && !peQualifiesCapital ? 'both' : (!peQualifiesRisk ? 'risk' : 'capital'))
+      : null,
+  };
 }
 
 function getExplanation(effectiveRisk, horizon, archetypes) {
@@ -208,6 +234,14 @@ function resolveEquityIndex(choiceKey, allocations) {
 
 function resolveBondsChoice(choiceKey, allocations) {
   return allocations.bondsOptions[choiceKey] || allocations.bondsOptions[allocations.defaultBondsChoice];
+}
+
+function resolveRealEstateSubtype(choiceKey, allocations) {
+  return allocations.realEstateSubtypes[choiceKey] || allocations.realEstateSubtypes[allocations.defaultRealEstateSubtype];
+}
+
+function resolveAlternativeSubtype(choiceKey, allocations) {
+  return allocations.alternativeSubtypes[choiceKey] || allocations.alternativeSubtypes[allocations.defaultAlternativeSubtype];
 }
 
 /* ---------- Data fetching (Twelve Data — same key/pattern as trading-backtester) ---------- */
@@ -246,7 +280,8 @@ async function fetchTickerSeries(ticker) {
 
 /* ---------- Portfolio math ---------- */
 
-// Generalized to N series (equities, bonds, and now optionally REITs/crypto)
+// Generalized to N series (equities, bonds, and optionally real estate and/or
+// alternative investments when either resolves to a real fetchable ticker)
 // instead of a fixed pair — intersects every series down to the dates they
 // all share, so an added sleeve can never silently misalign the others.
 function alignSeriesSet(seriesList) {
@@ -258,9 +293,14 @@ function alignSeriesSet(seriesList) {
 
 // weightsList lines up 1:1 with closesList (same order as alignSeriesSet's
 // input) — cash is handled separately since it has no price series to blend.
-function blendPortfolio({ dates, closesList, weightsList, cashWeight, cashAnnualRate, barsPerYear = 252 }) {
+// flatAssets covers any OTHER sleeve with no real price series either (real
+// estate crowdfunding, private equity): each compounds at its own documented
+// illustrative annual rate, exactly like cash does, just not shown as the
+// dedicated "if you'd kept it all in cash" comparison line.
+function blendPortfolio({ dates, closesList, weightsList, cashWeight, cashAnnualRate, flatAssets = [], barsPerYear = 252 }) {
   const n = dates.length;
   const cashPerBar = Math.pow(1 + cashAnnualRate, 1 / barsPerYear) - 1;
+  const flatPerBar = flatAssets.map(a => ({ weight: a.weight, perBar: Math.pow(1 + a.annualRate, 1 / barsPerYear) - 1 }));
   const portfolioEquity = new Array(n).fill(1);
   const cashOnlyEquity = new Array(n).fill(1);
   const dailyReturns = [];
@@ -270,6 +310,7 @@ function blendPortfolio({ dates, closesList, weightsList, cashWeight, cashAnnual
       const c = closesList[k];
       blended += weightsList[k] * (c[i] - c[i - 1]) / c[i - 1];
     }
+    for (const f of flatPerBar) blended += f.weight * f.perBar;
     portfolioEquity[i] = portfolioEquity[i - 1] * (1 + blended);
     cashOnlyEquity[i] = cashOnlyEquity[i - 1] * (1 + cashPerBar);
     dailyReturns.push(blended);
@@ -410,7 +451,7 @@ function renderDonut(svg, segments) {
   label.textContent = 'Tu cartera';
   svg.appendChild(label);
   const sublabel = svgEl('text', { x: cx, y: cy + 16, 'text-anchor': 'middle', 'font-size': size * 0.06, fill: 'var(--text-muted)' });
-  sublabel.textContent = '3 partes';
+  sublabel.textContent = segments.length === 1 ? '1 parte' : `${segments.length} partes`;
   svg.appendChild(sublabel);
 }
 
@@ -538,20 +579,32 @@ const QUESTIONS = [
   'age', 'risk', 'horizon',
   'knowledge', 'indexLesson', 'equityIndex',
   'bondsKnowledge', 'bondsLesson', 'bondsChoice',
-  'reitsKnowledge', 'reitsLesson', 'reitsChoice',
-  'cryptoKnowledge', 'cryptoLesson', 'cryptoChoice',
+  'realEstateKnowledge', 'realEstateLesson', 'realEstateChoice', 'realEstateType',
+  'peKnowledge', 'peLesson', 'peChoice',
+  'altKnowledge', 'altLesson', 'altChoice', 'altType',
   'style', 'volatility', 'amount',
 ];
-// Each conditional lesson is skipped when the paired gate question was answered "si".
-const CONDITIONAL_LESSONS = {
-  indexLesson: 'knowledge', bondsLesson: 'bondsKnowledge',
-  reitsLesson: 'reitsKnowledge', cryptoLesson: 'cryptoKnowledge',
+// Each entry decides, from the CURRENT answers, whether that step should be
+// shown at all — a step with no entry always shows. Two shapes reused across
+// the whole quiz: a lesson slide shows only if its paired knowledge gate was
+// NOT answered "si" (so already-informed users skip it), and a sub-type
+// choice shows only if its paired opt-in question was answered "si" (asking
+// "which kind of X" makes no sense if the user just said they don't want X).
+const CONDITIONAL_STEPS = {
+  indexLesson: a => a.knowledge !== 'si',
+  bondsLesson: a => a.bondsKnowledge !== 'si',
+  realEstateLesson: a => a.realEstateKnowledge !== 'si',
+  realEstateType: a => a.realEstateChoice === 'si',
+  peLesson: a => a.peKnowledge !== 'si',
+  altLesson: a => a.altKnowledge !== 'si',
+  altType: a => a.altChoice === 'si',
 };
 const answers = {
   age: null, risk: 3, horizon: null, knowledge: null, equityIndex: null,
   bondsKnowledge: null, bondsChoice: null,
-  reitsKnowledge: null, reitsChoice: null,
-  cryptoKnowledge: null, cryptoChoice: null,
+  realEstateKnowledge: null, realEstateChoice: null, realEstateType: null,
+  peKnowledge: null, peChoice: null,
+  altKnowledge: null, altChoice: null, altType: null,
   style: null, volatility: 3, amount: 1000, monthly: 0,
 };
 let currentStep = 0;
@@ -568,19 +621,15 @@ const amountInput = document.getElementById('amountInput');
 const monthlyInput = document.getElementById('monthlyInput');
 const restartBtn = document.getElementById('restartBtn');
 
-function skippedLessonCount() {
-  return Object.entries(CONDITIONAL_LESSONS).filter(([, gate]) => answers[gate] === 'si').length;
+function shouldShowStep(index) {
+  const predicate = CONDITIONAL_STEPS[QUESTIONS[index]];
+  return !predicate || predicate(answers);
 }
 function effectiveQuestionCount() {
-  return QUESTIONS.length - skippedLessonCount();
+  return QUESTIONS.filter((q, i) => shouldShowStep(i)).length;
 }
 function effectivePosition(step) {
-  let skippedBefore = 0;
-  for (const lessonKey in CONDITIONAL_LESSONS) {
-    const idx = QUESTIONS.indexOf(lessonKey);
-    if (answers[CONDITIONAL_LESSONS[lessonKey]] === 'si' && step > idx) skippedBefore += 1;
-  }
-  return step + 1 - skippedBefore;
+  return QUESTIONS.slice(0, step + 1).filter((q, i) => shouldShowStep(i)).length;
 }
 
 function renderProgress() {
@@ -600,8 +649,11 @@ const CONNECTORS = {
   risk: a => a.age ? `Con ${a.age} años, pensemos en cómo reaccionás ante las bajadas.` : null,
   knowledge: a => a.horizon ? `Ya que esto es ${HORIZON_PHRASE[a.horizon]}, hablemos de la parte de acciones.` : null,
   bondsKnowledge: a => a.equityIndex ? `Con ${EQUITY_LABEL[a.equityIndex]} elegido, vamos con la otra mitad clásica de una cartera: los bonos.` : null,
-  reitsKnowledge: () => 'Más allá de acciones y bonos, hay otras piezas que podés sumar — empecemos por bienes raíces.',
-  cryptoKnowledge: a => a.reitsChoice === 'si' ? 'Con los REITs sumados, una última pieza opcional — mucho más arriesgada.' : 'Una última pieza opcional, mucho más arriesgada que el resto.',
+  realEstateKnowledge: () => 'Más allá de acciones y bonos, hay otras piezas que podés sumar — empecemos por bienes raíces.',
+  realEstateType: () => 'Bien, ahora elijamos la forma concreta.',
+  peKnowledge: a => a.realEstateChoice === 'si' ? 'Con bienes raíces sumados, otra pieza poco común: empresas que no cotizan en bolsa.' : 'Otra pieza poco común: empresas que no cotizan en bolsa.',
+  altKnowledge: () => 'Una última familia opcional — mucho más volátil que el resto de la cartera.',
+  altType: () => '¿Cuál de las tres te interesa más?',
   volatility: a => `Dijiste que tu tolerancia al riesgo es ${RISK_PHRASE[a.risk]} — probémosla con un escenario real.`,
   amount: () => 'Con tu perfil casi listo, solo falta ponerle números.',
 };
@@ -624,8 +676,7 @@ function showStep(step) {
 
 function nextStep() {
   let next = currentStep + 1;
-  const lessonGate = CONDITIONAL_LESSONS[QUESTIONS[next]];
-  if (lessonGate && answers[lessonGate] === 'si') next += 1;
+  while (next < QUESTIONS.length && !shouldShowStep(next)) next += 1;
   if (next < QUESTIONS.length) showStep(next);
 }
 
@@ -684,55 +735,79 @@ restartBtn.addEventListener('click', () => {
   document.querySelectorAll('.option-card.selected').forEach(el => el.classList.remove('selected'));
   answers.age = answers.horizon = answers.knowledge = answers.equityIndex = null;
   answers.bondsKnowledge = answers.bondsChoice = answers.style = null;
-  answers.reitsKnowledge = answers.reitsChoice = null;
-  answers.cryptoKnowledge = answers.cryptoChoice = null;
+  answers.realEstateKnowledge = answers.realEstateChoice = answers.realEstateType = null;
+  answers.peKnowledge = answers.peChoice = null;
+  answers.altKnowledge = answers.altChoice = answers.altType = null;
   answers.risk = 3; answers.volatility = 3; answers.monthly = 0;
   riskSlider.value = 3; document.getElementById('volatilitySlider').value = 3; monthlyInput.value = 0;
   updateRiskPreview();
   goToQuiz();
 });
 
-/* ---------- Floating fact cloud (replaces the old side drawer) ---------- */
+/* ---------- Falling fact clouds (replace the old side drawer) ----------
+   Small clouds drift down the left/right margins, one spawned every few
+   seconds, alternating sides, each carrying a fact about whatever topic the
+   current question is on. They're collapsed (icon only) by default — click
+   one to pause it and expand its bubble, click again (or just wait) to let
+   it keep falling. Spawned/removed dynamically rather than living in the
+   HTML, since there can be several on screen carrying different facts. */
 
 const SCREEN_TO_TOPIC = {
   age: 'interesCompuesto', risk: 'volatilidad', horizon: 'diversificacion', knowledge: 'indices', indexLesson: 'indices',
   equityIndex: 'indices', bondsKnowledge: 'bonos', bondsLesson: 'bonos', bondsChoice: 'diversificacion',
-  reitsKnowledge: 'reits', reitsLesson: 'reits', reitsChoice: 'reits',
-  cryptoKnowledge: 'cripto', cryptoLesson: 'cripto', cryptoChoice: 'cripto',
+  realEstateKnowledge: 'realEstate', realEstateLesson: 'realEstate', realEstateChoice: 'realEstate', realEstateType: 'realEstate',
+  peKnowledge: 'privateEquity', peLesson: 'privateEquity', peChoice: 'privateEquity',
+  altKnowledge: 'otrasInversiones', altLesson: 'otrasInversiones', altChoice: 'otrasInversiones', altType: 'otrasInversiones',
   style: 'fondosIndexados', volatility: 'rebalanceo', amount: 'dcaVsLumpSum',
 };
 
-const cloudFactText = document.getElementById('cloudFactText');
-let cloudFactTimer = null;
-let cloudFactPool = [];
-let cloudFactIndex = 0;
+const CLOUD_FALL_MS = 17000;
+const CLOUD_SPAWN_MS = 5000;
+const cloudLaneEls = { left: document.getElementById('cloudLaneLeft'), right: document.getElementById('cloudLaneRight') };
+let currentCloudTopic = 'acciones';
+let cloudSpawnTimer = null;
+let cloudNextSide = 'left';
+const cloudTopicIndex = new Map();
 
-function setCloudTopic(topic) {
-  if (!CLOUD_FACTS) return;
-  const facts = CLOUD_FACTS.facts[topic];
-  if (!facts || !facts.length || facts === cloudFactPool) return;
-  cloudFactPool = facts;
-  cloudFactIndex = 0;
-  showCloudFact();
+function nextCloudFact(topic) {
+  const pool = (CLOUD_FACTS && CLOUD_FACTS.facts[topic]) || [];
+  if (!pool.length) return null;
+  const i = cloudTopicIndex.get(topic) || 0;
+  cloudTopicIndex.set(topic, i + 1);
+  return pool[i % pool.length];
 }
 
-function showCloudFact() {
-  if (!cloudFactText || !cloudFactPool.length) return;
-  cloudFactText.classList.add('fading');
-  setTimeout(() => {
-    cloudFactText.textContent = cloudFactPool[cloudFactIndex % cloudFactPool.length];
-    cloudFactText.classList.remove('fading');
-    cloudFactIndex += 1;
-  }, 400);
+function spawnFallingCloud() {
+  const lane = cloudLaneEls[cloudNextSide];
+  cloudNextSide = cloudNextSide === 'left' ? 'right' : 'left';
+  if (!lane) return;
+  const fact = nextCloudFact(currentCloudTopic);
+  if (!fact) return;
+
+  const el = document.createElement('div');
+  el.className = 'falling-cloud';
+  el.style.animationDuration = CLOUD_FALL_MS + 'ms';
+  el.innerHTML =
+    '<span class="cloud-shape sketch-icon-slot" data-icon="cloud" data-size="60"></span>' +
+    '<div class="cloud-bubble"><p></p></div>';
+  el.querySelector('.cloud-bubble p').textContent = fact;
+  el.addEventListener('click', () => {
+    const expanded = el.classList.toggle('expanded');
+    el.classList.toggle('paused', expanded);
+  });
+  el.addEventListener('animationend', () => el.remove());
+  lane.appendChild(el);
+  renderAllSketchIcons(el);
 }
 
 function startCloudCycle() {
-  if (cloudFactTimer) return;
-  cloudFactTimer = setInterval(showCloudFact, 8000);
+  if (cloudSpawnTimer) return;
+  spawnFallingCloud();
+  cloudSpawnTimer = setInterval(spawnFallingCloud, CLOUD_SPAWN_MS);
 }
 
 function updateCloudForQuestion(questionKey) {
-  setCloudTopic(SCREEN_TO_TOPIC[questionKey] || 'acciones');
+  currentCloudTopic = SCREEN_TO_TOPIC[questionKey] || 'acciones';
 }
 
 /* ---------- Dashboard ---------- */
@@ -742,7 +817,8 @@ const capNotice = document.getElementById('capNotice');
 const volNotice = document.getElementById('volNotice');
 const ageNotice = document.getElementById('ageNotice');
 const tiltNotice = document.getElementById('tiltNotice');
-const cryptoNotice = document.getElementById('cryptoNotice');
+const altNotice = document.getElementById('altNotice');
+const peNotice = document.getElementById('peNotice');
 const allocationDonut = document.getElementById('allocationDonut');
 const donutLegend = document.getElementById('donutLegend');
 const backtestStory = document.getElementById('backtestStory');
@@ -762,7 +838,7 @@ async function runDashboard() {
   progressBarOuter.hidden = true;
   screenDashboard.hidden = false;
   backtestStory.textContent = 'Cargando datos históricos reales…';
-  setCloudTopic('dcaVsLumpSum');
+  currentCloudTopic = 'dcaVsLumpSum';
 
   const { effectiveRisk, wasCappedByHorizon, wasCappedByVolatility, wasCappedByAge } = computeEffectiveRisk(answers.risk, answers.horizon, answers.volatility, answers.age, ALLOCATIONS);
   const baseWeights = getAllocationWeights(effectiveRisk, ALLOCATIONS);
@@ -790,25 +866,42 @@ async function runDashboard() {
     tiltNotice.textContent = `${equityInstrument.label} y/o ${bondsInstrument.label} son más o menos volátiles que nuestras opciones de referencia, así que le dimos a las empresas grandes ${eqDir} de peso del que te hubiera tocado por defecto — buscando mantener el riesgo total parecido, sin importar qué instrumento específico elegiste.`;
   }
 
-  const { weights: finalWeights, cryptoIncluded, cryptoRequestedButExcluded } = applySleeves(
-    weights, { includeReits: answers.reitsChoice === 'si', includeCrypto: answers.cryptoChoice === 'si', effectiveRisk }, ALLOCATIONS
-  );
-  cryptoNotice.hidden = !cryptoRequestedButExcluded;
-  if (cryptoRequestedButExcluded) {
-    cryptoNotice.textContent = `Pediste sumar bitcoin, pero tu perfil final terminó siendo "${effectiveRisk}", no "arriesgado" — así que lo dejamos afuera. Una porción de un activo tan volátil solo tiene sentido si cada otra señal (horizonte, caídas reales, edad) ya está de acuerdo.`;
+  const realEstateInstrument = resolveRealEstateSubtype(answers.realEstateType, ALLOCATIONS);
+  const alternativeInstrument = resolveAlternativeSubtype(answers.altType, ALLOCATIONS);
+  const {
+    weights: finalWeights, alternativeIncluded, alternativeRequestedButExcluded,
+    privateEquityIncluded, privateEquityRequestedButExcluded, privateEquityExcludedReason,
+  } = applySleeves(weights, {
+    includeRealEstate: answers.realEstateChoice === 'si',
+    includeAlternative: answers.altChoice === 'si',
+    includePrivateEquity: answers.peChoice === 'si',
+    effectiveRisk, initialAmount: answers.amount,
+  }, ALLOCATIONS);
+
+  altNotice.hidden = !alternativeRequestedButExcluded;
+  if (alternativeRequestedButExcluded) {
+    altNotice.textContent = `Pediste sumar "otras inversiones" (${alternativeInstrument.label.toLowerCase()}), pero tu perfil final terminó siendo "${effectiveRisk}", no "arriesgado" — así que lo dejamos afuera. Una porción de un activo tan volátil solo tiene sentido si cada otra señal (horizonte, caídas reales, edad) ya está de acuerdo.`;
+  }
+  peNotice.hidden = !privateEquityRequestedButExcluded;
+  if (privateEquityRequestedButExcluded) {
+    const reasonText = {
+      risk: `tu perfil final terminó siendo "${effectiveRisk}", no "arriesgado"`,
+      capital: `los fondos de private equity minoristas suelen pedir un mínimo de inversión inicial (acá usamos ${formatUSD(ALLOCATIONS.privateEquityMinAmount, 0)} como referencia) y tu monto no llega`,
+      both: `tu perfil final no es "arriesgado" y además tu monto no alcanza el mínimo habitual de estos fondos (${formatUSD(ALLOCATIONS.privateEquityMinAmount, 0)})`,
+    }[privateEquityExcludedReason];
+    peNotice.textContent = `Pediste sumar private equity, pero ${reasonText} — así que lo dejamos afuera.`;
   }
 
-  const includeReits = finalWeights.reits > 0;
-  const reitsInstrument = ALLOCATIONS.reitsInstrument;
-  const cryptoInstrument = ALLOCATIONS.cryptoInstrument;
+  const includeRealEstate = finalWeights.realEstate > 0;
 
   const donutSegments = [
-    { name: `Empresas grandes (${equityInstrument.label})`, weight: finalWeights.equities, color: 'var(--series-1)' },
-    { name: `Bonos (${bondsInstrument.label})`, weight: finalWeights.bonds, color: 'var(--series-2)' },
+    { name: `Renta variable (${equityInstrument.label})`, weight: finalWeights.equities, color: 'var(--series-1)' },
+    { name: `Renta fija (${bondsInstrument.label})`, weight: finalWeights.bonds, color: 'var(--series-2)' },
     { name: 'Efectivo', weight: finalWeights.cash, color: 'var(--series-3)' },
   ];
-  if (includeReits) donutSegments.push({ name: reitsInstrument.label, weight: finalWeights.reits, color: 'var(--series-4)' });
-  if (cryptoIncluded) donutSegments.push({ name: cryptoInstrument.label, weight: finalWeights.crypto, color: 'var(--series-5)' });
+  if (includeRealEstate) donutSegments.push({ name: `Inversión inmobiliaria (${realEstateInstrument.label})`, weight: finalWeights.realEstate, color: 'var(--series-4)' });
+  if (privateEquityIncluded) donutSegments.push({ name: 'Private Equity', weight: finalWeights.privateEquity, color: 'var(--series-6)' });
+  if (alternativeIncluded) donutSegments.push({ name: `Otras inversiones (${alternativeInstrument.label})`, weight: finalWeights.alternative, color: 'var(--series-5)' });
   renderDonut(allocationDonut, donutSegments);
   buildDonutLegend(donutLegend, donutSegments);
 
@@ -818,20 +911,38 @@ async function runDashboard() {
   explanationDetail.textContent = explanation ? explanation.detail : '';
 
   try {
-    const seriesSpecs = [
-      { key: 'equities', ticker: equityInstrument.ticker, weight: finalWeights.equities },
-      { key: 'bonds', ticker: bondsInstrument.ticker, weight: finalWeights.bonds },
+    const tickerSpecs = [
+      { key: 'equities', name: `Renta variable (${equityInstrument.label})`, ticker: equityInstrument.ticker, weight: finalWeights.equities, ter: equityInstrument.expenseRatio },
+      { key: 'bonds', name: `Renta fija (${bondsInstrument.label})`, ticker: bondsInstrument.ticker, weight: finalWeights.bonds, ter: bondsInstrument.expenseRatio },
     ];
-    if (includeReits) seriesSpecs.push({ key: 'reits', ticker: reitsInstrument.ticker, weight: finalWeights.reits });
-    if (cryptoIncluded) seriesSpecs.push({ key: 'crypto', ticker: cryptoInstrument.ticker, weight: finalWeights.crypto });
+    const flatSpecs = [];
+    if (includeRealEstate) {
+      const row = { key: 'realEstate', name: `Inversión inmobiliaria (${realEstateInstrument.label})`, weight: finalWeights.realEstate, ter: realEstateInstrument.expenseRatio };
+      if (realEstateInstrument.hasRealData) tickerSpecs.push({ ...row, ticker: realEstateInstrument.ticker });
+      else flatSpecs.push({ ...row, ticker: null, annualRate: realEstateInstrument.illustrativeAnnualRate });
+    }
+    if (privateEquityIncluded) {
+      flatSpecs.push({
+        key: 'privateEquity', name: 'Private Equity', ticker: null,
+        weight: finalWeights.privateEquity, ter: ALLOCATIONS.privateEquityInstrument.expenseRatio,
+        annualRate: ALLOCATIONS.privateEquityInstrument.illustrativeAnnualRate,
+      });
+    }
+    if (alternativeIncluded) {
+      tickerSpecs.push({
+        key: 'alternative', name: `Otras inversiones (${alternativeInstrument.label})`, ticker: alternativeInstrument.ticker,
+        weight: finalWeights.alternative, ter: alternativeInstrument.expenseRatio,
+      });
+    }
 
-    const fetchedSeries = await Promise.all(seriesSpecs.map(s => fetchTickerSeries(s.ticker)));
+    const fetchedSeries = await Promise.all(tickerSpecs.map(s => fetchTickerSeries(s.ticker)));
     const aligned = alignSeriesSet(fetchedSeries);
     const cashRate = ALLOCATIONS.instruments.cash.illustrativeAnnualRate;
     const blend = blendPortfolio({
       dates: aligned.dates, closesList: aligned.closesList,
-      weightsList: seriesSpecs.map(s => s.weight),
+      weightsList: tickerSpecs.map(s => s.weight),
       cashWeight: finalWeights.cash, cashAnnualRate: cashRate,
+      flatAssets: flatSpecs.map(s => ({ weight: s.weight, annualRate: s.annualRate })),
     });
 
     const n = blend.dates.length;
@@ -865,16 +976,18 @@ async function runDashboard() {
     const vol = annualizedVol(blend.dailyReturns, 252);
     const dd = maxDrawdown(blend.portfolioEquity);
     detailTableBody.textContent = '';
+    // hasRealData rows (equities/bonds/real-estate-REITs/alternative) share the
+    // portfolio's overall annualized volatility; cash and flat-rate sleeves
+    // (real-estate crowdfunding, private equity) have no real daily prices to
+    // compute a volatility figure from, so they show — instead of a fake number.
     const rows = [
-      [`Empresas grandes (${equityInstrument.label})`, equityInstrument.ticker, finalWeights.equities, equityInstrument.expenseRatio],
-      [`Bonos (${bondsInstrument.label})`, bondsInstrument.ticker, finalWeights.bonds, bondsInstrument.expenseRatio],
-      ['Efectivo', '—', finalWeights.cash, null],
+      ...tickerSpecs.map(s => [s.name, s.ticker, s.weight, true, s.ter]),
+      ['Efectivo', 'Estimado', finalWeights.cash, false, null],
+      ...flatSpecs.map(s => [s.name, 'Estimado', s.weight, false, s.ter]),
     ];
-    if (includeReits) rows.push([reitsInstrument.label, reitsInstrument.ticker, finalWeights.reits, reitsInstrument.expenseRatio]);
-    if (cryptoIncluded) rows.push([cryptoInstrument.label, cryptoInstrument.ticker, finalWeights.crypto, cryptoInstrument.expenseRatio]);
-    rows.forEach(([name, ticker, weight, ter]) => {
+    rows.forEach(([name, ticker, weight, hasRealData, ter]) => {
       const tr = document.createElement('tr');
-      [name, ticker, formatPct(weight, 0), name.startsWith('Efectivo') ? '—' : formatPct(vol, 1), ter == null ? '—' : formatPct(ter, 2)].forEach((text, ci) => {
+      [name, ticker, formatPct(weight, 0), hasRealData ? formatPct(vol, 1) : '—', ter == null ? '—' : formatPct(ter, 2)].forEach((text, ci) => {
         const td = document.createElement('td');
         td.textContent = text;
         if (ci >= 2) td.classList.add('num');

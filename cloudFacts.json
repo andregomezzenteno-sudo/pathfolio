@@ -21,15 +21,24 @@
       "El NASDAQ fue, en 1971, el primer mercado bursátil 100% electrónico del mundo.",
       "El MSCI World cubre unas 1.400 empresas de 23 países desarrollados."
     ],
-    "reits": [
+    "realEstate": [
       "El primer REIT se creó en EEUU en 1960, con una ley firmada por el presidente Eisenhower.",
       "Hoy existen REITs de casi todo: departamentos, shoppings, centros de datos, hasta torres de celulares.",
-      "Por ley, un REIT en EEUU debe repartir al menos el 90% de sus ganancias como dividendos."
+      "Por ley, un REIT en EEUU debe repartir al menos el 90% de sus ganancias como dividendos.",
+      "El crowdfunding inmobiliario moderno recién despegó después de 2012, cuando EEUU flexibilizó las reglas para inversores minoristas."
     ],
-    "cripto": [
+    "otrasInversiones": [
       "Bitcoin nació en 2009, creado bajo el seudónimo Satoshi Nakamoto — nadie sabe quién es en realidad.",
       "Solo van a existir 21 millones de bitcoins, para siempre — está escrito en el código.",
-      "El primer uso real de bitcoin fue pagar dos pizzas, en 2010, por 10.000 BTC."
+      "El oro ha sido usado como reserva de valor durante más de 5.000 años, mucho antes que cualquier moneda.",
+      "Los bancos centrales del mundo, juntos, tienen más de 35.000 toneladas de oro en reservas.",
+      "Los fondos de materias primas suelen seguir contratos de futuros, no el producto físico en sí.",
+      "Una botella de vino de colección se subastó una vez por más de $500.000 — pero no hay forma de saber su precio 'de mercado' hoy."
+    ],
+    "privateEquity": [
+      "El private equity movió más de $8 billones de dólares en activos gestionados a nivel global en los últimos años.",
+      "KKR, una de las primeras grandes firmas de private equity, se fundó en 1976.",
+      "Los nuevos fondos ELTIF en la Unión Europea buscan bajar el mínimo de entrada para inversores minoristas, algo impensado hace una década."
     ],
     "volatilidad": [
       "El peor año del S&P 500 en el siglo XX fue 1931, con una caída de casi 44%.",
