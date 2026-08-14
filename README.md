@@ -1,7 +1,7 @@
 # PathFolio
 
-A questionnaire, in plain Spanish with zero financial jargon, that turns four
-simple answers into an illustrative investment allocation — explained in
+A short illustrated course, in plain Spanish with zero financial jargon, that
+turns your answers into an illustrative investment allocation — explained in
 everyday language, backed by a real historical backtest on real market data.
 No backend, no build step, no ongoing cost to run.
 
@@ -12,22 +12,37 @@ roles (Revolut, Kraken, BVNK, Affirm, UST, and similar).
 
 ## What it does
 
-1. **Questionnaire**, one question per screen, illustrated, with an optional
-   "¿por qué te pregunto esto?" toggle on each: risk tolerance, time horizon,
-   how much explanation you want, and an illustrative amount to invest.
-2. **A deterministic allocation** across three plain-language buckets
+1. **An 8-step questionnaire**, styled as a short course rather than a form:
+   risk tolerance and drawdown tolerance are 1-5 sliders with live visual
+   feedback (drag it and watch a "stability vs. growth" preview shift in real
+   time); time horizon, explanation style, and amount are illustrated cards;
+   a dedicated adaptive step asks whether you already know the difference
+   between the S&P 500, NASDAQ 100, and MSCI World — if not, a short lesson
+   slide explains all three (with sketch icons) before asking which you'd
+   prefer. That choice is real: it changes which ETF the backtest actually
+   fetches.
+2. **A "¿Sabías que?" drawer**, reachable from any screen, with six optional
+   topics (acciones, bonos, efectivo, índices, private equity, volatilidad) —
+   never gating progress, always one tap away. Every icon uses a hand-drawn
+   "boil" animation (three jittered variants of the same sketch, cycled with
+   hard cuts) rather than a smooth vector tween.
+3. **A deterministic allocation** across three plain-language buckets
    ("empresas grandes del mundo", "gobiernos/empresas", "efectivo"), decided by
-   a small rules table (`allocations.json`) — never by the LLM. See
-   *Why the allocation is deterministic* below.
-3. **A three-layer dashboard:**
-   - **Capa 1** — headline + a stacked-bar allocation breakdown
+   a small rules table (`allocations.json`) — never by the LLM. Two
+   independent signals can each pull the risk tier down (never up): a short
+   time horizon, and a low tolerance for real drawdowns that disagrees with
+   the stated risk slider. See *Why the allocation is deterministic* below.
+4. **A three-layer dashboard:**
+   - **Capa 1** — headline + a donut chart of the allocation breakdown, with a
+     legend carrying the direct percentage labels
    - **Capa 2** — "si hubieras invertido $X hace N años, hoy tendrías $Y", with
      a real equity-curve chart blended from actual historical ETF prices
-   - **Capa 3** — technical detail: real tickers, expense ratios, annualized
-     volatility, max drawdown — expanded or collapsed by default depending on
-     your answer to the "detalle vs. resultados" question
-4. Every explanation shown was written by **Claude (Anthropic)** — see
-   *How the explanation text was generated* below.
+   - **Capa 3** — technical detail: real tickers (reflecting whichever index
+     you picked), expense ratios, annualized volatility, max drawdown —
+     expanded or collapsed by default depending on your "detalle vs.
+     resultados" answer
+5. Every explanation and lesson shown was written by **Claude (Anthropic)** —
+   see *How the explanation text was generated* below.
 
 ## Fase 1 vs. Fase 2
 
@@ -57,12 +72,15 @@ language. Reasons, all reinforcing each other:
   never produces it.
 - **Auditable.** Anyone can read `allocations.json` and see exactly what
   every profile gets, with no model non-determinism involved.
-- **A horizon can only make the allocation *more* conservative than what the
-  user's stated risk tolerance would otherwise give** — a short time horizon
-  objectively limits how much volatility you can absorb before needing the
-  money, regardless of stated appetite. See `computeEffectiveRisk()` in
+- **Two independent signals can each only make the allocation *more*
+  conservative, never less** — a short time horizon objectively limits how
+  much volatility you can absorb before needing the money, and a stated
+  drawdown tolerance that disagrees with the risk slider (behavioral finance:
+  people often over-state risk tolerance in the abstract, then reveal a lower
+  true capacity when asked a more concrete "would you sell" question) reveals
+  a lower true risk capacity. See `computeEffectiveRisk()` in
   [app.js](app.js) (and its Python mirror in
-  [engine/generate_archetypes.py](engine/generate_archetypes.py)). When this
+  [engine/generate_archetypes.py](engine/generate_archetypes.py)). When either
   cap kicks in, the UI says so explicitly rather than silently overriding the
   user's answer.
 
@@ -75,9 +93,11 @@ with structured output (Pydantic), and a second generates the "why do you ask
 this" FAQ snippets. Run it yourself with an `ANTHROPIC_API_KEY` and it
 regenerates [`archetypes.json`](archetypes.json) live, end to end.
 
-The content actually shipped in `archetypes.json` was written directly by
-Claude (Anthropic) during development — in the same voice and scope that
-pipeline is designed to produce, just at build time instead of per visitor.
+The content actually shipped in `archetypes.json` (and in
+[`lessons.json`](lessons.json), the "¿Sabías que?" drawer's six topics,
+including the private-equity explainer) was written directly by Claude
+(Anthropic) during development — in the same voice and scope that pipeline is
+designed to produce, just at build time instead of per visitor.
 This is the reason the public site never calls a paid API live: doing so would
 mean an API key exposed in client-side code with no backend to hide it behind,
 and unlike the free, rate-limited market-data APIs this project also uses, an
@@ -88,17 +108,20 @@ genuinely LLM-authored, not templated filler.
 
 ## Backtest data
 
-Both ETFs are fetched **once** (not per profile) from
-[Twelve Data](https://twelvedata.com/)'s free tier — confirmed during
-development to return ~8–10 years of daily history even on the free plan:
-
-- Equities bucket → `VT` (Vanguard Total World Stock ETF)
+- Equities bucket → whichever index you chose in the questionnaire: `SPY`
+  (S&P 500), `QQQ` (NASDAQ 100), or `VT` (MSCI World / Vanguard Total World
+  Stock ETF) — see `equityIndexOptions` in [allocations.json](allocations.json)
 - Bonds bucket → `BND` (Vanguard Total Bond Market ETF)
 - Cash bucket → a flat illustrative annual rate (no market price series exists
   to fetch for plain cash)
 
-Every profile's chart is a different **weighted blend** of the same two real
-series, computed client-side — see `blendPortfolio()` in [app.js](app.js).
+Each ticker is fetched **once and cached by symbol** (`equitySeriesCache` in
+[app.js](app.js)) — not once per profile — from
+[Twelve Data](https://twelvedata.com/)'s free tier, confirmed during
+development to return ~8–10 years of daily history even on the free plan.
+Every profile's chart is a different **weighted blend** of the chosen
+equity series and the bond series, computed client-side — see
+`blendPortfolio()` in [app.js](app.js).
 This reuses the same `TWELVE_DATA_API_KEY` embedded in the sibling
 [`trading-backtester`](https://github.com/andregomezzenteno-sudo/trading-backtester)
 project (same free-tier, rate-limited, intentionally-public key — see that
@@ -110,11 +133,20 @@ than that project does.
 Static site, same pattern as `trading-backtester`: `index.html` / `style.css`
 for structure and the (distinct, warmer) design system, `app.js` for the
 questionnaire state machine, the deterministic allocation engine, the blended
-backtest math, and hand-rolled SVG chart rendering (a horizontal stacked bar
-for the allocation breakdown, a line chart for the equity curve — no charting
-library dependency). `allocations.json` and `archetypes.json` are static data
+backtest math, and hand-rolled SVG chart rendering (a donut for the allocation
+breakdown, a line chart for the equity curve, plus the sketch-icon "boil"
+animation system — no charting or animation library dependency).
+`allocations.json`, `archetypes.json`, and `lessons.json` are static data
 files fetched on load. `engine/` is Python, used only offline to produce
 `archetypes.json` — it is never invoked by the deployed site.
+
+**Sketch icons** (`SKETCH_ICONS` in [app.js](app.js)): each icon is one simple
+SVG path (only `M`/`L`/`C`/`Z` commands, deliberately no arcs — arc flags
+would break under jitter). `jitterPathD()` perturbs every coordinate in that
+path by a small deterministic offset to produce two more "frames"; a single
+CSS keyframe animation (`@keyframes sketch-boil` in [style.css](style.css))
+cross-fades between the three with hard cuts, no easing, so it reads as a
+hand-redrawn sketch rather than a smooth tween.
 
 ## Running locally
 

@@ -1,0 +1,35 @@
+{
+  "_provenance": "Written by Claude (Anthropic) during development, same authorship pattern as archetypes.json — see README.md.",
+  "topics": {
+    "acciones": {
+      "title": "¿Qué son las acciones?",
+      "icon": "stocks",
+      "text": "Una acción es un pedacito de una empresa. Si comprás una acción de una empresa grande, sos dueño de una parte diminuta de esa empresa — si le va bien y gana más dinero, tu pedacito vale más; si le va mal, vale menos. Comprar \"un fondo de acciones\" (como los que usamos acá) significa comprar pedacitos de cientos o miles de empresas a la vez, en vez de apostar a una sola."
+    },
+    "bonos": {
+      "title": "¿Qué son los bonos?",
+      "icon": "bonds",
+      "text": "Un bono es, básicamente, prestarle plata a alguien — un gobierno o una empresa grande — a cambio de que te la devuelvan con un interés. Es más predecible que una acción: sabés de antemano (más o menos) cuánto vas a recibir y cuándo. Por eso los bonos se mueven mucho menos que las acciones, y se usan para darle estabilidad a una cartera."
+    },
+    "efectivo": {
+      "title": "¿Por qué tener algo en efectivo?",
+      "icon": "cash",
+      "text": "Tener una parte en efectivo (o algo parecido, como una cuenta remunerada) es tu colchón de tranquilidad: plata que no está expuesta a que el mercado suba o baje, disponible si la necesitás rápido. No suele crecer mucho — a veces ni le gana a la inflación — pero cumple otra función: darte margen para no tener que vender acciones o bonos justo en un mal momento."
+    },
+    "indices": {
+      "title": "S&P 500, NASDAQ 100 y MSCI World — ¿cuál es la diferencia?",
+      "icon": "globe",
+      "text": "Los tres son formas de comprar \"un pedacito de muchas empresas grandes a la vez\", pero con enfoques distintos. El S&P 500 son las ~500 empresas más grandes de Estados Unidos — su resultado depende casi todo de cómo le va a la economía estadounidense. El NASDAQ 100 también son empresas de EEUU, pero con mucho más peso en tecnología — puede crecer más rápido, pero también caer más fuerte. El MSCI World junta miles de empresas grandes de todo el planeta, no solo de EEUU — es la opción más repartida entre países, así que depende menos de lo que le pase a una sola economía."
+    },
+    "privateEquity": {
+      "title": "¿Qué es el private equity?",
+      "icon": "vault",
+      "text": "Es invertir directamente en empresas que no cotizan en bolsa — no podés comprarlas con un click como una acción. Tradicionalmente estuvo reservado a inversores institucionales o personas con mucho capital, porque requiere montos altos y tu dinero queda \"encerrado\" varios años sin poder sacarlo (esto se llama iliquidez). En los últimos años aparecieron fondos que buscan abrirle esta puerta al inversor minorista — pero justamente por lo difícil que es conseguir datos reales y comparables de este mundo, PathFolio no lo incluye como opción: no queremos mostrarte números inventados."
+    },
+    "volatilidad": {
+      "title": "¿Qué es la volatilidad?",
+      "icon": "rollercoaster",
+      "text": "Es simplemente cuánto sube y baja el valor de una inversión en el camino. Dos inversiones pueden terminar valiendo lo mismo en 10 años, pero una llegó ahí con subidas y bajadas bruscas (alta volatilidad) y la otra con un camino mucho más parejo (baja volatilidad). No es \"bueno\" ni \"malo\" en sí mismo — es sobre qué tan cómodo estás viendo ese camino, no solo el destino final."
+    }
+  }
+}

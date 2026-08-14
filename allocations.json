@@ -13,8 +13,26 @@
     "crecer": null,
     "jubilacion": null
   },
+  "_equityIndexComment": "equityIndexOptions: which real ETF fills the 'equities' slot is a separate, user-chosen axis, orthogonal to the risk/horizon weights above — picking NASDAQ 100 instead of MSCI World changes WHICH instrument gets the equities percentage, never the percentage itself.",
+  "equityIndexOptions": {
+    "sp500": {
+      "ticker": "SPY", "label": "S&P 500", "name": "SPDR S&P 500 ETF Trust", "expenseRatio": 0.0009,
+      "shortDesc": "Las ~500 empresas más grandes de Estados Unidos",
+      "blurb": "Depende casi por completo de la economía de Estados Unidos — si a EEUU le va bien, esto tiende a subir; si le va mal, tiende a bajar."
+    },
+    "nasdaq100": {
+      "ticker": "QQQ", "label": "NASDAQ 100", "name": "Invesco QQQ Trust", "expenseRatio": 0.0020,
+      "shortDesc": "100 grandes empresas de EEUU, con mucho peso en tecnología",
+      "blurb": "Muy concentrado en tecnología — puede crecer más rápido en las buenas, pero también caer más fuerte cuando el sector tech tiene un mal momento."
+    },
+    "msci": {
+      "ticker": "VT", "label": "MSCI World (global)", "name": "Vanguard Total World Stock ETF", "expenseRatio": 0.0007,
+      "shortDesc": "Miles de empresas grandes de todo el mundo, no solo de EEUU",
+      "blurb": "Al repartirse entre muchos países, no depende tanto de lo que le pase a una sola economía — es la opción más diversificada de las tres."
+    }
+  },
+  "defaultEquityIndex": "msci",
   "instruments": {
-    "equities": { "ticker": "VT", "name": "Vanguard Total World Stock ETF", "expenseRatio": 0.0007 },
     "bonds": { "ticker": "BND", "name": "Vanguard Total Bond Market ETF", "expenseRatio": 0.0003 },
     "cash": { "illustrativeAnnualRate": 0.02 }
   }

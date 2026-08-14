@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PathFolio — Encontrá tu punto de partida para invertir</title>
-<meta name="description" content="Cuestionario ilustrado que traduce tus respuestas en una cartera de inversión explicada en lenguaje simple, con un backtest real sobre datos históricos reales.">
+<meta name="description" content="Un curso corto e ilustrado que traduce tus respuestas en una cartera de inversión explicada en lenguaje simple, con un backtest real sobre datos históricos reales.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,97 +13,178 @@
   <header class="app-header">
     <div class="header-text">
       <h1>PathFolio</h1>
-      <p class="subtitle">Un cuestionario simple que te ayuda a entender qué cartera de inversión tiene sentido para vos — explicado sin jerga, con datos reales.</p>
+      <p class="subtitle">Un recorrido corto e ilustrado para entender qué cartera de inversión tiene sentido para vos — sin jerga, con datos reales.</p>
     </div>
     <a class="repo-link" href="https://github.com/andregomezzenteno-sudo/pathfolio" target="_blank" rel="noopener">Ver código en GitHub ↗</a>
   </header>
+
+  <div class="progress-bar-outer" id="progressBarOuter" hidden>
+    <div class="progress-bar-fill" id="progressBarFill"></div>
+    <span class="progress-label" id="progressLabel"></span>
+  </div>
 
   <main id="app">
 
     <!-- ===================== LANDING ===================== -->
     <section class="screen" id="screen-landing" data-screen>
       <div class="landing-card">
-        <div class="landing-icon" aria-hidden="true">
-          <svg viewBox="0 0 120 120" width="96" height="96" fill="none" stroke="var(--brand)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 90 Q40 40 60 60 T100 25"/>
-            <circle cx="100" cy="25" r="6" fill="var(--brand)" stroke="none"/>
-            <path d="M15 100 H105" stroke="var(--baseline)" stroke-width="2"/>
-          </svg>
-        </div>
+        <div class="sketch-icon-slot" data-icon="stocks" data-size="96"></div>
+        <p class="landing-eyebrow">Un mini-curso de 3 minutos</p>
         <h2>Nunca invertiste y no sabés por dónde empezar. Está bien.</h2>
-        <p>Contestá 4 preguntas simples, sin vocabulario técnico. Te mostramos una cartera de ejemplo pensada para tu situación, explicada en español de todos los días, y cómo se hubiera comportado en la vida real en los últimos años.</p>
+        <p>Vamos a construir juntos una cartera de ejemplo para tu situación — con explicaciones simples e ilustradas en el camino, opcionales si ya sabés de esto. Al final vas a ver cómo se hubiera comportado en la vida real.</p>
         <button class="btn-primary" id="startBtn" type="button">Empezar →</button>
-        <p class="landing-note">Toma menos de 2 minutos. No pedimos email, ni datos de cuentas reales, ni nada que puedas perder.</p>
+        <p class="landing-note">No pedimos email, ni datos de cuentas reales, ni nada que puedas perder.</p>
       </div>
     </section>
 
     <!-- ===================== QUESTIONNAIRE ===================== -->
     <section class="screen" id="screen-quiz" data-screen hidden>
-      <div class="quiz-progress" id="quizProgress" aria-hidden="true"></div>
 
-      <div class="quiz-card" id="q-risk" data-question="risk">
-        <button class="faq-toggle" type="button" data-faq="risk" aria-expanded="false">¿Por qué te pregunto esto?</button>
-        <p class="faq-text" data-faq-text="risk" hidden></p>
-        <h2>Si mañana te enterás que el dinero que invertiste bajó un 20%, ¿qué harías?</h2>
-        <div class="quiz-options" data-options="risk">
-          <button class="option-card" type="button" data-value="conservador">
-            <svg class="option-icon" viewBox="0 0 64 64" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 8c14 4 20 8 20 8v18c0 14-9 22-20 26C21 56 12 48 12 34V16s6-4 20-8z"/></svg>
-            <span class="option-label">Vendería todo — no quiero perder más</span>
-          </button>
-          <button class="option-card" type="button" data-value="moderado">
-            <svg class="option-icon" viewBox="0 0 64 64" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 10v44M14 24l18-14 18 14M18 40h28"/></svg>
-            <span class="option-label">Esperaría sin mirar todos los días</span>
-          </button>
-          <button class="option-card" type="button" data-value="arriesgado">
-            <svg class="option-icon" viewBox="0 0 64 64" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6l6 14 15 2-11 11 3 15-13-7-13 7 3-15-11-11 15-2z"/></svg>
-            <span class="option-label">Compraría más — está más barato</span>
-          </button>
+      <!-- risk: slider -->
+      <div class="quiz-card" id="q-risk" data-question="risk" hidden>
+        <p class="quiz-eyebrow">Pregunta 1</p>
+        <h2>Si el dinero que invertiste bajara de valor de un día para el otro, ¿qué tan tranquilo te quedarías?</h2>
+        <div class="slider-row">
+          <input type="range" id="riskSlider" min="1" max="5" step="1" value="3">
+          <div class="slider-labels">
+            <span>Nada tranquilo</span>
+            <span>Totalmente tranquilo</span>
+          </div>
         </div>
+        <div class="tradeoff-preview" id="riskPreview">
+          <div class="tradeoff-side">
+            <span class="tradeoff-label">Estabilidad</span>
+            <div class="tradeoff-track"><div class="tradeoff-fill" id="riskFillStability"></div></div>
+          </div>
+          <div class="tradeoff-side">
+            <span class="tradeoff-label">Crecimiento</span>
+            <div class="tradeoff-track"><div class="tradeoff-fill" id="riskFillGrowth"></div></div>
+          </div>
+        </div>
+        <button class="btn-primary" data-advance="risk" type="button">Continuar →</button>
       </div>
 
+      <!-- horizon: icon cards (unchanged style) -->
       <div class="quiz-card" id="q-horizon" data-question="horizon" hidden>
-        <button class="faq-toggle" type="button" data-faq="horizon" aria-expanded="false">¿Por qué te pregunto esto?</button>
-        <p class="faq-text" data-faq-text="horizon" hidden></p>
+        <p class="quiz-eyebrow">Pregunta 2</p>
         <h2>¿Para qué es este dinero?</h2>
         <div class="quiz-options" data-options="horizon">
           <button class="option-card" type="button" data-value="viaje">
-            <svg class="option-icon" viewBox="0 0 64 64" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="22" width="32" height="26" rx="3"/><path d="M24 22v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6M16 34h32"/></svg>
+            <span class="sketch-icon-slot" data-icon="travel" data-size="40"></span>
             <span class="option-label">Un viaje o una meta cercana</span>
           </button>
           <button class="option-card" type="button" data-value="casa">
-            <svg class="option-icon" viewBox="0 0 64 64" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 30L32 12l22 18"/><path d="M16 26v24h32V26"/><rect x="27" y="36" width="10" height="14"/></svg>
+            <span class="sketch-icon-slot" data-icon="house" data-size="40"></span>
             <span class="option-label">Comprar una casa</span>
           </button>
           <button class="option-card" type="button" data-value="crecer">
-            <svg class="option-icon" viewBox="0 0 64 64" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 54V28M32 28c0-10-8-16-16-16 0 10 6 16 16 16zM32 28c0-8 7-13 14-13 0 9-6 13-14 13z"/></svg>
+            <span class="sketch-icon-slot" data-icon="sprout" data-size="40"></span>
             <span class="option-label">No sé, quiero que crezca</span>
           </button>
           <button class="option-card" type="button" data-value="jubilacion">
-            <svg class="option-icon" viewBox="0 0 64 64" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="20" r="9"/><path d="M14 52c2-14 10-20 18-20s16 6 18 20"/></svg>
+            <span class="sketch-icon-slot" data-icon="retirement" data-size="40"></span>
             <span class="option-label">Mi jubilación</span>
           </button>
         </div>
       </div>
 
+      <!-- knowledge gate -->
+      <div class="quiz-card" id="q-knowledge" data-question="knowledge" hidden>
+        <p class="quiz-eyebrow">Pregunta 3</p>
+        <h2>¿Ya conocés la diferencia entre el S&amp;P 500, el NASDAQ 100 y el MSCI World?</h2>
+        <div class="knowledge-gate" data-options="knowledge">
+          <button class="option-card knowledge-card" type="button" data-value="si">
+            <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
+            <span class="option-label">Sí, ya sé</span>
+          </button>
+          <button class="option-card knowledge-card" type="button" data-value="no">
+            <span class="sketch-icon-slot" data-icon="question" data-size="36"></span>
+            <span class="option-label">No, explicame</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- index lesson (conditional, only if knowledge=no) -->
+      <div class="quiz-card lesson-card" id="q-indexLesson" data-question="indexLesson" hidden>
+        <p class="quiz-eyebrow">Una explicación rápida</p>
+        <h2>Tres formas distintas de comprar "muchas empresas grandes a la vez"</h2>
+        <div class="lesson-trio">
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="sp500flag" data-size="44"></span>
+            <strong>S&amp;P 500</strong>
+            <p>Las ~500 empresas más grandes de EEUU. Depende casi todo de la economía estadounidense.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="chip" data-size="44"></span>
+            <strong>NASDAQ 100</strong>
+            <p>Empresas de EEUU con mucho peso en tecnología. Más potencial, más vaivén.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="globe" data-size="44"></span>
+            <strong>MSCI World</strong>
+            <p>Miles de empresas de todo el mundo, no solo EEUU. La más repartida entre países.</p>
+          </div>
+        </div>
+        <button class="btn-primary" data-advance="indexLesson" type="button">Ya entendí, continuar →</button>
+      </div>
+
+      <!-- equity index choice: real, affects backtest data -->
+      <div class="quiz-card" id="q-equityIndex" data-question="equityIndex" hidden>
+        <p class="quiz-eyebrow">Pregunta 4</p>
+        <h2>Para la parte de "empresas grandes del mundo" en tu cartera, ¿cuál preferís?</h2>
+        <div class="quiz-options" data-options="equityIndex">
+          <button class="option-card" type="button" data-value="sp500">
+            <span class="sketch-icon-slot" data-icon="sp500flag" data-size="40"></span>
+            <span class="option-label">S&amp;P 500</span>
+            <span class="option-sublabel">Grandes empresas de EEUU</span>
+          </button>
+          <button class="option-card" type="button" data-value="nasdaq100">
+            <span class="sketch-icon-slot" data-icon="chip" data-size="40"></span>
+            <span class="option-label">NASDAQ 100</span>
+            <span class="option-sublabel">EEUU, con foco en tecnología</span>
+          </button>
+          <button class="option-card" type="button" data-value="msci">
+            <span class="sketch-icon-slot" data-icon="globe" data-size="40"></span>
+            <span class="option-label">MSCI World</span>
+            <span class="option-sublabel">Global, diversificado</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- style -->
       <div class="quiz-card" id="q-style" data-question="style" hidden>
-        <button class="faq-toggle" type="button" data-faq="style" aria-expanded="false">¿Por qué te pregunto esto?</button>
-        <p class="faq-text" data-faq-text="style" hidden></p>
+        <p class="quiz-eyebrow">Pregunta 5</p>
         <h2>¿Preferís que te explique todo con detalle, o preferís confiar y ver resultados?</h2>
         <div class="quiz-options" data-options="style">
           <button class="option-card" type="button" data-value="detalle">
-            <svg class="option-icon" viewBox="0 0 64 64" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="10" width="36" height="44" rx="3"/><path d="M21 22h22M21 30h22M21 38h14"/></svg>
+            <span class="sketch-icon-slot" data-icon="document" data-size="40"></span>
             <span class="option-label">Explicame todo con detalle</span>
           </button>
           <button class="option-card" type="button" data-value="resultados">
-            <svg class="option-icon" viewBox="0 0 64 64" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 44l12-16 10 8 18-24"/><circle cx="52" cy="12" r="4" fill="currentColor" stroke="none"/></svg>
+            <span class="sketch-icon-slot" data-icon="check" data-size="40"></span>
             <span class="option-label">Mostrame el resultado, confío</span>
           </button>
         </div>
       </div>
 
+      <!-- volatility cross-check: slider -->
+      <div class="quiz-card" id="q-volatility" data-question="volatility" hidden>
+        <p class="quiz-eyebrow">Pregunta 6</p>
+        <h2>Y siendo realistas: ¿cuánta caída podrías tolerar sin vender por pánico?</h2>
+        <div class="slider-row">
+          <input type="range" id="volatilitySlider" min="1" max="5" step="1" value="3">
+          <div class="slider-labels">
+            <span>Casi ninguna</span>
+            <span>Una caída fuerte, sin problema</span>
+          </div>
+        </div>
+        <p class="quiz-hint">Esto lo cruzamos con tu respuesta anterior — si no coinciden, ajustamos hacia el lado más prudente.</p>
+        <button class="btn-primary" data-advance="volatility" type="button">Continuar →</button>
+      </div>
+
+      <!-- amount -->
       <div class="quiz-card" id="q-amount" data-question="amount" hidden>
-        <button class="faq-toggle" type="button" data-faq="amount" aria-expanded="false">¿Por qué te pregunto esto?</button>
-        <p class="faq-text" data-faq-text="amount" hidden></p>
+        <p class="quiz-eyebrow">Última pregunta</p>
         <h2>Para hacerlo concreto: si hoy invirtieras un monto, ¿cuánto sería?</h2>
         <p class="quiz-hint">Es solo para los ejemplos de abajo — no es una inversión real.</p>
         <div class="amount-input-row">
@@ -120,10 +201,12 @@
       <div class="dash-card layer-1">
         <p class="dash-eyebrow">Con tu perfil, así se vería una cartera ilustrativa</p>
         <h2 id="dashHeadline">—</h2>
-        <div class="allocation-wrap">
-          <svg id="allocationChart" class="viz-root" role="img" aria-label="Distribución de la cartera recomendada"></svg>
+        <div class="donut-wrap">
+          <svg id="allocationDonut" class="viz-root" role="img" aria-label="Distribución de la cartera recomendada"></svg>
+          <div class="donut-legend" id="donutLegend"></div>
         </div>
         <p class="cap-note" id="capNotice" hidden></p>
+        <p class="cap-note" id="volNotice" hidden></p>
       </div>
 
       <div class="dash-card layer-2">
@@ -157,9 +240,28 @@
 
   </main>
 
+  <!-- ===================== "¿SABÍAS QUE?" DRAWER ===================== -->
+  <button class="drawer-tab" id="drawerTab" type="button" aria-expanded="false" aria-controls="drawerPanel">
+    <span class="sketch-icon-slot" data-icon="question" data-size="20"></span>
+    <span>¿Sabías que?</span>
+  </button>
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+  <aside class="drawer-panel" id="drawerPanel" hidden aria-hidden="true">
+    <div class="drawer-head">
+      <span>Aprendé un poco más</span>
+      <button class="drawer-close" id="drawerClose" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="drawer-chips" id="drawerChips"></div>
+    <div class="drawer-content">
+      <div class="sketch-icon-slot" id="drawerIcon" data-size="64"></div>
+      <h3 id="drawerTitle">—</h3>
+      <p id="drawerText">—</p>
+    </div>
+  </aside>
+
   <footer class="app-footer">
     <p><strong>Esto es una simulación educativa.</strong> No es asesoramiento financiero, no ejecuta operaciones reales, y no debería ser la única base para decisiones de inversión. Consultá a un asesor financiero registrado antes de invertir dinero real.</p>
-    <p>Datos de mercado: <a href="https://twelvedata.com/" target="_blank" rel="noopener">Twelve Data</a> (tier gratuito). Explicaciones generadas por Claude (Anthropic) — ver <a href="https://github.com/andregomezzenteno-sudo/pathfolio" target="_blank" rel="noopener">README</a> para el pipeline completo. Código abierto en <a href="https://github.com/andregomezzenteno-sudo/pathfolio" target="_blank" rel="noopener">GitHub</a>.</p>
+    <p>Datos de mercado: <a href="https://twelvedata.com/" target="_blank" rel="noopener">Twelve Data</a> (tier gratuito). Explicaciones y lecciones generadas por Claude (Anthropic) — ver <a href="https://github.com/andregomezzenteno-sudo/pathfolio" target="_blank" rel="noopener">README</a>. Código abierto en <a href="https://github.com/andregomezzenteno-sudo/pathfolio" target="_blank" rel="noopener">GitHub</a>.</p>
   </footer>
 
 </div>
