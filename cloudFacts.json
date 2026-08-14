@@ -1,69 +1,80 @@
 {
-  "_provenance": "Written by Claude (Anthropic) during development — short, single-sentence trivia (historical, curious, or just informative) shown by the floating cloud, contextual to whichever question is on screen. Deliberately terser than lessons.json: this is ambient color while you answer, not something to stop and read.",
+  "_provenance": "Escrito por Claude (Anthropic) durante el desarrollo — datos curiosos de una sola frase (históricos, curiosos o simplemente informativos) que sueltan las nubes que caen, según la pregunta que tengas en pantalla. A propósito más breves que el contenido de las lecciones: esto es ambiente mientras respondes, no algo para pararse a estudiar. Cada tema tiene al menos 3 datos porque como mucho caen 3 nubes por pregunta.",
   "facts": {
     "acciones": [
-      "El S&P 500 devolvió en promedio ~10% anual (antes de inflación) desde 1926.",
+      "El S&P 500 ha dado de media un ~10% anual (antes de inflación) desde 1926.",
       "Hay más de 58.000 empresas cotizando en bolsas de todo el mundo.",
       "La acción más antigua que sigue cotizando es de una minera sueca fundada en 1288."
     ],
+    "rentaVariable": [
+      "\"Renta variable\" significa justo eso: nadie te promete cuánto vas a ganar, varía.",
+      "Comprar una acción es literalmente comprar un trocito de la empresa, con sus beneficios y sus marrones.",
+      "La Bolsa de Madrid abrió en 1831; la de Ámsterdam, la primera del mundo, en 1602."
+    ],
     "bonos": [
-      "El mercado global de bonos vale más que el de acciones: unos $130 billones de dólares.",
-      "El bono más antiguo conocido es de Venecia, del año 1171.",
-      "Japón tuvo tasas de interés en cero o negativas durante más de dos décadas."
+      "El mercado global de bonos mueve más dinero que el de acciones: unos 130 billones de dólares.",
+      "El bono más antiguo que se conoce es de Venecia, del año 1171.",
+      "Japón tuvo tipos de interés a cero o negativos durante más de dos décadas."
     ],
     "efectivo": [
-      "La Reserva Federal de EEUU apunta a una inflación de 2% anual como objetivo.",
-      "El primer cajero automático del mundo abrió en Londres, en 1967.",
-      "Solo una fracción chica del dinero del mundo existe como billetes y monedas físicas."
+      "El Banco Central Europeo tiene como objetivo una inflación del 2% anual.",
+      "El primer cajero automático del mundo abrió en Londres en 1967.",
+      "Solo una parte pequeñísima del dinero del mundo existe como billetes y monedas físicas."
     ],
     "indices": [
-      "El S&P 500 se creó en 1957 con 500 empresas — hoy sigue teniendo ese número.",
+      "El S&P 500 se creó en 1957 con 500 empresas — y hoy sigue teniendo ese número.",
       "El NASDAQ fue, en 1971, el primer mercado bursátil 100% electrónico del mundo.",
-      "El MSCI World cubre unas 1.400 empresas de 23 países desarrollados."
+      "El MSCI World cubre unas 1.400 empresas de 23 países desarrollados.",
+      "El IBEX 35 arrancó en 1992 con las 35 empresas más líquidas del mercado español."
     ],
     "realEstate": [
-      "El primer REIT se creó en EEUU en 1960, con una ley firmada por el presidente Eisenhower.",
-      "Hoy existen REITs de casi todo: departamentos, shoppings, centros de datos, hasta torres de celulares.",
-      "Por ley, un REIT en EEUU debe repartir al menos el 90% de sus ganancias como dividendos.",
-      "El crowdfunding inmobiliario moderno recién despegó después de 2012, cuando EEUU flexibilizó las reglas para inversores minoristas."
+      "El primer REIT se creó en EE. UU. en 1960, con una ley que firmó el presidente Eisenhower.",
+      "Hoy hay REITs de casi todo: pisos, centros comerciales, centros de datos y hasta torres de móvil.",
+      "Por ley, un REIT en EE. UU. debe repartir al menos el 90% de sus beneficios como dividendos.",
+      "En España las SOCIMIs son el equivalente a los REITs, y existen desde 2009."
+    ],
+    "privateEquity": [
+      "Mercadona, El Corte Inglés e Ikea son gigantes que no cotizan en ninguna bolsa.",
+      "El private equity gestiona más de 8 billones de dólares en activos a nivel global.",
+      "KKR, una de las primeras grandes firmas de private equity, se fundó en 1976.",
+      "Los nuevos fondos ELTIF europeos buscan bajar el mínimo de entrada para inversores de a pie."
     ],
     "otrasInversiones": [
       "Bitcoin nació en 2009, creado bajo el seudónimo Satoshi Nakamoto — nadie sabe quién es en realidad.",
-      "Solo van a existir 21 millones de bitcoins, para siempre — está escrito en el código.",
-      "El oro ha sido usado como reserva de valor durante más de 5.000 años, mucho antes que cualquier moneda.",
-      "Los bancos centrales del mundo, juntos, tienen más de 35.000 toneladas de oro en reservas.",
-      "Los fondos de materias primas suelen seguir contratos de futuros, no el producto físico en sí.",
-      "Una botella de vino de colección se subastó una vez por más de $500.000 — pero no hay forma de saber su precio 'de mercado' hoy."
-    ],
-    "privateEquity": [
-      "El private equity movió más de $8 billones de dólares en activos gestionados a nivel global en los últimos años.",
-      "KKR, una de las primeras grandes firmas de private equity, se fundó en 1976.",
-      "Los nuevos fondos ELTIF en la Unión Europea buscan bajar el mínimo de entrada para inversores minoristas, algo impensado hace una década."
+      "Solo van a existir 21 millones de bitcoins, para siempre: está escrito en el código.",
+      "El oro lleva más de 5.000 años usándose como reserva de valor, mucho antes que cualquier moneda.",
+      "Los bancos centrales del mundo guardan juntos más de 35.000 toneladas de oro.",
+      "Los fondos de materias primas suelen seguir contratos de futuros, no el producto físico en sí."
     ],
     "volatilidad": [
-      "El peor año del S&P 500 en el siglo XX fue 1931, con una caída de casi 44%.",
+      "El peor año del S&P 500 en el siglo XX fue 1931, con una caída de casi el 44%.",
       "El mercado tardó unos 4 años en recuperarse de la crisis de 2008; de la de 2020, apenas 5 meses.",
-      "En la mayoría de los años, el mercado de EEUU tiene en algún momento una caída de al menos 10%."
+      "Casi todos los años el mercado estadounidense sufre en algún momento una caída de al menos el 10%."
     ],
     "interesCompuesto": [
-      "$1.000 al 7% anual son ~$2.000 en 10 años, pero ~$4.000 en 20 — el tiempo hace el trabajo pesado.",
-      "Empezar 10 años antes suele importar más que duplicar cuánto invertís por mes."
+      "1.000 € al 7% anual son unos 2.000 € en 10 años, pero unos 4.000 € en 20 — el tiempo hace el trabajo duro.",
+      "Empezar 10 años antes suele importar más que doblar cuánto inviertes al mes.",
+      "Einstein no dijo lo del interés compuesto y la octava maravilla, pero la idea sigue siendo buena."
     ],
     "diversificacion": [
       "Harry Markowitz ganó el Nobel de Economía en 1990, en parte por formalizar por qué diversificar reduce el riesgo.",
-      "Combinar activos que no se mueven igual es lo que suaviza el camino, no solo tener \"muchas cosas\"."
+      "Combinar activos que no se mueven igual es lo que suaviza el camino, no solo tener \"muchas cosas\".",
+      "Es el único almuerzo gratis que existe en finanzas, según el propio Markowitz."
     ],
     "rebalanceo": [
-      "Rebalancear una o dos veces al año suele ser suficiente — hacerlo todos los días no mejora el resultado.",
-      "\"Vender lo que subió, comprar lo que bajó\" es la base de varias estrategias profesionales."
+      "Rebalancear una o dos veces al año suele bastar — hacerlo a diario no mejora el resultado.",
+      "\"Vender lo que ha subido y comprar lo que ha bajado\" es la base de varias estrategias profesionales.",
+      "Sin rebalancear, una cartera 50/50 puede acabar siendo 80/20 sin que te des cuenta."
     ],
     "fondosIndexados": [
       "El primer fondo indexado para el público general se lanzó en 1976, creado por John Bogle.",
-      "Hoy, buena parte del dinero en fondos de EEUU está en fondos indexados, no gestionados activamente."
+      "Hoy buena parte del dinero en fondos de EE. UU. está en indexados, no en gestión activa.",
+      "La mayoría de fondos de gestión activa no le gana a su índice de referencia a 10 años vista."
     ],
     "dcaVsLumpSum": [
-      "Estudios históricos muestran que invertir todo de una vez le gana a hacerlo de a poco en la mayoría de los períodos.",
-      "Aun así, mucha gente prefiere aportar de a poco — reduce el arrepentimiento de invertir justo antes de una caída."
+      "Los estudios históricos dicen que invertirlo todo de golpe gana en la mayoría de los periodos.",
+      "Aun así, mucha gente prefiere ir poco a poco: duele menos si justo entras antes de una caída.",
+      "Aportar cada mes te quita de encima la pregunta imposible de \"¿es buen momento?\"."
     ]
   }
 }

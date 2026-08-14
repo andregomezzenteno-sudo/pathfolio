@@ -1,32 +1,30 @@
 'use strict';
 
-/* ---------- Content (fetched once) ---------- */
+/* ---------- Contenido (se descarga una vez) ---------- */
 
 let ALLOCATIONS = null;
 let ARCHETYPES = null;
-let LESSONS = null;
 let CLOUD_FACTS = null;
 
 async function loadContent() {
-  const [allocRes, archRes, lessonsRes, cloudRes] = await Promise.all([
+  const [allocRes, archRes, cloudRes] = await Promise.all([
     fetch('allocations.json'),
     fetch('archetypes.json'),
-    fetch('lessons.json'),
     fetch('cloudFacts.json'),
   ]);
   ALLOCATIONS = await allocRes.json();
   ARCHETYPES = await archRes.json();
-  LESSONS = await lessonsRes.json();
   CLOUD_FACTS = await cloudRes.json();
   updateCloudForQuestion(QUESTIONS[currentStep]);
   startCloudCycle();
+  renderPreview();
 }
 
-/* ---------- Sketch icons: hand-drawn "boil" animation ---------- */
-/* One canonical path per icon; two extra frames are the SAME path with a
-   small deterministic coordinate jitter, cycled via CSS opacity keyframes
-   (see .sketch-icon in style.css) — the classic traditional-animation
-   "boil" technique, without hand-authoring 3 full variants per icon. */
+/* ---------- Iconos sketch: animación "boil" dibujada a mano ---------- */
+/* Un trazo canónico por icono; los otros dos fotogramas son EL MISMO trazo
+   con un temblor determinista en las coordenadas, alternados con keyframes
+   CSS de opacidad (ver .sketch-icon en style.css) — la técnica clásica del
+   "boil" de la animación tradicional, sin dibujar 3 variantes a mano. */
 
 const SKETCH_ICONS = {
   stocks:       'M8 54 H56 M14 54 V38 M26 54 V30 M38 54 V20 M50 54 V10',
@@ -55,6 +53,8 @@ const SKETCH_ICONS = {
   ingot:        'M10 44 L18 20 H46 L54 44 Z M10 44 H54 M18 20 L24 30 H40 L46 20',
   barrel:       'M20 8 H44 V56 H20 Z M20 8 C14 14 14 50 20 56 M44 8 C50 14 50 50 44 56 M20 20 H44 M20 44 H44',
   frame:        'M8 8 H56 V50 H8 Z M16 16 H48 V42 H16 Z M16 42 L28 28 L36 36 L48 22 V42 Z M22 24 C24 24 26 22 26 20 C26 18 24 16 22 16 C20 16 18 18 18 20 C18 22 20 24 22 24 Z',
+  basket:       'M8 22 H56 L48 52 H16 Z M8 22 L20 6 M56 22 L44 6 M24 30 V44 M32 30 V44 M40 30 V44',
+  factory:      'M8 54 V28 L22 38 V28 L36 38 V16 H56 V54 Z M42 24 H50 M42 34 H50 M14 44 H24 M8 54 H58',
 };
 
 function jitterPathD(d, seed) {
@@ -77,24 +77,25 @@ function renderSketchIcon(container, iconKey, size) {
     }));
   });
   container.appendChild(svg);
+  container.classList.add('icon-ready');
 }
 
 function renderAllSketchIcons(root = document) {
   root.querySelectorAll('[data-icon]').forEach(el => {
+    if (el.dataset.iconRendered === '1') return;
     renderSketchIcon(el, el.dataset.icon, parseInt(el.dataset.size, 10) || 40);
+    el.dataset.iconRendered = '1';
   });
 }
 
-/* ---------- Deterministic allocation engine ---------- */
+/* ---------- Motor determinista de asignación ---------- */
 
-function riskSliderToTier(v) {
-  if (v <= 2) return 'conservador';
-  if (v === 3) return 'moderado';
-  return 'arriesgado';
-}
-function volatilitySliderToTier(v) {
-  if (v <= 2) return 'conservador';
-  if (v === 3) return 'moderado';
+/* Los sliders son continuos (0-100) para que puedas dejar la barra
+   exactamente donde quieras, no en 5 muescas. Los tres tramos siguen
+   mapeando a los mismos tres niveles de la tabla de asignación. */
+function sliderToTier(v) {
+  if (v <= 33) return 'conservador';
+  if (v <= 66) return 'moderado';
   return 'arriesgado';
 }
 
@@ -104,29 +105,35 @@ function applyCap(currentTier, capTier, riskOrder) {
   return { tier: capped, wasCapped: capped !== currentTier };
 }
 
-// A 60+ age bracket caps at "moderado" regardless of stated risk/horizon —
-// the classic retirement glide-path principle: less time for a bad sequence
-// of returns to recover from, independent of how the person FEELS about risk.
+// Un tramo de edad de 60+ topa en "moderado" independientemente del riesgo
+// declarado y del horizonte — el principio clásico de la senda de jubilación:
+// queda menos tiempo para recuperarse de una mala racha, con independencia de
+// cómo se SIENTA la persona respecto al riesgo.
 function ageToCapTier(age) {
   return age === '60+' ? 'moderado' : null;
 }
 
-// Three independent signals can each only pull the effective risk tier DOWN
-// from the stated risk-slider tier, never up: a short horizon objectively
-// limits how much volatility you can absorb, a low tolerance for actual
-// drawdowns (the "would you panic-sell" question) reveals a lower true risk
-// capacity than the abstract slider might have suggested, and an age bracket
-// close to/in retirement limits how long a bad sequence of returns has to
-// recover. All three are applied transparently — the UI states when and why
-// each adjustment happened, never silently.
+// Tres señales independientes solo pueden BAJAR el nivel de riesgo efectivo
+// respecto al del slider, nunca subirlo: un horizonte corto limita
+// objetivamente cuánta volatilidad puedes absorber, una tolerancia baja a
+// caídas reales (la pregunta de "¿venderías presa del pánico?") revela una
+// capacidad de riesgo real menor de la que sugería el slider abstracto, y un
+// tramo de edad cercano a la jubilación limita cuánto tiempo tiene una mala
+// racha para recuperarse. Las tres se aplican de forma transparente: la
+// interfaz dice cuándo y por qué se ha ajustado, nunca en silencio.
 function computeEffectiveRisk(riskSliderValue, horizon, volatilitySliderValue, age, allocations) {
   const order = allocations.riskOrder;
-  let tier = riskSliderToTier(riskSliderValue);
+  let tier = sliderToTier(riskSliderValue);
 
   const afterHorizon = applyCap(tier, allocations.horizonCap[horizon], order);
   tier = afterHorizon.tier;
 
-  const afterVol = applyCap(tier, volatilitySliderToTier(volatilitySliderValue), order);
+  // volatilitySliderValue es null mientras la pregunta esté SIN RESPONDER. Un
+  // valor por defecto no es una respuesta: si se tratara como tal, la vista
+  // previa en vivo toparía el perfil hacia abajo antes de que la persona haya
+  // dicho nada sobre cuánta caída aguanta. Igual que horizonte y edad, que ya
+  // son null hasta que se responden y por eso no topan nada.
+  const afterVol = applyCap(tier, volatilitySliderValue == null ? null : sliderToTier(volatilitySliderValue), order);
   tier = afterVol.tier;
 
   const afterAge = applyCap(tier, ageToCapTier(age), order);
@@ -144,16 +151,33 @@ function getAllocationWeights(effectiveRisk, allocations) {
   return allocations.buckets[effectiveRisk];
 }
 
-// Makes the equity/bonds INSTRUMENT choice actually move the donut
-// percentages, not just swap which ticker fills a fixed-size slot. A more
-// volatile pick (e.g. NASDAQ 100, riskMultiplier 1.35) gets a modestly
-// smaller share; the difference goes to the other bucket — cash is left
-// untouched since it's the safety floor set by risk/horizon/age/volatility,
-// unrelated to which specific fund was chosen. `dampening` keeps the shift
-// noticeable but bounded (a real risk-parity engine would go further; this
-// is a legible, transparent approximation of the same idea). Equities and
-// bonds are renormalized after the tilt so the three weights still sum to
-// exactly 1.
+// Selección MÚLTIPLE: no hay que elegir uno solo. Devuelve la lista de
+// instrumentos elegidos (con su clave), cayendo al de referencia si aún no
+// se ha respondido — así la vista previa en vivo siempre tiene algo válido
+// que dibujar antes de llegar a esa pregunta.
+function resolvePicks(selected, optionsMap, defaultKey) {
+  const keys = (Array.isArray(selected) ? selected : [selected]).filter(k => k && optionsMap[k]);
+  const finalKeys = keys.length ? keys : [defaultKey];
+  return finalKeys.map(k => ({ key: k, ...optionsMap[k] }));
+}
+
+function averageRiskMultiplier(picks) {
+  if (!picks.length) return 1;
+  return picks.reduce((a, p) => a + (p.riskMultiplier != null ? p.riskMultiplier : 1), 0) / picks.length;
+}
+
+// Hace que la ELECCIÓN DE INSTRUMENTO mueva de verdad los porcentajes del
+// donut, no solo qué ticker rellena un hueco de tamaño fijo. Una opción más
+// volátil (p. ej. NASDAQ 100, riskMultiplier 1.35) se lleva algo menos de
+// peso; la diferencia va al otro bloque — el efectivo no se toca, porque es
+// el suelo de seguridad que fijan riesgo/horizonte/edad/volatilidad y no
+// tiene nada que ver con qué fondo concreto se eligió. `dampening` mantiene
+// el desplazamiento perceptible pero acotado (un motor real de risk parity
+// iría más lejos; esto es una aproximación legible y transparente de la
+// misma idea). Con selección múltiple entra la MEDIA de los multiplicadores
+// elegidos, así mezclar S&P 500 y NASDAQ queda a medio camino de elegir solo
+// uno de los dos. Renta variable y fija se renormalizan tras el ajuste para
+// que los tres pesos sigan sumando exactamente 1.
 function adjustWeightsForInstrumentRisk(baseWeights, equityRiskMultiplier, bondsRiskMultiplier, dampening) {
   const equityTilt = 1 - dampening * (equityRiskMultiplier - 1);
   const bondsTilt = 1 - dampening * (bondsRiskMultiplier - 1);
@@ -171,20 +195,20 @@ function adjustWeightsForInstrumentRisk(baseWeights, equityRiskMultiplier, bonds
   return { equities, bonds, cash };
 }
 
-// Three optional sleeves (real estate, alternative, private equity) are real
-// carve-outs FROM the equities weight (never a new fixed bucket, never
-// decorative) — applied in this order, each taking a slice of whatever the
-// equities weight already is after the previous one. Real estate scales with
-// the tier, same as before generalizing to 3 sleeves. Alternative only ever
-// actually lands here if the FINAL effective risk tier qualifies, regardless
-// of what the user picked earlier — a small-but-real allocation only makes
-// sense once every other signal has already agreed the person can carry that
-// much risk, so this re-checks it at the end rather than trusting an answer
-// given before the full picture was in. Private equity carries that same
-// risk-tier check PLUS a minimum initial-amount check, mirroring how real
-// retail private-equity vehicles (feeder funds, ELTIFs) gate on a minimum
-// ticket size — requesting it without enough capital is honestly excluded,
-// not silently downgraded or silently granted.
+// Los tres sleeves opcionales (inmobiliario, otras inversiones, private
+// equity) son recortes reales SOBRE el peso de renta variable — nunca un
+// bloque nuevo, nunca decorativos — aplicados en este orden, cada uno sobre
+// lo que quede de renta variable tras el anterior. El inmobiliario escala
+// con el nivel de riesgo. Otras inversiones solo entra de verdad si el nivel
+// de riesgo FINAL lo permite, sin importar lo que se pidiera antes: una
+// porción pequeña pero real de algo así solo tiene sentido cuando todas las
+// demás señales ya han coincidido en que la persona puede cargar con ese
+// riesgo, así que se vuelve a comprobar al final en vez de fiarse de una
+// respuesta dada antes de tener el cuadro completo. Private equity lleva esa
+// misma comprobación MÁS un mínimo de importe inicial, igual que los
+// vehículos reales de private equity minorista (fondos feeder, ELTIFs) piden
+// un ticket mínimo: pedirlo sin capital suficiente se excluye con aviso, no
+// se concede en silencio.
 function applySleeves(weights, { includeRealEstate, includeAlternative, includePrivateEquity, effectiveRisk, initialAmount }, allocations) {
   const result = { equities: weights.equities, bonds: weights.bonds, cash: weights.cash, realEstate: 0, alternative: 0, privateEquity: 0 };
 
@@ -218,33 +242,92 @@ function applySleeves(weights, { includeRealEstate, includeAlternative, includeP
     privateEquityIncluded: peQualifies,
     privateEquityRequestedButExcluded: includePrivateEquity && !peQualifies,
     privateEquityExcludedReason: includePrivateEquity && !peQualifies
-      ? (!peQualifiesRisk && !peQualifiesCapital ? 'both' : (!peQualifiesRisk ? 'risk' : 'capital'))
+      ? (!peQualifiesRisk && !peQualifiesCapital ? 'ambos' : (!peQualifiesRisk ? 'riesgo' : 'capital'))
       : null,
   };
 }
 
+/* Categorías del donut. El color sigue SIEMPRE a la categoría, nunca a su
+   posición o tamaño, para que añadir o quitar un sleeve no repinte al resto. */
+const CATEGORY_META = {
+  equities:     { name: 'Renta variable',        color: 'var(--series-1)', icon: 'stocks' },
+  bonds:        { name: 'Renta fija',            color: 'var(--series-2)', icon: 'bonds' },
+  realEstate:   { name: 'Inversión inmobiliaria', color: 'var(--series-4)', icon: 'building' },
+  privateEquity:{ name: 'Private Equity',         color: 'var(--series-6)', icon: 'vault' },
+  alternative:  { name: 'Otras inversiones',      color: 'var(--series-5)', icon: 'basket' },
+  cash:         { name: 'Efectivo',               color: 'var(--series-3)', icon: 'cash' },
+};
+
+// Único punto donde se decide la cartera completa. Lo usan tanto la vista
+// previa en vivo del cuestionario como el dashboard final, así que ambos no
+// pueden desincronizarse por construcción.
+function computeAllocation(answers, allocations) {
+  const risk = computeEffectiveRisk(answers.risk, answers.horizon, answers.volatility, answers.age, allocations);
+  const effectiveRisk = risk.effectiveRisk;
+  const baseWeights = getAllocationWeights(effectiveRisk, allocations);
+
+  const equityPicks = resolvePicks(answers.equityIndex, allocations.equityIndexOptions, allocations.defaultEquityIndex);
+  const bondsPicks = resolvePicks(answers.bondsChoice, allocations.bondsOptions, allocations.defaultBondsChoice);
+
+  const tilted = adjustWeightsForInstrumentRisk(
+    baseWeights, averageRiskMultiplier(equityPicks), averageRiskMultiplier(bondsPicks), allocations.tiltDampening
+  );
+  const wasTilted = Math.abs(tilted.equities - baseWeights.equities) > 0.005;
+
+  const sleeved = applySleeves(tilted, {
+    includeRealEstate: answers.realEstateChoice === 'si',
+    includeAlternative: answers.altChoice === 'si',
+    includePrivateEquity: answers.peChoice === 'si',
+    effectiveRisk, initialAmount: answers.amount,
+  }, allocations);
+  const w = sleeved.weights;
+
+  const realEstatePicks = w.realEstate > 0
+    ? resolvePicks(answers.realEstateType, allocations.realEstateSubtypes, allocations.defaultRealEstateSubtype) : [];
+  const altPicks = sleeved.alternativeIncluded
+    ? resolvePicks(answers.altType, allocations.alternativeSubtypes, allocations.defaultAlternativeSubtype) : [];
+
+  // El peso de cada bloque se reparte a partes iguales entre los
+  // instrumentos elegidos dentro de él: elegir S&P 500 y NASDAQ a la vez da
+  // media renta variable a cada uno, no que uno sustituya al otro.
+  const split = (picks, total, category) => picks.map(p => ({
+    ...p, category, weight: total / picks.length,
+    hasRealData: p.hasRealData !== undefined ? p.hasRealData : true,
+  }));
+
+  const holdings = [
+    ...split(equityPicks, w.equities, 'equities'),
+    ...split(bondsPicks, w.bonds, 'bonds'),
+    ...split(realEstatePicks, w.realEstate, 'realEstate'),
+    ...(sleeved.privateEquityIncluded ? [{
+      key: 'privateEquity', category: 'privateEquity', weight: w.privateEquity, hasRealData: false,
+      ...allocations.privateEquityInstrument,
+    }] : []),
+    ...split(altPicks, w.alternative, 'alternative'),
+    { key: 'cash', category: 'cash', weight: w.cash, hasRealData: false, label: 'Efectivo', ticker: null,
+      name: 'Liquidez disponible', expenseRatio: null,
+      illustrativeAnnualRate: allocations.instruments.cash.illustrativeAnnualRate },
+  ].filter(h => h.weight > 0);
+
+  const segments = ['equities', 'bonds', 'realEstate', 'privateEquity', 'alternative', 'cash']
+    .filter(key => w[key] > 0)
+    .map(key => ({
+      key, weight: w[key], name: CATEGORY_META[key].name,
+      color: CATEGORY_META[key].color, icon: CATEGORY_META[key].icon,
+      members: holdings.filter(h => h.category === key).map(h => h.label).join(' · '),
+    }));
+
+  return {
+    ...risk, ...sleeved, effectiveRisk, baseWeights, weights: w, wasTilted,
+    equityPicks, bondsPicks, realEstatePicks, altPicks, holdings, segments,
+  };
+}
+
 function getExplanation(effectiveRisk, horizon, archetypes) {
-  const key = `${effectiveRisk}|${horizon}`;
-  return archetypes.explanations[key] || null;
+  return archetypes.explanations[`${effectiveRisk}|${horizon}`] || null;
 }
 
-function resolveEquityIndex(choiceKey, allocations) {
-  return allocations.equityIndexOptions[choiceKey] || allocations.equityIndexOptions[allocations.defaultEquityIndex];
-}
-
-function resolveBondsChoice(choiceKey, allocations) {
-  return allocations.bondsOptions[choiceKey] || allocations.bondsOptions[allocations.defaultBondsChoice];
-}
-
-function resolveRealEstateSubtype(choiceKey, allocations) {
-  return allocations.realEstateSubtypes[choiceKey] || allocations.realEstateSubtypes[allocations.defaultRealEstateSubtype];
-}
-
-function resolveAlternativeSubtype(choiceKey, allocations) {
-  return allocations.alternativeSubtypes[choiceKey] || allocations.alternativeSubtypes[allocations.defaultAlternativeSubtype];
-}
-
-/* ---------- Data fetching (Twelve Data — same key/pattern as trading-backtester) ---------- */
+/* ---------- Descarga de datos (Twelve Data — misma clave/patrón que trading-backtester) ---------- */
 
 const TWELVE_DATA_API_KEY = '861f8f9854f843bb929a3eb03b49d5d7';
 
@@ -258,18 +341,16 @@ async function fetchPricesTwelveData(symbol, outputsize) {
     json = await res.json();
   }
   if (!res.ok || json.status === 'error') {
-    throw new Error(json.message || ('API error ' + res.status));
+    throw new Error(json.message || ('Error de la API ' + res.status));
   }
   const values = Array.isArray(json.values) ? json.values : [];
   const chronological = values.slice().reverse();
-  const dates = chronological.map(v => v.datetime);
-  const closes = chronological.map(v => parseFloat(v.close));
-  return { dates, closes };
+  return { dates: chronological.map(v => v.datetime), closes: chronological.map(v => parseFloat(v.close)) };
 }
 
-// ticker -> {dates, closes}, shared by both the equity-index and bonds-choice
-// pickers since either one can change and re-trigger a fetch for a ticker
-// already seen (or not) — one cache, keyed by symbol, covers both.
+// ticker -> {dates, closes}, compartida por todos los selectores: cualquiera
+// puede cambiar y volver a pedir un ticker ya visto (o no), y una sola caché
+// por símbolo cubre todos los casos.
 const tickerSeriesCache = new Map();
 async function fetchTickerSeries(ticker) {
   if (!tickerSeriesCache.has(ticker)) {
@@ -278,25 +359,23 @@ async function fetchTickerSeries(ticker) {
   return tickerSeriesCache.get(ticker);
 }
 
-/* ---------- Portfolio math ---------- */
+/* ---------- Matemática de cartera ---------- */
 
-// Generalized to N series (equities, bonds, and optionally real estate and/or
-// alternative investments when either resolves to a real fetchable ticker)
-// instead of a fixed pair — intersects every series down to the dates they
-// all share, so an added sleeve can never silently misalign the others.
+// Generalizada a N series en lugar de un par fijo — cruza todas las series
+// hasta quedarse con las fechas que comparten, así añadir un sleeve nunca
+// puede desalinear a los demás en silencio.
 function alignSeriesSet(seriesList) {
   const maps = seriesList.map(s => new Map(s.dates.map((d, i) => [d, s.closes[i]])));
   const dates = seriesList[0].dates.filter(d => maps.every(m => m.has(d)));
-  const closesList = maps.map(m => dates.map(d => m.get(d)));
-  return { dates, closesList };
+  return { dates, closesList: maps.map(m => dates.map(d => m.get(d))) };
 }
 
-// weightsList lines up 1:1 with closesList (same order as alignSeriesSet's
-// input) — cash is handled separately since it has no price series to blend.
-// flatAssets covers any OTHER sleeve with no real price series either (real
-// estate crowdfunding, private equity): each compounds at its own documented
-// illustrative annual rate, exactly like cash does, just not shown as the
-// dedicated "if you'd kept it all in cash" comparison line.
+// weightsList casa 1:1 con closesList (mismo orden que la entrada de
+// alignSeriesSet). El efectivo va aparte porque no tiene serie de precios que
+// mezclar, y flatAssets cubre cualquier OTRO sleeve que tampoco la tenga
+// (crowdfunding inmobiliario, private equity): cada uno capitaliza a su
+// propia tasa anual documentada, igual que el efectivo, solo que sin ser la
+// línea de comparación "si lo hubieras dejado todo en efectivo".
 function blendPortfolio({ dates, closesList, weightsList, cashWeight, cashAnnualRate, flatAssets = [], barsPerYear = 252 }) {
   const n = dates.length;
   const cashPerBar = Math.pow(1 + cashAnnualRate, 1 / barsPerYear) - 1;
@@ -318,22 +397,19 @@ function blendPortfolio({ dates, closesList, weightsList, cashWeight, cashAnnual
   return { dates, portfolioEquity, cashOnlyEquity, dailyReturns };
 }
 
-// Same blended daily returns as the lump-sum line, but adds a fixed monthly
-// contribution the first time each new calendar month appears in the date
-// series — a simple, honest approximation of dollar-cost averaging (real
-// contribution timing within a month varies; this doesn't pretend otherwise).
+// Las mismas rentabilidades diarias mezcladas que la línea de aporte único,
+// pero sumando una aportación fija la primera vez que aparece cada mes nuevo
+// en la serie de fechas — una aproximación simple y honesta del DCA (el
+// momento real de aportar dentro del mes varía; esto no pretende lo contrario).
 function simulateDCA({ dates, dailyReturns, initialAmount, monthlyAmount }) {
   const n = dates.length;
   const value = new Array(n).fill(0);
   value[0] = initialAmount;
-  let lastKey = dates[0].slice(0, 7); // "YYYY-MM"
+  let lastKey = dates[0].slice(0, 7);
   for (let i = 1; i < n; i++) {
     value[i] = value[i - 1] * (1 + dailyReturns[i - 1]);
     const key = dates[i].slice(0, 7);
-    if (monthlyAmount > 0 && key !== lastKey) {
-      value[i] += monthlyAmount;
-      lastKey = key;
-    }
+    if (monthlyAmount > 0 && key !== lastKey) { value[i] += monthlyAmount; lastKey = key; }
   }
   return value;
 }
@@ -346,35 +422,72 @@ function annualizedVol(rets, periodsPerYear) {
 
 function maxDrawdown(equitySeries) {
   let peak = equitySeries[0], maxDD = 0;
-  for (const v of equitySeries) {
-    peak = Math.max(peak, v);
-    maxDD = Math.min(maxDD, (v - peak) / peak);
-  }
+  for (const v of equitySeries) { peak = Math.max(peak, v); maxDD = Math.min(maxDD, (v - peak) / peak); }
   return maxDD;
 }
 
-/* ---------- Formatting ---------- */
+// Solo se consideran los años con al menos `minBars` sesiones, para no
+// presentar un año parcial (el primero o el último de la serie) como si
+// fuera el mejor o el peor año completo — sería engañoso.
+function calendarYearReturns(dates, equity, minBars = 200) {
+  const spans = new Map();
+  dates.forEach((d, i) => {
+    const y = d.slice(0, 4);
+    if (!spans.has(y)) spans.set(y, { first: i, last: i, bars: 1 });
+    else { const s = spans.get(y); s.last = i; s.bars += 1; }
+  });
+  const out = [];
+  spans.forEach((s, year) => {
+    if (s.bars >= minBars) out.push({ year, ret: equity[s.last] / equity[s.first] - 1 });
+  });
+  return out;
+}
 
-function formatUSD(v, decimals) {
+/* ---------- Formato ---------- */
+
+function formatEUR(v, decimals) {
   if (v == null || Number.isNaN(v)) return '—';
-  const d = decimals != null ? decimals : (v < 1000 ? 2 : 0);
-  return '$' + v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const d = decimals != null ? decimals : (Math.abs(v) < 1000 ? 2 : 0);
+  return v.toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
 }
 function formatPct(v, decimals = 1) {
   if (v == null || Number.isNaN(v)) return '—';
-  return (v * 100).toFixed(decimals) + '%';
+  return (v * 100).toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' %';
+}
+function formatSignedPct(v, decimals = 1) {
+  if (v == null || Number.isNaN(v)) return '—';
+  return (v >= 0 ? '+' : '') + formatPct(v, decimals);
 }
 function shortDate(iso) {
   return new Date(iso + 'T00:00:00Z').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
-/* ---------- SVG chart helpers ---------- */
+/* ---------- Ayudantes SVG y animación ---------- */
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 function svgEl(tag, attrs) {
   const e = document.createElementNS(SVGNS, tag);
   for (const k in attrs) e.setAttribute(k, attrs[k]);
   return e;
+}
+
+const prefersReducedMotion = () =>
+  typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Cuenta ascendente para las cifras destacadas. Respeta prefers-reduced-motion
+// saltando directamente al valor final.
+function animateNumber(el, to, formatter, ms = 900) {
+  if (!el) return;
+  const from = 0;
+  if (prefersReducedMotion()) { el.textContent = formatter(to); return; }
+  const start = performance.now();
+  function frame(now) {
+    const t = Math.min(1, (now - start) / ms);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = formatter(from + (to - from) * eased);
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 }
 
 function buildTooltip(tooltipEl, dateLabel, rows) {
@@ -415,47 +528,64 @@ function buildLegend(container, items) {
   });
 }
 
-// Part-to-whole, styled as a donut per the requested "dashboard" aesthetic.
-// Classic stroke-dasharray/stroke-dashoffset technique on a thick-stroked
-// circle. Paired with a legend that carries the direct percentage labels
-// (arcs are too thin here for reliable in-place text), so identity and value
-// both stay reachable without hovering.
-function renderDonut(svg, segments) {
+/* Parte-sobre-el-todo, con forma de donut por la estética pedida. Técnica
+   clásica de stroke-dasharray/stroke-dashoffset sobre un círculo de trazo
+   grueso. Va siempre acompañado de una leyenda con las etiquetas de
+   porcentaje directas (los arcos son demasiado finos para meter texto
+   dentro), así que identidad y valor quedan accesibles sin pasar el ratón.
+   Los segmentos se animan desde su estado ANTERIOR (no desde cero) para que
+   la vista previa en vivo se reacomode con suavidad cada vez que respondes,
+   en lugar de dar un salto. */
+function renderDonut(svg, segments, { centerLabel = 'Tu cartera' } = {}) {
   const rect = svg.getBoundingClientRect();
-  const size = Math.max(160, Math.min(220, rect.width || 220));
+  const size = Math.max(150, Math.min(230, rect.width || 200));
   svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
   svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
   while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-  const cx = size / 2, cy = size / 2, r = size * 0.34, strokeW = size * 0.20;
+  const cx = size / 2, cy = size / 2, r = size * 0.34, strokeW = size * 0.19;
   const circumference = 2 * Math.PI * r;
+  const prev = svg.__prevDonut || new Map();
+  const next = new Map();
 
   svg.appendChild(svgEl('circle', { cx, cy, r, fill: 'none', stroke: 'var(--gridline)', 'stroke-width': strokeW }));
 
   let offset = 0;
   segments.forEach(seg => {
-    const segLen = Math.max(0, seg.weight * circumference - 2); // 2px surface gap between segments
+    const segLen = Math.max(0, seg.weight * circumference - 2); // 2px de aire entre segmentos
+    const thisOffset = offset;
+    const before = prev.get(seg.key) || { len: 0, offset: thisOffset };
     const circle = svgEl('circle', {
       cx, cy, r, fill: 'none', stroke: seg.color, 'stroke-width': strokeW,
-      'stroke-linecap': 'round',
-      'stroke-dasharray': `${segLen} ${circumference - segLen}`,
-      'stroke-dashoffset': -offset,
+      'stroke-linecap': 'butt',
+      'stroke-dasharray': `${before.len} ${circumference - before.len}`,
+      'stroke-dashoffset': -before.offset,
       transform: `rotate(-90 ${cx} ${cy})`,
       filter: 'url(#sketchWobbleChart)',
+      class: 'donut-seg',
     });
+    const title = svgEl('title', {});
+    title.textContent = `${seg.name}: ${formatPct(seg.weight, 0)}`;
+    circle.appendChild(title);
     svg.appendChild(circle);
+    requestAnimationFrame(() => {
+      circle.setAttribute('stroke-dasharray', `${segLen} ${circumference - segLen}`);
+      circle.setAttribute('stroke-dashoffset', -thisOffset);
+    });
+    next.set(seg.key, { len: segLen, offset: thisOffset });
     offset += seg.weight * circumference;
   });
+  svg.__prevDonut = next;
 
-  const label = svgEl('text', { x: cx, y: cy - 2, 'text-anchor': 'middle', 'font-size': size * 0.11, 'font-weight': 700, fill: 'var(--text-primary)' });
-  label.textContent = 'Tu cartera';
+  const label = svgEl('text', { x: cx, y: cy - 1, 'text-anchor': 'middle', 'font-size': size * 0.105, 'font-weight': 700, fill: 'var(--text-primary)' });
+  label.textContent = centerLabel;
   svg.appendChild(label);
-  const sublabel = svgEl('text', { x: cx, y: cy + 16, 'text-anchor': 'middle', 'font-size': size * 0.06, fill: 'var(--text-muted)' });
-  sublabel.textContent = segments.length === 1 ? '1 parte' : `${segments.length} partes`;
+  const sublabel = svgEl('text', { x: cx, y: cy + 15, 'text-anchor': 'middle', 'font-size': size * 0.058, fill: 'var(--text-muted)' });
+  sublabel.textContent = segments.length === 1 ? '1 bloque' : `${segments.length} bloques`;
   svg.appendChild(sublabel);
 }
 
-function buildDonutLegend(container, segments) {
+function buildDonutLegend(container, segments, { showMembers = false } = {}) {
   container.textContent = '';
   segments.forEach(seg => {
     const row = document.createElement('div');
@@ -463,13 +593,22 @@ function buildDonutLegend(container, segments) {
     const swatch = document.createElement('span');
     swatch.className = 'legend-swatch dot';
     swatch.style.background = seg.color;
+    const textWrap = document.createElement('span');
+    textWrap.className = 'donut-legend-text';
     const name = document.createElement('span');
     name.className = 'donut-legend-name';
     name.textContent = seg.name;
+    textWrap.appendChild(name);
+    if (showMembers && seg.members) {
+      const members = document.createElement('span');
+      members.className = 'donut-legend-members';
+      members.textContent = seg.members;
+      textWrap.appendChild(members);
+    }
     const pct = document.createElement('span');
     pct.className = 'donut-legend-pct';
-    pct.textContent = Math.round(seg.weight * 100) + '%';
-    row.append(swatch, name, pct);
+    pct.textContent = formatPct(seg.weight, 0);
+    row.append(swatch, textWrap, pct);
     container.appendChild(row);
   });
 }
@@ -477,12 +616,12 @@ function buildDonutLegend(container, segments) {
 function renderLineChart({ svg, tooltipEl, dates, series, yFormat, tooltipFormat }) {
   const rect = svg.getBoundingClientRect();
   const width = Math.max(300, rect.width);
-  const height = 300;
+  const height = 320;
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.setAttribute('preserveAspectRatio', 'none');
   while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-  const margin = { top: 14, right: 16, bottom: 26, left: 64 };
+  const margin = { top: 14, right: 16, bottom: 26, left: 72 };
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
   const n = dates.length;
@@ -510,8 +649,7 @@ function renderLineChart({ svg, tooltipEl, dates, series, yFormat, tooltipFormat
   const xTickCount = Math.min(6, n);
   for (let t = 0; t < xTickCount; t++) {
     const idx = Math.round((t / (xTickCount - 1 || 1)) * (n - 1));
-    const x = xForIndex(idx);
-    const label = svgEl('text', { x, y: height - 6, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--text-muted)' });
+    const label = svgEl('text', { x: xForIndex(idx), y: height - 6, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--text-muted)' });
     label.textContent = shortDate(dates[idx]).replace(/ de \d+$/, '').replace(' de ', ' ');
     svg.appendChild(label);
   }
@@ -522,7 +660,24 @@ function renderLineChart({ svg, tooltipEl, dates, series, yFormat, tooltipFormat
       if (v == null) return;
       d += (d === '' ? 'M' : 'L') + xForIndex(i).toFixed(2) + ',' + yForValue(v).toFixed(2) + ' ';
     });
-    svg.appendChild(svgEl('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', filter: 'url(#sketchWobbleChart)' }));
+    const path = svgEl('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', filter: 'url(#sketchWobbleChart)' });
+    svg.appendChild(path);
+    // Dibujado progresivo de la línea. getTotalLength no existe en todos los
+    // entornos (p. ej. jsdom en los tests), así que si falla simplemente se
+    // pinta la línea entera sin animar.
+    if (!prefersReducedMotion()) {
+      try {
+        const len = path.getTotalLength();
+        if (len > 0) {
+          path.style.strokeDasharray = String(len);
+          path.style.strokeDashoffset = String(len);
+          requestAnimationFrame(() => {
+            path.style.transition = 'stroke-dashoffset 1.1s ease-out';
+            path.style.strokeDashoffset = '0';
+          });
+        }
+      } catch (e) { /* sin animación, la línea ya está dibujada */ }
+    }
   });
 
   const crosshair = svgEl('line', { x1: 0, x2: 0, y1: margin.top, y2: margin.top + innerH, stroke: 'var(--baseline)', 'stroke-width': 1, visibility: 'hidden' });
@@ -561,7 +716,7 @@ function renderLineChart({ svg, tooltipEl, dates, series, yFormat, tooltipFormat
       const wrapRect = svg.parentElement.getBoundingClientRect();
       tooltipEl.style.left = (svgRect.left - wrapRect.left + x) + 'px';
       tooltipEl.style.top = (svgRect.top - wrapRect.top + margin.top) + 'px';
-      buildTooltip(tooltipEl, dates[idx], rows);
+      buildTooltip(tooltipEl, shortDate(dates[idx]), rows);
     }
   }
   function handleLeave() {
@@ -573,25 +728,29 @@ function renderLineChart({ svg, tooltipEl, dates, series, yFormat, tooltipFormat
   hitRect.addEventListener('pointerleave', handleLeave);
 }
 
-/* ---------- Questionnaire state machine ---------- */
+/* ---------- Máquina de estados del cuestionario ---------- */
 
 const QUESTIONS = [
   'age', 'risk', 'horizon',
-  'knowledge', 'indexLesson', 'equityIndex',
+  'rvKnowledge', 'rvLesson',
+  'indexKnowledge', 'indexLesson', 'equityIndex',
   'bondsKnowledge', 'bondsLesson', 'bondsChoice',
   'realEstateKnowledge', 'realEstateLesson', 'realEstateChoice', 'realEstateType',
   'peKnowledge', 'peLesson', 'peChoice',
   'altKnowledge', 'altLesson', 'altChoice', 'altType',
   'style', 'volatility', 'amount',
 ];
-// Each entry decides, from the CURRENT answers, whether that step should be
-// shown at all — a step with no entry always shows. Two shapes reused across
-// the whole quiz: a lesson slide shows only if its paired knowledge gate was
-// NOT answered "si" (so already-informed users skip it), and a sub-type
-// choice shows only if its paired opt-in question was answered "si" (asking
-// "which kind of X" makes no sense if the user just said they don't want X).
+
+// Cada entrada decide, a partir de las respuestas ACTUALES, si ese paso debe
+// mostrarse siquiera; un paso sin entrada se muestra siempre. Dos formas
+// reutilizadas por todo el cuestionario: una diapositiva de lección solo
+// aparece si su pregunta de conocimiento NO se respondió "sí" (quien ya sabe
+// se la salta), y una pregunta de subtipo solo aparece si su pregunta de
+// entrada se respondió "sí" (preguntar "¿cuál?" no tiene sentido si acabas
+// de decir que no quieres eso).
 const CONDITIONAL_STEPS = {
-  indexLesson: a => a.knowledge !== 'si',
+  rvLesson: a => a.rvKnowledge !== 'si',
+  indexLesson: a => a.indexKnowledge !== 'si',
   bondsLesson: a => a.bondsKnowledge !== 'si',
   realEstateLesson: a => a.realEstateKnowledge !== 'si',
   realEstateType: a => a.realEstateChoice === 'si',
@@ -599,27 +758,40 @@ const CONDITIONAL_STEPS = {
   altLesson: a => a.altKnowledge !== 'si',
   altType: a => a.altChoice === 'si',
 };
-const answers = {
-  age: null, risk: 3, horizon: null, knowledge: null, equityIndex: null,
-  bondsKnowledge: null, bondsChoice: null,
-  realEstateKnowledge: null, realEstateChoice: null, realEstateType: null,
-  peKnowledge: null, peChoice: null,
-  altKnowledge: null, altChoice: null, altType: null,
-  style: null, volatility: 3, amount: 1000, monthly: 0,
-};
+
+// Preguntas de selección múltiple: acumulan un array y avanzan con el botón
+// "Continuar" en vez de al primer clic.
+const MULTI_QUESTIONS = new Set(['equityIndex', 'bondsChoice', 'realEstateType', 'altType']);
+
+function freshAnswers() {
+  return {
+    age: null, risk: 50, horizon: null,
+    rvKnowledge: null, indexKnowledge: null, equityIndex: [],
+    bondsKnowledge: null, bondsChoice: [],
+    realEstateKnowledge: null, realEstateChoice: null, realEstateType: [],
+    peKnowledge: null, peChoice: null,
+    altKnowledge: null, altChoice: null, altType: [],
+    style: null, volatility: null, amount: 1000, monthly: 0,
+  };
+}
+let answers = freshAnswers();
 let currentStep = 0;
 
 const screenLanding = document.getElementById('screen-landing');
 const screenQuiz = document.getElementById('screen-quiz');
 const screenDashboard = document.getElementById('screen-dashboard');
-const progressBarOuter = document.getElementById('progressBarOuter');
+const quizChrome = document.getElementById('quizChrome');
 const progressBarFill = document.getElementById('progressBarFill');
 const progressLabel = document.getElementById('progressLabel');
+const backBtn = document.getElementById('backBtn');
 const startBtn = document.getElementById('startBtn');
 const seeResultsBtn = document.getElementById('seeResultsBtn');
 const amountInput = document.getElementById('amountInput');
 const monthlyInput = document.getElementById('monthlyInput');
 const restartBtn = document.getElementById('restartBtn');
+const previewDonut = document.getElementById('previewDonut');
+const previewLegend = document.getElementById('previewLegend');
+const previewRiskLabel = document.getElementById('previewRiskLabel');
 
 function shouldShowStep(index) {
   const predicate = CONDITIONAL_STEPS[QUESTIONS[index]];
@@ -637,26 +809,58 @@ function renderProgress() {
   const pos = effectivePosition(currentStep);
   progressBarFill.style.width = Math.round((pos / total) * 100) + '%';
   progressLabel.textContent = `Pregunta ${pos} de ${total}`;
+  backBtn.hidden = pos <= 1;
 }
 
-// "Hila cosas": a short sentence at the top of select screens that names the
-// answer just given before asking the next thing, so the flow reads as one
-// connected conversation rather than a stack of unrelated form fields.
-const HORIZON_PHRASE = { viaje: 'para un viaje o una meta cercana', casa: 'para comprar una casa', crecer: 'para que crezca, sin apuro', jubilacion: 'para tu jubilación' };
-const EQUITY_LABEL = { sp500: 'el S&P 500', nasdaq100: 'el NASDAQ 100', msci: 'el MSCI World' };
-const RISK_PHRASE = { 1: 'muy baja', 2: 'baja', 3: 'media', 4: 'alta', 5: 'muy alta' };
+/* "Hilar las cosas": una frase corta arriba de algunas pantallas que nombra
+   la respuesta recién dada antes de preguntar lo siguiente, para que el flujo
+   se lea como una conversación y no como un montón de campos sueltos. */
+const HORIZON_PHRASE = { viaje: 'para un viaje o una meta cercana', casa: 'para comprar una casa', crecer: 'para que crezca, sin prisa', jubilacion: 'para tu jubilación' };
+const RISK_PHRASE = v => (v <= 20 ? 'muy baja' : v <= 40 ? 'baja' : v <= 60 ? 'media' : v <= 80 ? 'alta' : 'muy alta');
+const listPhrase = arr => arr.length <= 1 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1];
+const labelsOf = (keys, map) => (keys || []).map(k => map[k] && map[k].label).filter(Boolean);
+
 const CONNECTORS = {
-  risk: a => a.age ? `Con ${a.age} años, pensemos en cómo reaccionás ante las bajadas.` : null,
-  knowledge: a => a.horizon ? `Ya que esto es ${HORIZON_PHRASE[a.horizon]}, hablemos de la parte de acciones.` : null,
-  bondsKnowledge: a => a.equityIndex ? `Con ${EQUITY_LABEL[a.equityIndex]} elegido, vamos con la otra mitad clásica de una cartera: los bonos.` : null,
-  realEstateKnowledge: () => 'Más allá de acciones y bonos, hay otras piezas que podés sumar — empecemos por bienes raíces.',
-  realEstateType: () => 'Bien, ahora elijamos la forma concreta.',
-  peKnowledge: a => a.realEstateChoice === 'si' ? 'Con bienes raíces sumados, otra pieza poco común: empresas que no cotizan en bolsa.' : 'Otra pieza poco común: empresas que no cotizan en bolsa.',
-  altKnowledge: () => 'Una última familia opcional — mucho más volátil que el resto de la cartera.',
-  altType: () => '¿Cuál de las tres te interesa más?',
-  volatility: a => `Dijiste que tu tolerancia al riesgo es ${RISK_PHRASE[a.risk]} — probémosla con un escenario real.`,
-  amount: () => 'Con tu perfil casi listo, solo falta ponerle números.',
+  risk: a => a.age ? `Con ${a.age} años, pensemos en cómo encajas las bajadas.` : null,
+  rvKnowledge: a => a.horizon ? `Ya que esto es ${HORIZON_PHRASE[a.horizon]}, empecemos por el bloque más grande de casi cualquier cartera.` : null,
+  indexKnowledge: () => 'Vale, y dentro de la renta variable no todos los fondos compran lo mismo.',
+  equityIndex: () => 'Puedes marcar varios: el peso se reparte entre los que elijas.',
+  bondsKnowledge: a => {
+    const picks = labelsOf(a.equityIndex, ALLOCATIONS ? ALLOCATIONS.equityIndexOptions : {});
+    return picks.length ? `Con ${listPhrase(picks)} en la parte de renta variable, vamos con la otra mitad clásica: la renta fija.` : null;
+  },
+  bondsChoice: () => 'Igual que antes, puedes marcar más de una.',
+  realEstateKnowledge: () => 'Más allá de acciones y bonos hay otras piezas que puedes sumar. Empecemos por los ladrillos.',
+  realEstateType: () => 'Puedes quedarte con las dos si te interesan las dos.',
+  peKnowledge: a => a.realEstateChoice === 'si' ? 'Con el ladrillo dentro, otra pieza bastante menos conocida: empresas que no cotizan en bolsa.' : 'Otra pieza bastante menos conocida: empresas que no cotizan en bolsa.',
+  altKnowledge: () => 'Y una última familia opcional, bastante más movida que el resto.',
+  altType: () => 'Marca todas las que te interesen: el peso se reparte entre ellas.',
+  volatility: a => `Dijiste que tu tolerancia al riesgo es ${RISK_PHRASE(a.risk)} — vamos a ponerla a prueba con un escenario real.`,
+  amount: () => 'Tu perfil ya está casi listo, solo falta ponerle números.',
 };
+
+// Al volver atrás hay que repintar lo que ya estaba elegido, tanto en
+// selección simple como múltiple.
+function syncSelections(qKey) {
+  const container = document.querySelector(`[data-options="${qKey}"]`);
+  if (!container) return;
+  const value = answers[qKey];
+  const selected = Array.isArray(value) ? value : (value == null ? [] : [value]);
+  container.querySelectorAll('.option-card').forEach(el => {
+    el.classList.toggle('selected', selected.includes(el.dataset.value));
+  });
+  syncMultiButton(qKey);
+}
+
+function syncMultiButton(qKey) {
+  if (!MULTI_QUESTIONS.has(qKey)) return;
+  const btn = document.querySelector(`[data-advance="${qKey}"]`);
+  if (!btn) return;
+  const count = (answers[qKey] || []).length;
+  btn.disabled = count === 0;
+  btn.textContent = count === 0 ? 'Elige al menos una opción'
+    : count === 1 ? 'Continuar con 1 opción →' : `Continuar con ${count} opciones →`;
+}
 
 function showStep(step) {
   currentStep = step;
@@ -670,8 +874,10 @@ function showStep(step) {
     connectorEl.hidden = !text;
     connectorEl.textContent = text || '';
   }
+  syncSelections(qKey);
   updateCloudForQuestion(qKey);
   renderProgress();
+  renderPreview();
 }
 
 function nextStep() {
@@ -680,49 +886,86 @@ function nextStep() {
   if (next < QUESTIONS.length) showStep(next);
 }
 
+function prevStep() {
+  let prev = currentStep - 1;
+  while (prev >= 0 && !shouldShowStep(prev)) prev -= 1;
+  if (prev >= 0) showStep(prev);
+}
+
 function goToQuiz() {
   screenLanding.hidden = true;
   screenQuiz.hidden = false;
-  progressBarOuter.hidden = false;
+  quizChrome.hidden = false;
   showStep(0);
 }
 
-function selectOption(question, value, btn) {
+function chooseOption(question, value, btn) {
+  if (MULTI_QUESTIONS.has(question)) {
+    const list = answers[question] || [];
+    answers[question] = list.includes(value) ? list.filter(v => v !== value) : [...list, value];
+    btn.classList.toggle('selected');
+    syncMultiButton(question);
+    renderPreview();
+    return;
+  }
   answers[question] = value;
   document.querySelectorAll(`[data-options="${question}"] .option-card`).forEach(el => el.classList.remove('selected'));
-  if (btn) btn.classList.add('selected');
-  setTimeout(nextStep, 150);
+  btn.classList.add('selected');
+  renderPreview();
+  setTimeout(nextStep, 160);
 }
 
 document.querySelectorAll('.option-card[data-value]').forEach(btn => {
   btn.addEventListener('click', () => {
-    const optionsParent = btn.closest('[data-options]');
-    if (optionsParent) selectOption(optionsParent.dataset.options, btn.dataset.value, btn);
+    const parent = btn.closest('[data-options]');
+    if (parent) chooseOption(parent.dataset.options, btn.dataset.value, btn);
   });
 });
 
-/* Sliders with live feedback */
+/* Sliders continuos con respuesta visual en vivo */
 const riskSlider = document.getElementById('riskSlider');
 const riskFillStability = document.getElementById('riskFillStability');
 const riskFillGrowth = document.getElementById('riskFillGrowth');
+const riskReadout = document.getElementById('riskReadout');
+const volatilitySlider = document.getElementById('volatilitySlider');
+const volatilityReadout = document.getElementById('volatilityReadout');
+
+const TIER_LABEL = { conservador: 'Conservador', moderado: 'Moderado', arriesgado: 'Arriesgado' };
 
 function updateRiskPreview() {
   const v = parseInt(riskSlider.value, 10);
-  const growthPct = ((v - 1) / 4) * 100;
-  riskFillGrowth.style.width = growthPct + '%';
-  riskFillStability.style.width = (100 - growthPct) + '%';
+  answers.risk = v;
+  riskFillGrowth.style.width = v + '%';
+  riskFillStability.style.width = (100 - v) + '%';
+  riskReadout.textContent = `${v} / 100 · perfil ${TIER_LABEL[sliderToTier(v)]}`;
+  renderPreview();
 }
 riskSlider.addEventListener('input', updateRiskPreview);
-updateRiskPreview();
+
+// El texto del slider se pinta siempre, pero la respuesta solo se registra
+// cuando la persona lo toca o confirma la pregunta — ver la nota sobre
+// volatility == null en computeEffectiveRisk().
+function renderVolatilityReadout() {
+  const v = parseInt(volatilitySlider.value, 10);
+  volatilityReadout.textContent = `${v} / 100 · aguantarías una caída ${RISK_PHRASE(v)}`;
+}
+function commitVolatility() {
+  answers.volatility = parseInt(volatilitySlider.value, 10);
+  renderVolatilityReadout();
+  renderPreview();
+}
+volatilitySlider.addEventListener('input', commitVolatility);
 
 document.querySelectorAll('[data-advance]').forEach(btn => {
   btn.addEventListener('click', () => {
-    const q = btn.dataset.advance;
-    if (q === 'risk') answers.risk = parseInt(riskSlider.value, 10);
-    if (q === 'volatility') answers.volatility = parseInt(document.getElementById('volatilitySlider').value, 10);
+    // Confirmar la pregunta cuenta como responderla, aunque no se haya
+    // movido el slider de su posición inicial.
+    if (btn.dataset.advance === 'volatility') commitVolatility();
+    if (btn.dataset.advance === 'risk') answers.risk = parseInt(riskSlider.value, 10);
     nextStep();
   });
 });
+backBtn.addEventListener('click', () => prevStep());
 
 startBtn.addEventListener('click', goToQuiz);
 seeResultsBtn.addEventListener('click', () => {
@@ -730,65 +973,90 @@ seeResultsBtn.addEventListener('click', () => {
   answers.monthly = Math.max(0, parseFloat(monthlyInput.value) || 0);
   runDashboard();
 });
+amountInput.addEventListener('input', () => {
+  answers.amount = Math.max(0, parseFloat(amountInput.value) || 0);
+  renderPreview();
+});
 restartBtn.addEventListener('click', () => {
   screenDashboard.hidden = true;
   document.querySelectorAll('.option-card.selected').forEach(el => el.classList.remove('selected'));
-  answers.age = answers.horizon = answers.knowledge = answers.equityIndex = null;
-  answers.bondsKnowledge = answers.bondsChoice = answers.style = null;
-  answers.realEstateKnowledge = answers.realEstateChoice = answers.realEstateType = null;
-  answers.peKnowledge = answers.peChoice = null;
-  answers.altKnowledge = answers.altChoice = answers.altType = null;
-  answers.risk = 3; answers.volatility = 3; answers.monthly = 0;
-  riskSlider.value = 3; document.getElementById('volatilitySlider').value = 3; monthlyInput.value = 0;
-  updateRiskPreview();
+  answers = freshAnswers();
+  riskSlider.value = 50; volatilitySlider.value = 50;
+  amountInput.value = 1000; monthlyInput.value = 0;
+  updateRiskPreview(); renderVolatilityReadout();
+  if (previewDonut) previewDonut.__prevDonut = null;
   goToQuiz();
 });
 
-/* ---------- Falling fact clouds (replace the old side drawer) ----------
-   Small clouds drift down the left/right margins, one spawned every few
-   seconds, alternating sides, each carrying a fact about whatever topic the
-   current question is on. They're collapsed (icon only) by default — click
-   one to pause it and expand its bubble, click again (or just wait) to let
-   it keep falling. Spawned/removed dynamically rather than living in the
-   HTML, since there can be several on screen carrying different facts. */
+/* Vista previa en vivo: la misma cartera que verás al final, recalculada con
+   cada respuesta, para que se vea cómo se va construyendo el donut en lugar
+   de aparecer de golpe al terminar. */
+function renderPreview() {
+  if (!ALLOCATIONS || !previewDonut) return;
+  const result = computeAllocation(answers, ALLOCATIONS);
+  renderDonut(previewDonut, result.segments, { centerLabel: 'Ahora' });
+  buildDonutLegend(previewLegend, result.segments);
+  previewRiskLabel.textContent = `Perfil ${TIER_LABEL[result.effectiveRisk]}`;
+}
+
+/* ---------- Nubes que caen ----------
+   Nubes pequeñas que caen por los márgenes izquierdo y derecho, como mucho
+   MAX_CLOUDS a la vez y siempre con datos del tema de la pregunta que tengas
+   en pantalla. Al cambiar de pregunta se limpian las que quedaban, para que
+   nunca veas un dato de un tema que ya has dejado atrás. Están colapsadas
+   (solo el icono) por defecto: al hacer clic se paran y se abren. */
 
 const SCREEN_TO_TOPIC = {
-  age: 'interesCompuesto', risk: 'volatilidad', horizon: 'diversificacion', knowledge: 'indices', indexLesson: 'indices',
-  equityIndex: 'indices', bondsKnowledge: 'bonos', bondsLesson: 'bonos', bondsChoice: 'diversificacion',
+  age: 'interesCompuesto', risk: 'volatilidad', horizon: 'diversificacion',
+  rvKnowledge: 'rentaVariable', rvLesson: 'rentaVariable',
+  indexKnowledge: 'indices', indexLesson: 'indices', equityIndex: 'indices',
+  bondsKnowledge: 'bonos', bondsLesson: 'bonos', bondsChoice: 'bonos',
   realEstateKnowledge: 'realEstate', realEstateLesson: 'realEstate', realEstateChoice: 'realEstate', realEstateType: 'realEstate',
   peKnowledge: 'privateEquity', peLesson: 'privateEquity', peChoice: 'privateEquity',
   altKnowledge: 'otrasInversiones', altLesson: 'otrasInversiones', altChoice: 'otrasInversiones', altType: 'otrasInversiones',
   style: 'fondosIndexados', volatility: 'rebalanceo', amount: 'dcaVsLumpSum',
 };
 
-const CLOUD_FALL_MS = 17000;
-const CLOUD_SPAWN_MS = 5000;
-const cloudLaneEls = { left: document.getElementById('cloudLaneLeft'), right: document.getElementById('cloudLaneRight') };
+const MAX_CLOUDS = 3;
+const CLOUD_SPAWN_MS = 4200;
+const cloudLanes = { left: document.getElementById('cloudLaneLeft'), right: document.getElementById('cloudLaneRight') };
 let currentCloudTopic = 'acciones';
 let cloudSpawnTimer = null;
 let cloudNextSide = 'left';
-const cloudTopicIndex = new Map();
+let cloudFactCursor = 0;
 
-function nextCloudFact(topic) {
-  const pool = (CLOUD_FACTS && CLOUD_FACTS.facts[topic]) || [];
-  if (!pool.length) return null;
-  const i = cloudTopicIndex.get(topic) || 0;
-  cloudTopicIndex.set(topic, i + 1);
-  return pool[i % pool.length];
+function liveCloudCount() {
+  return document.querySelectorAll('.falling-cloud').length;
+}
+
+function clearClouds() {
+  document.querySelectorAll('.falling-cloud').forEach(el => el.remove());
 }
 
 function spawnFallingCloud() {
-  const lane = cloudLaneEls[cloudNextSide];
+  if (liveCloudCount() >= MAX_CLOUDS) return;
+  const pool = (CLOUD_FACTS && CLOUD_FACTS.facts[currentCloudTopic]) || [];
+  if (!pool.length) return;
+
+  const lane = cloudLanes[cloudNextSide];
   cloudNextSide = cloudNextSide === 'left' ? 'right' : 'left';
   if (!lane) return;
-  const fact = nextCloudFact(currentCloudTopic);
-  if (!fact) return;
+
+  const fact = pool[cloudFactCursor % pool.length];
+  cloudFactCursor += 1;
+
+  // Un poco de variación para que no parezca una sola columna cayendo.
+  const duration = 15000 + Math.random() * 8000;
+  const drift = Math.round(Math.random() * 26);
+  const scale = 0.85 + Math.random() * 0.3;
 
   const el = document.createElement('div');
   el.className = 'falling-cloud';
-  el.style.animationDuration = CLOUD_FALL_MS + 'ms';
+  el.style.animationDuration = duration + 'ms';
+  el.style.setProperty('--cloud-drift', drift + 'px');
+  el.style.setProperty('--cloud-scale', scale.toFixed(2));
   el.innerHTML =
-    '<span class="cloud-shape sketch-icon-slot" data-icon="cloud" data-size="60"></span>' +
+    '<span class="cloud-shape sketch-icon-slot" data-icon="cloud" data-size="58"></span>' +
     '<div class="cloud-bubble"><p></p></div>';
   el.querySelector('.cloud-bubble p').textContent = fact;
   el.addEventListener('click', () => {
@@ -807,12 +1075,18 @@ function startCloudCycle() {
 }
 
 function updateCloudForQuestion(questionKey) {
-  currentCloudTopic = SCREEN_TO_TOPIC[questionKey] || 'acciones';
+  const topic = SCREEN_TO_TOPIC[questionKey] || 'acciones';
+  if (topic === currentCloudTopic) return;
+  currentCloudTopic = topic;
+  cloudFactCursor = 0;
+  clearClouds();
+  spawnFallingCloud();
 }
 
 /* ---------- Dashboard ---------- */
 
 const dashHeadline = document.getElementById('dashHeadline');
+const dashProfileTag = document.getElementById('dashProfileTag');
 const capNotice = document.getElementById('capNotice');
 const volNotice = document.getElementById('volNotice');
 const ageNotice = document.getElementById('ageNotice');
@@ -822,6 +1096,7 @@ const peNotice = document.getElementById('peNotice');
 const allocationDonut = document.getElementById('allocationDonut');
 const donutLegend = document.getElementById('donutLegend');
 const backtestStory = document.getElementById('backtestStory');
+const statGrid = document.getElementById('statGrid');
 const explanationDetail = document.getElementById('explanationDetail');
 const detailTableBody = document.getElementById('detailTableBody');
 const layer3Toggle = document.getElementById('layer3Toggle');
@@ -833,77 +1108,76 @@ layer3Toggle.addEventListener('click', () => {
   layer3Body.hidden = expanded;
 });
 
+function buildStatTiles(container, tiles) {
+  container.textContent = '';
+  tiles.forEach(t => {
+    const cell = document.createElement('div');
+    cell.className = 'stat-tile';
+    const label = document.createElement('span');
+    label.className = 'stat-label';
+    label.textContent = t.label;
+    const value = document.createElement('strong');
+    value.className = 'stat-value';
+    if (t.tone) value.classList.add('tone-' + t.tone);
+    value.textContent = t.animate ? t.format(0) : t.text;
+    const note = document.createElement('span');
+    note.className = 'stat-note';
+    note.textContent = t.note || '';
+    cell.append(label, value, note);
+    container.appendChild(cell);
+    if (t.animate) animateNumber(value, t.value, t.format);
+  });
+}
+
 async function runDashboard() {
   screenQuiz.hidden = true;
-  progressBarOuter.hidden = true;
+  quizChrome.hidden = true;
   screenDashboard.hidden = false;
   backtestStory.textContent = 'Cargando datos históricos reales…';
+  statGrid.textContent = '';
   currentCloudTopic = 'dcaVsLumpSum';
+  clearClouds();
 
-  const { effectiveRisk, wasCappedByHorizon, wasCappedByVolatility, wasCappedByAge } = computeEffectiveRisk(answers.risk, answers.horizon, answers.volatility, answers.age, ALLOCATIONS);
-  const baseWeights = getAllocationWeights(effectiveRisk, ALLOCATIONS);
+  const result = computeAllocation(answers, ALLOCATIONS);
+  const { effectiveRisk, weights: finalWeights, holdings, segments } = result;
   const explanation = getExplanation(effectiveRisk, answers.horizon, ARCHETYPES);
-  const equityInstrument = resolveEquityIndex(answers.equityIndex, ALLOCATIONS);
-  const bondsInstrument = resolveBondsChoice(answers.bondsChoice, ALLOCATIONS);
-  const weights = adjustWeightsForInstrumentRisk(baseWeights, equityInstrument.riskMultiplier, bondsInstrument.riskMultiplier, ALLOCATIONS.tiltDampening);
-  const wasTilted = Math.abs(weights.equities - baseWeights.equities) > 0.005;
 
   dashHeadline.textContent = explanation ? explanation.headline : '—';
+  dashProfileTag.textContent = `Perfil ${TIER_LABEL[effectiveRisk]}`;
 
-  capNotice.hidden = !wasCappedByHorizon;
-  if (wasCappedByHorizon) capNotice.textContent = ARCHETYPES.horizonCapNotice;
-  volNotice.hidden = !wasCappedByVolatility;
-  if (wasCappedByVolatility) {
-    volNotice.textContent = 'Dijiste que tolerarías más riesgo, pero tu respuesta sobre caídas reales sugiere lo contrario — ajustamos la mezcla hacia algo más prudente. Mejor prevenir que vender en pánico.';
+  capNotice.hidden = !result.wasCappedByHorizon;
+  if (result.wasCappedByHorizon) capNotice.textContent = ARCHETYPES.horizonCapNotice;
+  volNotice.hidden = !result.wasCappedByVolatility;
+  if (result.wasCappedByVolatility) {
+    volNotice.textContent = 'Dijiste que tolerarías más riesgo, pero tu respuesta sobre caídas reales apunta a lo contrario — hemos ajustado la mezcla hacia algo más prudente. Mejor prevenir que vender presa del pánico.';
   }
-  ageNotice.hidden = !wasCappedByAge;
-  if (wasCappedByAge) {
-    ageNotice.textContent = 'Con 60+ años, hay menos tiempo para que una mala racha se recupere antes de necesitar el dinero — ajustamos la mezcla hacia algo más prudente, independientemente de tu tolerancia al riesgo.';
+  ageNotice.hidden = !result.wasCappedByAge;
+  if (result.wasCappedByAge) {
+    ageNotice.textContent = 'Con 60+ años queda menos tiempo para que una mala racha se recupere antes de necesitar el dinero, así que hemos ajustado la mezcla hacia algo más prudente, al margen de tu tolerancia al riesgo.';
   }
-  tiltNotice.hidden = !wasTilted;
-  if (wasTilted) {
-    const eqDir = weights.equities < baseWeights.equities ? 'un poco menos' : 'un poco más';
-    tiltNotice.textContent = `${equityInstrument.label} y/o ${bondsInstrument.label} son más o menos volátiles que nuestras opciones de referencia, así que le dimos a las empresas grandes ${eqDir} de peso del que te hubiera tocado por defecto — buscando mantener el riesgo total parecido, sin importar qué instrumento específico elegiste.`;
+  tiltNotice.hidden = !result.wasTilted;
+  if (result.wasTilted) {
+    const dir = finalWeights.equities < result.baseWeights.equities ? 'algo menos' : 'algo más';
+    const eqNames = listPhrase(result.equityPicks.map(p => p.label));
+    const bondNames = listPhrase(result.bondsPicks.map(p => p.label));
+    tiltNotice.textContent = `${eqNames} y ${bondNames} no son igual de volátiles que nuestras opciones de referencia, así que le hemos dado a la renta variable ${dir} de peso del que te habría tocado por defecto — buscando mantener el riesgo total parecido, sea cual sea el instrumento concreto que elijas.`;
   }
-
-  const realEstateInstrument = resolveRealEstateSubtype(answers.realEstateType, ALLOCATIONS);
-  const alternativeInstrument = resolveAlternativeSubtype(answers.altType, ALLOCATIONS);
-  const {
-    weights: finalWeights, alternativeIncluded, alternativeRequestedButExcluded,
-    privateEquityIncluded, privateEquityRequestedButExcluded, privateEquityExcludedReason,
-  } = applySleeves(weights, {
-    includeRealEstate: answers.realEstateChoice === 'si',
-    includeAlternative: answers.altChoice === 'si',
-    includePrivateEquity: answers.peChoice === 'si',
-    effectiveRisk, initialAmount: answers.amount,
-  }, ALLOCATIONS);
-
-  altNotice.hidden = !alternativeRequestedButExcluded;
-  if (alternativeRequestedButExcluded) {
-    altNotice.textContent = `Pediste sumar "otras inversiones" (${alternativeInstrument.label.toLowerCase()}), pero tu perfil final terminó siendo "${effectiveRisk}", no "arriesgado" — así que lo dejamos afuera. Una porción de un activo tan volátil solo tiene sentido si cada otra señal (horizonte, caídas reales, edad) ya está de acuerdo.`;
+  altNotice.hidden = !result.alternativeRequestedButExcluded;
+  if (result.alternativeRequestedButExcluded) {
+    altNotice.textContent = `Pediste sumar "otras inversiones", pero tu perfil final ha acabado siendo "${effectiveRisk}" y no "arriesgado", así que las hemos dejado fuera. Una porción de algo tan volátil solo tiene sentido si todas las demás señales (horizonte, caídas reales, edad) están de acuerdo.`;
   }
-  peNotice.hidden = !privateEquityRequestedButExcluded;
-  if (privateEquityRequestedButExcluded) {
-    const reasonText = {
-      risk: `tu perfil final terminó siendo "${effectiveRisk}", no "arriesgado"`,
-      capital: `los fondos de private equity minoristas suelen pedir un mínimo de inversión inicial (acá usamos ${formatUSD(ALLOCATIONS.privateEquityMinAmount, 0)} como referencia) y tu monto no llega`,
-      both: `tu perfil final no es "arriesgado" y además tu monto no alcanza el mínimo habitual de estos fondos (${formatUSD(ALLOCATIONS.privateEquityMinAmount, 0)})`,
-    }[privateEquityExcludedReason];
-    peNotice.textContent = `Pediste sumar private equity, pero ${reasonText} — así que lo dejamos afuera.`;
+  peNotice.hidden = !result.privateEquityRequestedButExcluded;
+  if (result.privateEquityRequestedButExcluded) {
+    const min = formatEUR(ALLOCATIONS.privateEquityMinAmount, 0);
+    peNotice.textContent = 'Pediste sumar private equity, pero ' + {
+      riesgo: `tu perfil final ha acabado siendo "${effectiveRisk}" y no "arriesgado"`,
+      capital: `los fondos de private equity minoristas suelen pedir un importe mínimo de entrada (aquí usamos ${min} como referencia) y tu importe no llega`,
+      ambos: `tu perfil final no es "arriesgado" y además tu importe no alcanza el mínimo habitual de estos fondos (${min})`,
+    }[result.privateEquityExcludedReason] + ' — así que lo hemos dejado fuera.';
   }
 
-  const includeRealEstate = finalWeights.realEstate > 0;
-
-  const donutSegments = [
-    { name: `Renta variable (${equityInstrument.label})`, weight: finalWeights.equities, color: 'var(--series-1)' },
-    { name: `Renta fija (${bondsInstrument.label})`, weight: finalWeights.bonds, color: 'var(--series-2)' },
-    { name: 'Efectivo', weight: finalWeights.cash, color: 'var(--series-3)' },
-  ];
-  if (includeRealEstate) donutSegments.push({ name: `Inversión inmobiliaria (${realEstateInstrument.label})`, weight: finalWeights.realEstate, color: 'var(--series-4)' });
-  if (privateEquityIncluded) donutSegments.push({ name: 'Private Equity', weight: finalWeights.privateEquity, color: 'var(--series-6)' });
-  if (alternativeIncluded) donutSegments.push({ name: `Otras inversiones (${alternativeInstrument.label})`, weight: finalWeights.alternative, color: 'var(--series-5)' });
-  renderDonut(allocationDonut, donutSegments);
-  buildDonutLegend(donutLegend, donutSegments);
+  renderDonut(allocationDonut, segments);
+  buildDonutLegend(donutLegend, segments, { showMembers: true });
 
   const styleDetail = answers.style === 'detalle';
   layer3Toggle.setAttribute('aria-expanded', String(styleDetail));
@@ -911,56 +1185,54 @@ async function runDashboard() {
   explanationDetail.textContent = explanation ? explanation.detail : '';
 
   try {
-    const tickerSpecs = [
-      { key: 'equities', name: `Renta variable (${equityInstrument.label})`, ticker: equityInstrument.ticker, weight: finalWeights.equities, ter: equityInstrument.expenseRatio },
-      { key: 'bonds', name: `Renta fija (${bondsInstrument.label})`, ticker: bondsInstrument.ticker, weight: finalWeights.bonds, ter: bondsInstrument.expenseRatio },
-    ];
-    const flatSpecs = [];
-    if (includeRealEstate) {
-      const row = { key: 'realEstate', name: `Inversión inmobiliaria (${realEstateInstrument.label})`, weight: finalWeights.realEstate, ter: realEstateInstrument.expenseRatio };
-      if (realEstateInstrument.hasRealData) tickerSpecs.push({ ...row, ticker: realEstateInstrument.ticker });
-      else flatSpecs.push({ ...row, ticker: null, annualRate: realEstateInstrument.illustrativeAnnualRate });
-    }
-    if (privateEquityIncluded) {
-      flatSpecs.push({
-        key: 'privateEquity', name: 'Private Equity', ticker: null,
-        weight: finalWeights.privateEquity, ter: ALLOCATIONS.privateEquityInstrument.expenseRatio,
-        annualRate: ALLOCATIONS.privateEquityInstrument.illustrativeAnnualRate,
-      });
-    }
-    if (alternativeIncluded) {
-      tickerSpecs.push({
-        key: 'alternative', name: `Otras inversiones (${alternativeInstrument.label})`, ticker: alternativeInstrument.ticker,
-        weight: finalWeights.alternative, ter: alternativeInstrument.expenseRatio,
-      });
-    }
+    const tickerHoldings = holdings.filter(h => h.hasRealData && h.ticker);
+    const flatHoldings = holdings.filter(h => !h.hasRealData && h.key !== 'cash');
 
-    const fetchedSeries = await Promise.all(tickerSpecs.map(s => fetchTickerSeries(s.ticker)));
+    const fetchedSeries = await Promise.all(tickerHoldings.map(h => fetchTickerSeries(h.ticker)));
     const aligned = alignSeriesSet(fetchedSeries);
-    const cashRate = ALLOCATIONS.instruments.cash.illustrativeAnnualRate;
     const blend = blendPortfolio({
       dates: aligned.dates, closesList: aligned.closesList,
-      weightsList: tickerSpecs.map(s => s.weight),
-      cashWeight: finalWeights.cash, cashAnnualRate: cashRate,
-      flatAssets: flatSpecs.map(s => ({ weight: s.weight, annualRate: s.annualRate })),
+      weightsList: tickerHoldings.map(h => h.weight),
+      cashWeight: finalWeights.cash,
+      cashAnnualRate: ALLOCATIONS.instruments.cash.illustrativeAnnualRate,
+      flatAssets: flatHoldings.map(h => ({ weight: h.weight, annualRate: h.illustrativeAnnualRate })),
     });
 
     const n = blend.dates.length;
-    const finalValue = answers.amount * blend.portfolioEquity[n - 1];
+    const growth = blend.portfolioEquity[n - 1];
+    const finalValue = answers.amount * growth;
     const cashOnlyValue = answers.amount * blend.cashOnlyEquity[n - 1];
-    const years = ((new Date(blend.dates[n - 1]) - new Date(blend.dates[0])) / (365.25 * 86400000)).toFixed(1);
+    const years = (new Date(blend.dates[n - 1]) - new Date(blend.dates[0])) / (365.25 * 86400000);
+    const cagr = Math.pow(growth, 1 / years) - 1;
+    const vol = annualizedVol(blend.dailyReturns, 252);
+    const dd = maxDrawdown(blend.portfolioEquity);
+    const yearly = calendarYearReturns(blend.dates, blend.portfolioEquity);
+    const best = yearly.length ? yearly.reduce((a, b) => (b.ret > a.ret ? b : a)) : null;
+    const worst = yearly.length ? yearly.reduce((a, b) => (b.ret < a.ret ? b : a)) : null;
 
     const hasMonthly = answers.monthly > 0;
     const dcaSeries = hasMonthly ? simulateDCA({ dates: blend.dates, dailyReturns: blend.dailyReturns, initialAmount: answers.amount, monthlyAmount: answers.monthly }) : null;
+    const totalInvested = answers.amount + (hasMonthly ? answers.monthly * Math.round(years * 12) : 0);
 
     backtestStory.textContent = hasMonthly
-      ? `Si hubieras invertido ${formatUSD(answers.amount, 0)} hace ${years} años (${shortDate(blend.dates[0])}) y aportado ${formatUSD(answers.monthly, 0)} más cada mes, hoy tendrías aproximadamente ${formatUSD(dcaSeries[n - 1], 0)} — contra ${formatUSD(finalValue, 0)} si solo hubieras puesto el monto inicial y nada más.`
-      : `Si hubieras invertido ${formatUSD(answers.amount, 0)} así hace ${years} años (${shortDate(blend.dates[0])}), hoy tendrías aproximadamente ${formatUSD(finalValue, 0)}. Dejarlo todo en efectivo, en cambio, hubiera dado ${formatUSD(cashOnlyValue, 0)}.`;
+      ? `Si hubieras invertido ${formatEUR(answers.amount, 0)} hace ${years.toFixed(1)} años (${shortDate(blend.dates[0])}) y hubieras aportado ${formatEUR(answers.monthly, 0)} más cada mes, hoy tendrías unos ${formatEUR(dcaSeries[n - 1], 0)} habiendo puesto ${formatEUR(totalInvested, 0)} de tu bolsillo — frente a ${formatEUR(finalValue, 0)} si solo hubieras puesto el importe inicial y nada más.`
+      : `Si hubieras invertido ${formatEUR(answers.amount, 0)} así hace ${years.toFixed(1)} años (${shortDate(blend.dates[0])}), hoy tendrías unos ${formatEUR(finalValue, 0)}. Dejarlo todo en efectivo, en cambio, habría dado ${formatEUR(cashOnlyValue, 0)}.`;
+
+    buildStatTiles(statGrid, [
+      { label: 'Valor final', animate: true, value: hasMonthly ? dcaSeries[n - 1] : finalValue, format: v => formatEUR(v, 0), note: `Partiendo de ${formatEUR(answers.amount, 0)}` },
+      { label: 'Rentabilidad total', animate: true, value: growth - 1, format: v => formatSignedPct(v, 1), tone: growth >= 1 ? 'good' : 'bad', note: `En ${years.toFixed(1)} años` },
+      { label: 'Rentabilidad anualizada', animate: true, value: cagr, format: v => formatSignedPct(v, 1), tone: cagr >= 0 ? 'good' : 'bad', note: 'TAE equivalente (CAGR)' },
+      { label: 'Volatilidad anual', animate: true, value: vol, format: v => formatPct(v, 1), note: 'Cuánto se movió por el camino' },
+      { label: 'Máxima caída', animate: true, value: dd, format: v => formatPct(v, 1), tone: 'bad', note: 'De su punto más alto al más bajo' },
+      { label: 'Ventaja sobre el efectivo', animate: true, value: finalValue - cashOnlyValue, format: v => formatEUR(v, 0), tone: finalValue >= cashOnlyValue ? 'good' : 'bad', note: `El efectivo habría dado ${formatEUR(cashOnlyValue, 0)}` },
+      best ? { label: 'Mejor año', text: `${formatSignedPct(best.ret, 1)}`, tone: 'good', note: `Año ${best.year}` } : null,
+      worst ? { label: 'Peor año', text: `${formatSignedPct(worst.ret, 1)}`, tone: 'bad', note: `Año ${worst.year}` } : null,
+    ].filter(Boolean));
 
     const chartSeries = [
       { name: hasMonthly ? 'Solo aporte inicial' : 'Tu cartera', color: 'var(--series-1)', data: blend.portfolioEquity.map(v => answers.amount * v) },
     ];
-    if (hasMonthly) chartSeries.push({ name: 'Con aporte mensual', color: 'var(--series-2)', data: dcaSeries });
+    if (hasMonthly) chartSeries.push({ name: 'Con aportación mensual', color: 'var(--series-2)', data: dcaSeries });
     chartSeries.push({ name: 'Solo efectivo', color: 'var(--series-3)', data: blend.cashOnlyEquity.map(v => answers.amount * v) });
 
     renderLineChart({
@@ -968,44 +1240,47 @@ async function runDashboard() {
       tooltipEl: document.getElementById('pfTooltip'),
       dates: blend.dates,
       series: chartSeries,
-      yFormat: v => formatUSD(v, 0),
-      tooltipFormat: v => formatUSD(v, 0),
+      yFormat: v => formatEUR(v, 0),
+      tooltipFormat: v => formatEUR(v, 0),
     });
     buildLegend(document.getElementById('pfLegend'), chartSeries.map(s => ({ name: s.name, color: s.color })));
 
-    const vol = annualizedVol(blend.dailyReturns, 252);
-    const dd = maxDrawdown(blend.portfolioEquity);
+    // Las filas con datos reales comparten la volatilidad anualizada de la
+    // cartera; el efectivo y los sleeves de tasa fija (crowdfunding, private
+    // equity) no tienen precios diarios reales con los que calcularla, así
+    // que muestran "—" en vez de un número inventado.
     detailTableBody.textContent = '';
-    // hasRealData rows (equities/bonds/real-estate-REITs/alternative) share the
-    // portfolio's overall annualized volatility; cash and flat-rate sleeves
-    // (real-estate crowdfunding, private equity) have no real daily prices to
-    // compute a volatility figure from, so they show — instead of a fake number.
-    const rows = [
-      ...tickerSpecs.map(s => [s.name, s.ticker, s.weight, true, s.ter]),
-      ['Efectivo', 'Estimado', finalWeights.cash, false, null],
-      ...flatSpecs.map(s => [s.name, 'Estimado', s.weight, false, s.ter]),
-    ];
-    rows.forEach(([name, ticker, weight, hasRealData, ter]) => {
+    holdings.forEach(h => {
       const tr = document.createElement('tr');
-      [name, ticker, formatPct(weight, 0), hasRealData ? formatPct(vol, 1) : '—', ter == null ? '—' : formatPct(ter, 2)].forEach((text, ci) => {
+      const cells = [
+        CATEGORY_META[h.category].name,
+        h.label,
+        h.ticker || 'Estimación',
+        formatPct(h.weight, 1),
+        h.hasRealData ? formatPct(vol, 1) : '—',
+        h.expenseRatio == null ? '—' : formatPct(h.expenseRatio, 2),
+      ];
+      cells.forEach((text, ci) => {
         const td = document.createElement('td');
         td.textContent = text;
-        if (ci >= 2) td.classList.add('num');
+        if (ci >= 3) td.classList.add('num');
+        if (ci === 2 && !h.hasRealData) td.classList.add('estimated');
         tr.appendChild(td);
       });
       detailTableBody.appendChild(tr);
     });
     const ddRow = document.createElement('tr');
-    ['Máx. caída histórica de tu cartera', '', '', formatPct(dd, 1), ''].forEach((text, ci) => {
+    ddRow.className = 'total-row';
+    ['Cartera completa', '', '', formatPct(1, 1), formatPct(vol, 1), ''].forEach((text, ci) => {
       const td = document.createElement('td');
       td.textContent = text;
-      if (ci >= 2) td.classList.add('num');
+      if (ci >= 3) td.classList.add('num');
       ddRow.appendChild(td);
     });
     detailTableBody.appendChild(ddRow);
   } catch (err) {
     console.error(err);
-    backtestStory.textContent = 'No pudimos cargar los datos históricos ahora mismo (posible límite de la API gratuita). Probá de nuevo en unos segundos.';
+    backtestStory.textContent = 'No hemos podido cargar los datos históricos ahora mismo (puede ser el límite de la API gratuita). Inténtalo de nuevo en unos segundos.';
   }
 }
 
@@ -1016,7 +1291,10 @@ function debounce(fn, ms) {
 
 window.addEventListener('resize', debounce(() => {
   if (!screenDashboard.hidden) runDashboard();
+  else if (!screenQuiz.hidden) renderPreview();
 }, 200));
 
 renderAllSketchIcons();
+updateRiskPreview();
+renderVolatilityReadout();
 loadContent();

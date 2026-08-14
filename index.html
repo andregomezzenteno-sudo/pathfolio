@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PathFolio — Encontrá tu punto de partida para invertir</title>
-<meta name="description" content="Un curso corto e ilustrado que traduce tus respuestas en una cartera de inversión explicada en lenguaje simple, con un backtest real sobre datos históricos reales.">
+<title>PathFolio — Encuentra tu punto de partida para invertir</title>
+<meta name="description" content="Un curso corto e ilustrado que convierte tus respuestas en una cartera de inversión explicada en lenguaje llano, con un backtest real sobre datos históricos reales.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,75 +18,97 @@
     <feDisplacementMap in="SourceGraphic" in2="noise" scale="5.5" xChannelSelector="R" yChannelSelector="G"/>
   </filter>
 </svg>
+
+<!-- ===================== NUBES QUE CAEN ===================== -->
+<!-- Las nubes se generan desde app.js (spawnFallingCloud) y caen por estos
+     dos carriles laterales, como mucho 3 a la vez y siempre con datos del
+     tema de la pregunta actual. Colapsadas por defecto: al hacer clic se
+     paran y se abren. -->
+<div class="cloud-lane cloud-lane-left" id="cloudLaneLeft" aria-hidden="true"></div>
+<div class="cloud-lane cloud-lane-right" id="cloudLaneRight" aria-hidden="true"></div>
+
 <div class="page">
 
   <header class="app-header">
     <div class="header-text">
       <h1>PathFolio</h1>
-      <p class="subtitle">Un recorrido corto e ilustrado para entender qué cartera de inversión tiene sentido para vos — sin jerga, con datos reales.</p>
+      <p class="subtitle">Un recorrido corto e ilustrado para entender qué cartera de inversión tiene sentido para ti — sin jerga y con datos reales.</p>
     </div>
     <a class="repo-link" href="https://github.com/andregomezzenteno-sudo/pathfolio" target="_blank" rel="noopener">Ver código en GitHub ↗</a>
   </header>
 
-  <div class="progress-bar-outer" id="progressBarOuter" hidden>
-    <div class="progress-bar-fill" id="progressBarFill"></div>
+  <div class="quiz-chrome" id="quizChrome" hidden>
+    <button class="back-btn" id="backBtn" type="button" hidden>
+      <span aria-hidden="true">←</span> Atrás
+    </button>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-fill" id="progressBarFill"></div>
+    </div>
     <span class="progress-label" id="progressLabel"></span>
   </div>
 
   <main id="app">
 
-    <!-- ===================== LANDING ===================== -->
+    <!-- ===================== PORTADA ===================== -->
     <section class="screen" id="screen-landing" data-screen>
       <div class="landing-card">
         <div class="sketch-icon-slot" data-icon="stocks" data-size="96"></div>
         <p class="landing-eyebrow">Un mini-curso de 3 minutos</p>
-        <h2>Nunca invertiste y no sabés por dónde empezar. Está bien.</h2>
-        <p>Vamos a construir juntos una cartera de ejemplo para tu situación — con explicaciones simples e ilustradas en el camino, opcionales si ya sabés de esto. Al final vas a ver cómo se hubiera comportado en la vida real.</p>
+        <h2>Nunca has invertido y no sabes por dónde empezar. Es normal.</h2>
+        <p>Vamos a construir juntos una cartera de ejemplo para tu situación, con explicaciones sencillas e ilustradas por el camino — opcionales, si ya controlas del tema. Al final verás cómo se habría comportado en la vida real.</p>
         <button class="btn-primary" id="startBtn" type="button">Empezar →</button>
-        <p class="landing-note">No pedimos email, ni datos de cuentas reales, ni nada que puedas perder.</p>
+        <p class="landing-note">No pedimos correo, ni datos de cuentas reales, ni nada que puedas perder.</p>
       </div>
     </section>
 
-    <!-- ===================== QUESTIONNAIRE ===================== -->
-    <section class="screen" id="screen-quiz" data-screen hidden>
+    <!-- ===================== CUESTIONARIO ===================== -->
+    <section class="screen quiz-layout" id="screen-quiz" data-screen hidden>
 
-      <!-- age: first question, sets context for everything after -->
+      <div class="quiz-column">
+
+      <!-- edad -->
       <div class="quiz-card" id="q-age" data-question="age" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>Para empezar: ¿en qué rango de edad estás?</h2>
-        <p class="quiz-hint">Esto nos ayuda a pensar cuánto tiempo tiene tu dinero para recuperarse de una mala racha.</p>
+        <h2>Para empezar: ¿en qué franja de edad estás?</h2>
+        <p class="quiz-hint">Nos sirve para saber cuánto tiempo tiene tu dinero para recuperarse de una mala racha.</p>
         <div class="quiz-options" data-options="age">
           <button class="option-card" type="button" data-value="18-30">
             <span class="sketch-icon-slot" data-icon="sprout" data-size="40"></span>
             <span class="option-label">18-30</span>
+            <span class="option-sublabel">Tiempo de sobra por delante</span>
           </button>
           <button class="option-card" type="button" data-value="31-45">
             <span class="sketch-icon-slot" data-icon="stocks" data-size="40"></span>
             <span class="option-label">31-45</span>
+            <span class="option-sublabel">Horizonte todavía largo</span>
           </button>
           <button class="option-card" type="button" data-value="46-60">
             <span class="sketch-icon-slot" data-icon="bonds" data-size="40"></span>
             <span class="option-label">46-60</span>
+            <span class="option-sublabel">Conviene ir asentando</span>
           </button>
           <button class="option-card" type="button" data-value="60+">
             <span class="sketch-icon-slot" data-icon="retirement" data-size="40"></span>
-            <span class="option-label">60+</span>
+            <span class="option-label">60 o más</span>
+            <span class="option-sublabel">Prioridad: conservar</span>
           </button>
         </div>
       </div>
 
-      <!-- risk: slider -->
+      <!-- riesgo: slider continuo -->
       <div class="quiz-card" id="q-risk" data-question="risk" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>Si el dinero que invertiste bajara de valor de un día para el otro, ¿qué tan tranquilo te quedarías?</h2>
+        <h2>Si el dinero que has invertido bajase de valor de un día para otro, ¿cómo de tranquilo te quedarías?</h2>
+        <p class="quiz-hint">Coloca la barra exactamente donde quieras: no hay casillas fijas, cualquier punto vale.</p>
         <div class="slider-row">
-          <input type="range" id="riskSlider" min="1" max="5" step="1" value="3">
+          <input type="range" id="riskSlider" min="0" max="100" step="1" value="50" aria-label="Tolerancia al riesgo de 0 a 100">
           <div class="slider-labels">
             <span>Nada tranquilo</span>
             <span>Totalmente tranquilo</span>
           </div>
+          <p class="slider-readout" id="riskReadout">50 / 100</p>
         </div>
-        <div class="tradeoff-preview" id="riskPreview">
+        <div class="tradeoff-preview">
           <div class="tradeoff-side">
             <span class="tradeoff-label">Estabilidad</span>
             <div class="tradeoff-track"><div class="tradeoff-fill" id="riskFillStability"></div></div>
@@ -99,7 +121,7 @@
         <button class="btn-primary" data-advance="risk" type="button">Continuar →</button>
       </div>
 
-      <!-- horizon: icon cards (unchanged style) -->
+      <!-- horizonte -->
       <div class="quiz-card" id="q-horizon" data-question="horizon" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2>¿Para qué es este dinero?</h2>
@@ -107,192 +129,256 @@
           <button class="option-card" type="button" data-value="viaje">
             <span class="sketch-icon-slot" data-icon="travel" data-size="40"></span>
             <span class="option-label">Un viaje o una meta cercana</span>
+            <span class="option-sublabel">Lo necesito pronto</span>
           </button>
           <button class="option-card" type="button" data-value="casa">
             <span class="sketch-icon-slot" data-icon="house" data-size="40"></span>
             <span class="option-label">Comprar una casa</span>
+            <span class="option-sublabel">Unos años vista</span>
           </button>
           <button class="option-card" type="button" data-value="crecer">
             <span class="sketch-icon-slot" data-icon="sprout" data-size="40"></span>
-            <span class="option-label">No sé, quiero que crezca</span>
+            <span class="option-label">No lo sé, que crezca</span>
+            <span class="option-sublabel">Sin fecha concreta</span>
           </button>
           <button class="option-card" type="button" data-value="jubilacion">
             <span class="sketch-icon-slot" data-icon="retirement" data-size="40"></span>
             <span class="option-label">Mi jubilación</span>
+            <span class="option-sublabel">A muy largo plazo</span>
           </button>
         </div>
       </div>
 
-      <!-- knowledge gate -->
-      <div class="quiz-card" id="q-knowledge" data-question="knowledge" hidden>
+      <!-- renta variable: pregunta de conocimiento -->
+      <div class="quiz-card" id="q-rvKnowledge" data-question="rvKnowledge" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Ya conocés la diferencia entre el S&amp;P 500, el NASDAQ 100 y el MSCI World?</h2>
-        <div class="knowledge-gate" data-options="knowledge">
+        <h2>¿Sabes qué es la renta variable y qué es un ETF?</h2>
+        <div class="knowledge-gate" data-options="rvKnowledge">
           <button class="option-card knowledge-card" type="button" data-value="si">
             <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
-            <span class="option-label">Sí, ya sé</span>
+            <span class="option-label">Sí, lo tengo claro</span>
           </button>
           <button class="option-card knowledge-card" type="button" data-value="no">
             <span class="sketch-icon-slot" data-icon="question" data-size="36"></span>
-            <span class="option-label">No, explicame</span>
+            <span class="option-label">No, explícamelo</span>
           </button>
         </div>
       </div>
 
-      <!-- index lesson (conditional, only if knowledge=no) -->
+      <!-- renta variable: lección -->
+      <div class="quiz-card lesson-card" id="q-rvLesson" data-question="rvLesson" hidden>
+        <p class="quiz-eyebrow">Explicación rápida</p>
+        <h2>De comprar una acción suelta a comprar miles de golpe</h2>
+        <div class="lesson-trio">
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="stocks" data-size="44"></span>
+            <strong>Una acción</strong>
+            <p>Un trocito de una empresa. Si a Inditex le va bien, tu trocito vale más.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="layers" data-size="44"></span>
+            <strong>Un fondo</strong>
+            <p>Muchas acciones metidas en un mismo saco, para no jugártelo todo a una empresa.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="globe" data-size="44"></span>
+            <strong>Un ETF indexado</strong>
+            <p>Un fondo que cotiza en bolsa y copia un índice entero. Compras y vendes al instante, y cobra comisiones bajísimas.</p>
+          </div>
+        </div>
+        <p class="lesson-footnote"><strong>Renta variable</strong> es justo esto: nadie te promete cuánto vas a ganar. Es la parte que más sube y más baja de una cartera.</p>
+        <button class="btn-primary" data-advance="rvLesson" type="button">Lo pillo, seguir →</button>
+      </div>
+
+      <!-- índices: pregunta de conocimiento -->
+      <div class="quiz-card" id="q-indexKnowledge" data-question="indexKnowledge" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Conoces la diferencia entre el S&amp;P 500, el NASDAQ 100 y el MSCI World?</h2>
+        <div class="knowledge-gate" data-options="indexKnowledge">
+          <button class="option-card knowledge-card" type="button" data-value="si">
+            <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
+            <span class="option-label">Sí, los conozco</span>
+          </button>
+          <button class="option-card knowledge-card" type="button" data-value="no">
+            <span class="sketch-icon-slot" data-icon="question" data-size="36"></span>
+            <span class="option-label">No, explícamelo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- índices: lección con ejemplos de empresas -->
       <div class="quiz-card lesson-card" id="q-indexLesson" data-question="indexLesson" hidden>
-        <p class="quiz-eyebrow">Una explicación rápida</p>
-        <h2>Tres formas distintas de comprar "muchas empresas grandes a la vez"</h2>
+        <p class="quiz-eyebrow">Explicación rápida</p>
+        <h2>Tres cestas distintas de "muchas empresas grandes a la vez"</h2>
         <div class="lesson-trio">
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="sp500flag" data-size="44"></span>
             <strong>S&amp;P 500</strong>
-            <p>Las ~500 empresas más grandes de EEUU. Depende de su economía.</p>
+            <p>Las ~500 mayores de EE. UU. Depende de su economía.</p>
+            <span class="lesson-examples">Apple · Microsoft · Amazon · JPMorgan · Coca-Cola</span>
           </div>
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="chip" data-size="44"></span>
             <strong>NASDAQ 100</strong>
-            <p>EEUU, con foco en tecnología. Más potencial, más vaivén.</p>
+            <p>EE. UU. cargado de tecnología. Más recorrido, más sustos.</p>
+            <span class="lesson-examples">Nvidia · Meta · Tesla · Netflix · Adobe</span>
           </div>
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="globe" data-size="44"></span>
             <strong>MSCI World</strong>
             <p>Miles de empresas de todo el mundo. La más diversificada.</p>
+            <span class="lesson-examples">Inditex · Santander · Nestlé · ASML · Toyota</span>
           </div>
         </div>
-        <button class="btn-primary" data-advance="indexLesson" type="button">Ya entendí, continuar →</button>
+        <button class="btn-primary" data-advance="indexLesson" type="button">Lo pillo, seguir →</button>
       </div>
 
-      <!-- equity index choice: real, affects backtest data -->
+      <!-- índices: elección MÚLTIPLE real -->
       <div class="quiz-card" id="q-equityIndex" data-question="equityIndex" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>Para la parte de "empresas grandes del mundo" en tu cartera, ¿cuál preferís?</h2>
-        <div class="quiz-options" data-options="equityIndex">
+        <h2>¿Qué quieres dentro de tu renta variable?</h2>
+        <p class="quiz-hint">Puedes marcar varias. El peso de la renta variable se reparte a partes iguales entre las que elijas — mira cómo cambia el donut de la derecha.</p>
+        <div class="quiz-options multi" data-options="equityIndex" data-multi>
           <button class="option-card" type="button" data-value="sp500">
             <span class="sketch-icon-slot" data-icon="sp500flag" data-size="40"></span>
             <span class="option-label">S&amp;P 500</span>
-            <span class="option-sublabel">Grandes empresas de EEUU</span>
+            <span class="option-sublabel">Las 500 mayores de EE. UU.</span>
+            <span class="option-examples">Apple · Microsoft · Amazon</span>
           </button>
           <button class="option-card" type="button" data-value="nasdaq100">
             <span class="sketch-icon-slot" data-icon="chip" data-size="40"></span>
             <span class="option-label">NASDAQ 100</span>
-            <span class="option-sublabel">EEUU, con foco en tecnología</span>
+            <span class="option-sublabel">EE. UU., cargado de tecnología</span>
+            <span class="option-examples">Nvidia · Meta · Tesla</span>
           </button>
           <button class="option-card" type="button" data-value="msci">
             <span class="sketch-icon-slot" data-icon="globe" data-size="40"></span>
             <span class="option-label">MSCI World</span>
-            <span class="option-sublabel">Global, diversificado</span>
+            <span class="option-sublabel">Global y diversificado</span>
+            <span class="option-examples">Inditex · Nestlé · Toyota</span>
           </button>
         </div>
+        <button class="btn-primary" data-advance="equityIndex" type="button" disabled>Elige al menos una opción</button>
       </div>
 
-      <!-- bonds knowledge gate -->
+      <!-- renta fija: pregunta de conocimiento -->
       <div class="quiz-card" id="q-bondsKnowledge" data-question="bondsKnowledge" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Sabés la diferencia entre bonos de gobierno y bonos corporativos?</h2>
+        <h2>¿Sabes qué es la renta fija y en qué se diferencia la deuda pública de la corporativa?</h2>
         <div class="knowledge-gate" data-options="bondsKnowledge">
           <button class="option-card knowledge-card" type="button" data-value="si">
             <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
-            <span class="option-label">Sí, ya sé</span>
+            <span class="option-label">Sí, lo tengo claro</span>
           </button>
           <button class="option-card knowledge-card" type="button" data-value="no">
             <span class="sketch-icon-slot" data-icon="question" data-size="36"></span>
-            <span class="option-label">No, explicame</span>
+            <span class="option-label">No, explícamelo</span>
           </button>
         </div>
       </div>
 
-      <!-- bonds lesson (conditional, only if bondsKnowledge=no) -->
+      <!-- renta fija: lección -->
       <div class="quiz-card lesson-card" id="q-bondsLesson" data-question="bondsLesson" hidden>
-        <p class="quiz-eyebrow">Una explicación rápida</p>
-        <h2>Dos sabores de "prestarle plata a alguien"</h2>
+        <p class="quiz-eyebrow">Explicación rápida</p>
+        <h2>Renta fija es, básicamente, prestar tu dinero a cambio de intereses</h2>
         <div class="lesson-trio">
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="government" data-size="44"></span>
-            <strong>Bonos de gobierno</strong>
-            <p>Le prestás al gobierno de EEUU. El más seguro de los dos.</p>
+            <strong>Deuda pública</strong>
+            <p>Le prestas al Estado. Lo más seguro de los dos.</p>
+            <span class="lesson-examples">Letras y bonos del Tesoro</span>
           </div>
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="bonds" data-size="44"></span>
-            <strong>Bonos corporativos</strong>
-            <p>Le prestás a empresas grandes. Algo más de riesgo, algo más de interés.</p>
+            <strong>Deuda corporativa</strong>
+            <p>Le prestas a grandes empresas. Algo más de riesgo, algo más de interés.</p>
+            <span class="lesson-examples">Bonos de Apple, Telefónica…</span>
           </div>
         </div>
-        <button class="btn-primary" data-advance="bondsLesson" type="button">Ya entendí, continuar →</button>
+        <p class="lesson-footnote">Se llama "fija" porque sabes de antemano, más o menos, cuánto y cuándo cobras. Se mueve mucho menos que la renta variable y es la que da estabilidad al conjunto.</p>
+        <button class="btn-primary" data-advance="bondsLesson" type="button">Lo pillo, seguir →</button>
       </div>
 
-      <!-- bonds choice: real, affects backtest data -->
+      <!-- renta fija: elección MÚLTIPLE real -->
       <div class="quiz-card" id="q-bondsChoice" data-question="bondsChoice" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>Para la parte de "préstamos" de tu cartera, ¿cuál preferís?</h2>
-        <div class="quiz-options" data-options="bondsChoice">
+        <h2>¿Qué quieres dentro de tu renta fija?</h2>
+        <p class="quiz-hint">También puedes marcar varias, o quedarte con el fondo mezcla si prefieres no elegir.</p>
+        <div class="quiz-options multi" data-options="bondsChoice" data-multi>
           <button class="option-card" type="button" data-value="govt">
             <span class="sketch-icon-slot" data-icon="government" data-size="40"></span>
-            <span class="option-label">Gobierno</span>
-            <span class="option-sublabel">Más seguro</span>
+            <span class="option-label">Deuda pública</span>
+            <span class="option-sublabel">Lo más seguro</span>
+            <span class="option-examples">Tesoro de EE. UU.</span>
           </button>
           <button class="option-card" type="button" data-value="corporate">
             <span class="sketch-icon-slot" data-icon="bonds" data-size="40"></span>
-            <span class="option-label">Corporativos</span>
+            <span class="option-label">Deuda corporativa</span>
             <span class="option-sublabel">Algo más de rendimiento</span>
+            <span class="option-examples">Bonos de grandes empresas</span>
           </button>
           <button class="option-card" type="button" data-value="mixed">
             <span class="sketch-icon-slot" data-icon="layers" data-size="40"></span>
             <span class="option-label">Mezcla</span>
-            <span class="option-sublabel">Un poco de cada uno</span>
+            <span class="option-sublabel">Un poco de cada</span>
+            <span class="option-examples">+10.000 bonos en un fondo</span>
           </button>
         </div>
+        <button class="btn-primary" data-advance="bondsChoice" type="button" disabled>Elige al menos una opción</button>
       </div>
 
-      <!-- real estate knowledge gate -->
+      <!-- inmobiliario: pregunta de conocimiento -->
       <div class="quiz-card" id="q-realEstateKnowledge" data-question="realEstateKnowledge" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Sabés que hay formas de invertir en bienes raíces sin comprar una propiedad?</h2>
+        <h2>¿Sabías que se puede invertir en inmuebles sin comprar un piso?</h2>
         <div class="knowledge-gate" data-options="realEstateKnowledge">
           <button class="option-card knowledge-card" type="button" data-value="si">
             <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
-            <span class="option-label">Sí, ya sé</span>
+            <span class="option-label">Sí, lo sabía</span>
           </button>
           <button class="option-card knowledge-card" type="button" data-value="no">
             <span class="sketch-icon-slot" data-icon="question" data-size="36"></span>
-            <span class="option-label">No, explicame</span>
+            <span class="option-label">No, explícamelo</span>
           </button>
         </div>
       </div>
 
-      <!-- real estate lesson (conditional) -->
+      <!-- inmobiliario: lección -->
       <div class="quiz-card lesson-card" id="q-realEstateLesson" data-question="realEstateLesson" hidden>
-        <p class="quiz-eyebrow">Una explicación rápida</p>
-        <h2>Varias formas de invertir en inmuebles — sin ser el dueño de un edificio vos mismo</h2>
+        <p class="quiz-eyebrow">Explicación rápida</p>
+        <h2>Tres formas de meterte en el ladrillo, y solo una exige un pastizal</h2>
         <div class="lesson-trio">
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="building" data-size="44"></span>
-            <strong>REITs cotizados</strong>
-            <p>Una empresa dueña de inmuebles. Comprás una acción de ella — liquidez total, por ley reparte gran parte de sus ganancias como dividendos.</p>
+            <strong>REITs / SOCIMIs</strong>
+            <p>Una empresa dueña de inmuebles que cotiza en bolsa. Compras una acción suya y cobras parte de los alquileres vía dividendos.</p>
+            <span class="lesson-examples">Merlin Properties · Colonial</span>
           </div>
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="cash" data-size="44"></span>
-            <strong>Crowdfunding inmobiliario</strong>
-            <p>Financiás un proyecto concreto junto a otros. Mínimos bajos, pero tu dinero queda comprometido más tiempo (menos líquido).</p>
+            <strong>Crowdfunding</strong>
+            <p>Financias un proyecto concreto junto a otros. Entras con poco, pero el dinero se queda pillado.</p>
+            <span class="lesson-examples">Housers · Urbanitae</span>
           </div>
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="house" data-size="44"></span>
-            <strong>Propiedad directa</strong>
-            <p>Comprar un inmueble vos mismo. Requiere mucho capital y no es líquido — por eso no lo modelamos acá.</p>
+            <strong>Comprar un piso</strong>
+            <p>Lo de toda la vida. Exige mucho capital y no es nada líquido, así que aquí no lo modelamos.</p>
+            <span class="lesson-examples">Entrada, notaría, IBI, derramas…</span>
           </div>
         </div>
-        <button class="btn-primary" data-advance="realEstateLesson" type="button">Ya entendí, continuar →</button>
+        <button class="btn-primary" data-advance="realEstateLesson" type="button">Lo pillo, seguir →</button>
       </div>
 
-      <!-- real estate choice: real, carves a slice out of the equities weight -->
+      <!-- inmobiliario: sí/no -->
       <div class="quiz-card" id="q-realEstateChoice" data-question="realEstateChoice" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Querés sumarle una porción en bienes raíces a tu cartera?</h2>
-        <p class="quiz-hint">Si decís que sí, le restamos una parte a "renta variable" para dársela a bienes raíces — tu riesgo total no cambia mucho.</p>
+        <h2>¿Quieres meter una parte en inversión inmobiliaria?</h2>
+        <p class="quiz-hint">Si dices que sí, le quitamos un trozo a la renta variable para dárselo al ladrillo: tu riesgo total apenas cambia.</p>
         <div class="quiz-options" data-options="realEstateChoice">
           <button class="option-card" type="button" data-value="si">
             <span class="sketch-icon-slot" data-icon="building" data-size="40"></span>
-            <span class="option-label">Sí, sumala</span>
+            <span class="option-label">Sí, súmalo</span>
           </button>
           <button class="option-card" type="button" data-value="no">
             <span class="sketch-icon-slot" data-icon="check" data-size="40"></span>
@@ -301,69 +387,76 @@
         </div>
       </div>
 
-      <!-- real estate TYPE: discovers which sub-type fits, real, changes the backtest data source -->
+      <!-- inmobiliario: subtipo MÚLTIPLE -->
       <div class="quiz-card" id="q-realEstateType" data-question="realEstateType" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Cuál de las dos te queda mejor a vos?</h2>
-        <div class="quiz-options" data-options="realEstateType">
+        <h2>¿Por cuál de las dos vías?</h2>
+        <p class="quiz-hint">Puedes quedarte con las dos: el peso del ladrillo se reparte entre ellas.</p>
+        <div class="quiz-options multi" data-options="realEstateType" data-multi>
           <button class="option-card" type="button" data-value="reits">
             <span class="sketch-icon-slot" data-icon="building" data-size="40"></span>
-            <span class="option-label">REITs cotizados</span>
-            <span class="option-sublabel">Líquido, empezás con poco capital</span>
+            <span class="option-label">REITs / SOCIMIs</span>
+            <span class="option-sublabel">Líquido, entras con poco</span>
+            <span class="option-examples">Datos de mercado reales</span>
           </button>
           <button class="option-card" type="button" data-value="crowdfunding">
             <span class="sketch-icon-slot" data-icon="cash" data-size="40"></span>
-            <span class="option-label">Crowdfunding inmobiliario</span>
+            <span class="option-label">Crowdfunding</span>
             <span class="option-sublabel">Mínimos bajos, menos líquido</span>
+            <span class="option-examples">Rentabilidad estimada</span>
           </button>
         </div>
+        <button class="btn-primary" data-advance="realEstateType" type="button" disabled>Elige al menos una opción</button>
       </div>
 
-      <!-- private equity knowledge gate -->
+      <!-- private equity: pregunta de conocimiento -->
       <div class="quiz-card" id="q-peKnowledge" data-question="peKnowledge" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Sabés qué es el private equity — invertir en empresas que no cotizan en bolsa?</h2>
+        <h2>¿Sabes qué es el private equity — invertir en empresas que no cotizan en bolsa?</h2>
         <div class="knowledge-gate" data-options="peKnowledge">
           <button class="option-card knowledge-card" type="button" data-value="si">
             <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
-            <span class="option-label">Sí, ya sé</span>
+            <span class="option-label">Sí, lo tengo claro</span>
           </button>
           <button class="option-card knowledge-card" type="button" data-value="no">
             <span class="sketch-icon-slot" data-icon="question" data-size="36"></span>
-            <span class="option-label">No, explicame</span>
+            <span class="option-label">No, explícamelo</span>
           </button>
         </div>
       </div>
 
-      <!-- private equity lesson (conditional) -->
+      <!-- private equity: lección con ejemplos reales -->
       <div class="quiz-card lesson-card" id="q-peLesson" data-question="peLesson" hidden>
-        <p class="quiz-eyebrow">Una explicación rápida</p>
-        <h2>Ser dueño de una empresa que no cotiza en ninguna bolsa</h2>
+        <p class="quiz-eyebrow">Explicación rápida</p>
+        <h2>Hay gigantes enormes que no puedes comprar en bolsa</h2>
         <div class="lesson-trio">
           <div class="lesson-trio-item">
-            <span class="sketch-icon-slot" data-icon="vault" data-size="44"></span>
+            <span class="sketch-icon-slot" data-icon="factory" data-size="44"></span>
             <strong>Empresas privadas</strong>
-            <p>No cotizan en bolsa — se compran directamente, no con un click.</p>
+            <p>No cotizan en ninguna bolsa: no hay forma de comprar sus acciones con un clic.</p>
+            <span class="lesson-examples">Mercadona · El Corte Inglés · Ikea · SpaceX · OpenAI</span>
           </div>
           <div class="lesson-trio-item">
-            <span class="sketch-icon-slot" data-icon="document" data-size="44"></span>
-            <strong>Mínimo de entrada alto</strong>
-            <p>Tradicionalmente reservado a inversores institucionales, con fondos que piden mucho capital.</p>
+            <span class="sketch-icon-slot" data-icon="vault" data-size="44"></span>
+            <strong>Entrada alta</strong>
+            <p>Históricamente solo para inversores institucionales, con fondos que piden un ticket mínimo importante.</p>
+            <span class="lesson-examples">Los ELTIF buscan bajar ese mínimo</span>
           </div>
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="calendar" data-size="44"></span>
             <strong>Dinero comprometido</strong>
-            <p>No hay forma de vender al instante — queda encerrado varios años.</p>
+            <p>No puedes vender cuando te apetezca: se queda inmovilizado varios años.</p>
+            <span class="lesson-examples">Sin cotización diaria pública</span>
           </div>
         </div>
-        <button class="btn-primary" data-advance="peLesson" type="button">Ya entendí, continuar →</button>
+        <button class="btn-primary" data-advance="peLesson" type="button">Lo pillo, seguir →</button>
       </div>
 
-      <!-- private equity choice: real, but only applied if BOTH the final risk tier AND capital qualify -->
+      <!-- private equity: sí/no -->
       <div class="quiz-card" id="q-peChoice" data-question="peChoice" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Te gustaría sumar una porción en private equity, si tu capital lo permite?</h2>
-        <p class="quiz-hint">Los fondos minoristas de private equity suelen pedir un monto inicial más alto que un ETF — te avisamos si el tuyo no alcanza, o si tu perfil de riesgo final no da.</p>
+        <h2>¿Te gustaría meter una parte en private equity, si tu capital da para ello?</h2>
+        <p class="quiz-hint">Los fondos minoristas de private equity suelen pedir un importe inicial más alto que un ETF. Te avisamos si el tuyo no llega, o si tu perfil de riesgo final no da.</p>
         <div class="quiz-options" data-options="peChoice">
           <button class="option-card" type="button" data-value="si">
             <span class="sketch-icon-slot" data-icon="vault" data-size="40"></span>
@@ -376,59 +469,59 @@
         </div>
       </div>
 
-      <!-- "otras inversiones" knowledge gate -->
+      <!-- otras inversiones: pregunta de conocimiento -->
       <div class="quiz-card" id="q-altKnowledge" data-question="altKnowledge" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Sabés qué son las "otras inversiones" — cripto, oro, materias primas, coleccionables?</h2>
+        <h2>¿Sabes qué son las "otras inversiones": cripto, oro, materias primas o coleccionables?</h2>
         <div class="knowledge-gate" data-options="altKnowledge">
           <button class="option-card knowledge-card" type="button" data-value="si">
             <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
-            <span class="option-label">Sí, ya sé</span>
+            <span class="option-label">Sí, lo tengo claro</span>
           </button>
           <button class="option-card knowledge-card" type="button" data-value="no">
             <span class="sketch-icon-slot" data-icon="question" data-size="36"></span>
-            <span class="option-label">No, explicame</span>
+            <span class="option-label">No, explícamelo</span>
           </button>
         </div>
       </div>
 
-      <!-- "otras inversiones" lesson (conditional) -->
+      <!-- otras inversiones: lección -->
       <div class="quiz-card lesson-card" id="q-altLesson" data-question="altLesson" hidden>
-        <p class="quiz-eyebrow">Una explicación rápida</p>
-        <h2>Cuatro familias de activos, fuera de acciones y bonos</h2>
-        <div class="lesson-trio">
+        <p class="quiz-eyebrow">Explicación rápida</p>
+        <h2>Cuatro familias que no son ni acciones ni bonos</h2>
+        <div class="lesson-quad">
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="coin" data-size="44"></span>
             <strong>Criptomonedas</strong>
-            <p>Activos digitales, sin banco central detrás. La más volátil de las cuatro.</p>
+            <p>Activos digitales sin banco central detrás. La más volátil de las cuatro.</p>
           </div>
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="ingot" data-size="44"></span>
             <strong>Metales preciosos</strong>
-            <p>Oro y similares — el refugio clásico en momentos de incertidumbre.</p>
+            <p>Oro y compañía: el refugio clásico cuando pintan bastos.</p>
           </div>
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="barrel" data-size="44"></span>
             <strong>Materias primas</strong>
-            <p>Petróleo, trigo, cobre — se mueven con la economía global, no solo con las tasas.</p>
+            <p>Petróleo, trigo, cobre. Se mueven con la economía real, no solo con los tipos.</p>
           </div>
           <div class="lesson-trio-item">
             <span class="sketch-icon-slot" data-icon="frame" data-size="44"></span>
             <strong>Coleccionables</strong>
-            <p>Arte, vinos, autos clásicos. Sin precio de mercado diario real — por eso no los incluimos como opción acá.</p>
+            <p>Arte, vinos, coches clásicos. Sin precio de mercado diario, así que no los ofrecemos como opción.</p>
           </div>
         </div>
-        <button class="btn-primary" data-advance="altLesson" type="button">Ya entendí, continuar →</button>
+        <button class="btn-primary" data-advance="altLesson" type="button">Lo pillo, seguir →</button>
       </div>
 
-      <!-- "otras inversiones" choice: real, but only actually applied if the FINAL risk tier qualifies -->
+      <!-- otras inversiones: sí/no -->
       <div class="quiz-card" id="q-altChoice" data-question="altChoice" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Te gustaría sumar una porción chica y opcional en "otras inversiones"?</h2>
-        <p class="quiz-hint">Solo la incluimos si, al final, tu perfil de riesgo da para "arriesgado" — si no, te avisamos y la dejamos afuera.</p>
+        <h2>¿Quieres meter una parte pequeña en "otras inversiones"?</h2>
+        <p class="quiz-hint">Solo la incluimos si al final tu perfil de riesgo llega a "arriesgado". Si no, te avisamos y la dejamos fuera.</p>
         <div class="quiz-options" data-options="altChoice">
           <button class="option-card" type="button" data-value="si">
-            <span class="sketch-icon-slot" data-icon="coin" data-size="40"></span>
+            <span class="sketch-icon-slot" data-icon="basket" data-size="40"></span>
             <span class="option-label">Sí, si mi perfil da</span>
           </button>
           <button class="option-card" type="button" data-value="no">
@@ -438,84 +531,107 @@
         </div>
       </div>
 
-      <!-- "otras inversiones" TYPE: discovers which sub-type, real, changes the backtest data source -->
+      <!-- otras inversiones: subtipo MÚLTIPLE -->
       <div class="quiz-card" id="q-altType" data-question="altType" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Cuál de las tres te interesa más?</h2>
-        <div class="quiz-options" data-options="altType">
+        <h2>¿Cuáles te interesan?</h2>
+        <p class="quiz-hint">Marca todas las que quieras: el peso se reparte a partes iguales entre ellas.</p>
+        <div class="quiz-options multi" data-options="altType" data-multi>
           <button class="option-card" type="button" data-value="crypto">
             <span class="sketch-icon-slot" data-icon="coin" data-size="40"></span>
             <span class="option-label">Criptomonedas</span>
-            <span class="option-sublabel">Bitcoin — la más volátil</span>
+            <span class="option-sublabel">Lo más volátil de todo</span>
+            <span class="option-examples">Bitcoin</span>
           </button>
           <button class="option-card" type="button" data-value="metales">
             <span class="sketch-icon-slot" data-icon="ingot" data-size="40"></span>
             <span class="option-label">Metales preciosos</span>
-            <span class="option-sublabel">Oro — el refugio clásico</span>
+            <span class="option-sublabel">El refugio clásico</span>
+            <span class="option-examples">Oro</span>
           </button>
           <button class="option-card" type="button" data-value="materiasPrimas">
             <span class="sketch-icon-slot" data-icon="barrel" data-size="40"></span>
             <span class="option-label">Materias primas</span>
-            <span class="option-sublabel">Petróleo, trigo, cobre y más</span>
+            <span class="option-sublabel">Ligadas a la economía real</span>
+            <span class="option-examples">Petróleo, trigo, cobre</span>
           </button>
         </div>
+        <button class="btn-primary" data-advance="altType" type="button" disabled>Elige al menos una opción</button>
       </div>
 
-      <!-- style -->
+      <!-- estilo -->
       <div class="quiz-card" id="q-style" data-question="style" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>¿Preferís que te explique todo con detalle, o preferís confiar y ver resultados?</h2>
+        <h2>¿Prefieres que te lo expliquemos todo al detalle, o ir directo al resultado?</h2>
         <div class="quiz-options" data-options="style">
           <button class="option-card" type="button" data-value="detalle">
             <span class="sketch-icon-slot" data-icon="document" data-size="40"></span>
-            <span class="option-label">Explicame todo con detalle</span>
+            <span class="option-label">Explícamelo todo</span>
+            <span class="option-sublabel">Abrimos el detalle técnico</span>
           </button>
           <button class="option-card" type="button" data-value="resultados">
             <span class="sketch-icon-slot" data-icon="check" data-size="40"></span>
-            <span class="option-label">Mostrame el resultado, confío</span>
+            <span class="option-label">Al grano, me fío</span>
+            <span class="option-sublabel">El detalle queda plegado</span>
           </button>
         </div>
       </div>
 
-      <!-- volatility cross-check: slider -->
+      <!-- volatilidad: slider continuo -->
       <div class="quiz-card" id="q-volatility" data-question="volatility" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>Y siendo realistas: ¿cuánta caída podrías tolerar sin vender por pánico?</h2>
+        <h2>Siendo realistas: ¿cuánta caída aguantarías sin vender presa del pánico?</h2>
         <div class="slider-row">
-          <input type="range" id="volatilitySlider" min="1" max="5" step="1" value="3">
+          <input type="range" id="volatilitySlider" min="0" max="100" step="1" value="50" aria-label="Tolerancia a caídas de 0 a 100">
           <div class="slider-labels">
             <span>Casi ninguna</span>
-            <span>Una caída fuerte, sin problema</span>
+            <span>Un batacazo gordo, sin problema</span>
           </div>
+          <p class="slider-readout" id="volatilityReadout">50 / 100</p>
         </div>
-        <p class="quiz-hint">Esto lo cruzamos con tu respuesta anterior — si no coinciden, ajustamos hacia el lado más prudente.</p>
+        <p class="quiz-hint">Esto lo cruzamos con tu respuesta anterior: si no cuadran, tiramos hacia el lado prudente.</p>
         <button class="btn-primary" data-advance="volatility" type="button">Continuar →</button>
       </div>
 
-      <!-- amount + optional monthly contribution -->
+      <!-- importe -->
       <div class="quiz-card" id="q-amount" data-question="amount" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
-        <h2>Para hacerlo concreto: si hoy invirtieras un monto, ¿cuánto sería?</h2>
-        <p class="quiz-hint">Es solo para los ejemplos de abajo — no es una inversión real.</p>
+        <h2>Para hacerlo concreto: si invirtieras hoy, ¿cuánto sería?</h2>
+        <p class="quiz-hint">Es solo para los ejemplos de abajo, no es una inversión real.</p>
         <div class="amount-input-row">
-          <span class="amount-prefix">$</span>
           <input type="number" id="amountInput" value="1000" min="100" step="100">
+          <span class="amount-suffix">€</span>
         </div>
-        <h2 class="amount-secondary-h2">¿Y si además aportaras algo todos los meses? (opcional)</h2>
+        <h2 class="amount-secondary-h2">¿Y si además aportaras algo cada mes? (opcional)</h2>
         <div class="amount-input-row">
-          <span class="amount-prefix">$</span>
           <input type="number" id="monthlyInput" value="0" min="0" step="50">
-          <span class="amount-suffix">/ mes</span>
+          <span class="amount-suffix">€ / mes</span>
         </div>
         <button class="btn-primary" id="seeResultsBtn" type="button">Ver mi resultado →</button>
       </div>
+
+      </div><!-- /quiz-column -->
+
+      <!-- Vista previa en vivo: se recalcula con cada respuesta -->
+      <aside class="preview-panel" id="previewPanel">
+        <div class="preview-inner">
+          <p class="preview-title">Tu cartera, en directo</p>
+          <svg id="previewDonut" class="viz-root" role="img" aria-label="Vista previa de la distribución de tu cartera"></svg>
+          <p class="preview-risk" id="previewRiskLabel">—</p>
+          <div class="donut-legend compact" id="previewLegend"></div>
+          <p class="preview-note">Se actualiza con cada respuesta.</p>
+        </div>
+      </aside>
     </section>
 
     <!-- ===================== DASHBOARD ===================== -->
     <section class="screen" id="screen-dashboard" data-screen hidden>
 
       <div class="dash-card layer-1">
-        <p class="dash-eyebrow">Con tu perfil, así se vería una cartera ilustrativa</p>
+        <div class="dash-head">
+          <p class="dash-eyebrow">Con tu perfil, una cartera ilustrativa se vería así</p>
+          <span class="profile-tag" id="dashProfileTag">—</span>
+        </div>
         <h2 id="dashHeadline">—</h2>
         <div class="donut-wrap">
           <svg id="allocationDonut" class="viz-root" role="img" aria-label="Distribución de la cartera recomendada"></svg>
@@ -530,8 +646,9 @@
       </div>
 
       <div class="dash-card layer-2">
-        <h2>Así se hubiera comportado en la vida real</h2>
+        <h2>Así se habría comportado en la vida real</h2>
         <p class="dash-story" id="backtestStory">Cargando datos históricos reales…</p>
+        <div class="stat-grid" id="statGrid"></div>
         <div class="chart-wrap">
           <svg id="pfChart" class="viz-root" role="img" aria-label="Evolución histórica de la cartera recomendada"></svg>
           <div class="tooltip" id="pfTooltip" hidden></div>
@@ -546,12 +663,18 @@
         </button>
         <div class="layer3-body" id="layer3Body" hidden>
           <p id="explanationDetail">—</p>
-          <table class="detail-table">
-            <thead>
-              <tr><th>Categoría</th><th>Instrumento</th><th>Peso</th><th>Volatilidad anualizada</th><th>Costo (TER)</th></tr>
-            </thead>
-            <tbody id="detailTableBody"></tbody>
-          </table>
+          <div class="table-scroll">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>Categoría</th><th>Instrumento</th><th>Ticker</th>
+                  <th>Peso</th><th>Volatilidad anual</th><th>Coste (TER)</th>
+                </tr>
+              </thead>
+              <tbody id="detailTableBody"></tbody>
+            </table>
+          </div>
+          <p class="table-footnote">Las filas marcadas como <em>Estimación</em> no tienen cotización diaria pública (efectivo, crowdfunding inmobiliario y private equity), así que capitalizan a una tasa anual documentada en vez de con datos de mercado — y por eso no muestran volatilidad real.</p>
         </div>
       </div>
 
@@ -560,16 +683,9 @@
 
   </main>
 
-  <!-- ===================== FALLING FACT CLOUDS ===================== -->
-  <!-- Small clouds spawn periodically and drift straight down the left/right
-       margins (app.js: spawnFallingCloud). Collapsed by default; click one to
-       pause it and read its fact, click again to let it keep falling. -->
-  <div class="cloud-lane cloud-lane-left" id="cloudLaneLeft" aria-hidden="true"></div>
-  <div class="cloud-lane cloud-lane-right" id="cloudLaneRight" aria-hidden="true"></div>
-
   <footer class="app-footer">
-    <p><strong>Esto es una simulación educativa.</strong> No es asesoramiento financiero, no ejecuta operaciones reales, y no debería ser la única base para decisiones de inversión. Consultá a un asesor financiero registrado antes de invertir dinero real.</p>
-    <p>Datos de mercado: <a href="https://twelvedata.com/" target="_blank" rel="noopener">Twelve Data</a> (tier gratuito). Explicaciones y lecciones generadas por Claude (Anthropic) — ver <a href="https://github.com/andregomezzenteno-sudo/pathfolio" target="_blank" rel="noopener">README</a>. Código abierto en <a href="https://github.com/andregomezzenteno-sudo/pathfolio" target="_blank" rel="noopener">GitHub</a>.</p>
+    <p><strong>Esto es una simulación educativa.</strong> No es asesoramiento financiero, no ejecuta operaciones reales y no debería ser la única base para tus decisiones de inversión. Consulta con un asesor financiero registrado antes de invertir dinero de verdad.</p>
+    <p>Datos de mercado: <a href="https://twelvedata.com/" target="_blank" rel="noopener">Twelve Data</a> (plan gratuito). Explicaciones y lecciones generadas por Claude (Anthropic) — ver <a href="https://github.com/andregomezzenteno-sudo/pathfolio" target="_blank" rel="noopener">README</a>. Código abierto en <a href="https://github.com/andregomezzenteno-sudo/pathfolio" target="_blank" rel="noopener">GitHub</a>.</p>
   </footer>
 
 </div>
