@@ -475,15 +475,38 @@ async function fetchPricesTwelveData(symbol, outputsize) {
   return { dates: chronological.map(v => v.datetime), closes: chronological.map(v => parseFloat(v.close)) };
 }
 
-// ticker -> {dates, closes}, compartida por todos los selectores: cualquiera
-// puede cambiar y volver a pedir un ticker ya visto (o no), y una sola caché
-// por símbolo cubre todos los casos.
+// ticker -> promesa de {dates, closes}. Se cachea la PROMESA, no el resultado:
+// si se cacheara el resultado, dos peticiones simultáneas del mismo símbolo
+// fallarían las dos en la comprobación y lo descargarían dos veces, gastando
+// el doble de cuota en un plan que va muy justo.
 const tickerSeriesCache = new Map();
-async function fetchTickerSeries(ticker) {
+function fetchTickerSeries(ticker) {
   if (!tickerSeriesCache.has(ticker)) {
-    tickerSeriesCache.set(ticker, await fetchPricesTwelveData(ticker, 2500));
+    const p = fetchPricesTwelveData(ticker, 2500).catch(err => {
+      tickerSeriesCache.delete(ticker); // un fallo no debe quedar cacheado para siempre
+      throw new Error(`No se pudo descargar ${ticker}: ${err.message}`);
+    });
+    tickerSeriesCache.set(ticker, p);
   }
   return tickerSeriesCache.get(ticker);
+}
+
+// El plan gratuito de Twelve Data permite 8 peticiones por minuto. Con
+// selección múltiple se pueden llegar a pedir 10 tickers de una tacada, así
+// que se lanzan por tandas en vez de todos a la vez: reduce los 429 y, si aun
+// así llega alguno, fetchPricesTwelveData ya reintenta tras esperar.
+async function mapWithConcurrency(items, limit, fn) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  await Promise.all(
+    new Array(Math.min(limit, items.length)).fill(0).map(async () => {
+      while (cursor < items.length) {
+        const i = cursor++;
+        results[i] = await fn(items[i], i);
+      }
+    })
+  );
+  return results;
 }
 
 /* ---------- Matemática de cartera ---------- */
@@ -497,31 +520,76 @@ function alignSeriesSet(seriesList) {
   return { dates, closesList: maps.map(m => dates.map(d => m.get(d))) };
 }
 
-// weightsList casa 1:1 con closesList (mismo orden que la entrada de
-// alignSeriesSet). El efectivo va aparte porque no tiene serie de precios que
-// mezclar, y flatAssets cubre cualquier OTRO sleeve que tampoco la tenga
-// (crowdfunding inmobiliario, private equity): cada uno capitaliza a su
-// propia tasa anual documentada, igual que el efectivo, solo que sin ser la
-// línea de comparación "si lo hubieras dejado todo en efectivo".
-function blendPortfolio({ dates, closesList, weightsList, cashWeight, cashAnnualRate, flatAssets = [], barsPerYear = 252 }) {
+// Simula la cartera siguiendo el VALOR de cada posición, no sumando
+// rentabilidades diarias ponderadas.
+//
+// La diferencia no es cosmética. Sumar `Σ wₖ · rₖ` con pesos constantes es,
+// implícitamente, rebalancear la cartera TODOS LOS DÍAS: nadie invierte así,
+// y además infla un poco el resultado (recoge prima por volatilidad y suaviza
+// la caída máxima). Aquí los pesos se fijan al principio y luego derivan con
+// el mercado — si la renta variable sube, pasa a pesar más — y solo se
+// vuelven a cuadrar en las fechas de rebalanceo pedidas. Así el backtest
+// modela lo que de verdad le pasaría a alguien, y de paso permite enseñar
+// qué aporta rebalancear, que es uno de los conceptos que explica la app.
+//
+// weightsList casa 1:1 con closesList. El efectivo va aparte porque no tiene
+// serie de precios, y flatAssets cubre los sleeves que tampoco la tienen
+// (crowdfunding inmobiliario, private equity): capitalizan a su tasa anual
+// documentada, sin ser la línea de comparación "todo en efectivo".
+function simulatePortfolio({ dates, closesList, weightsList, cashWeight, cashAnnualRate, flatAssets = [], rebalance = 'annual', barsPerYear = 252 }) {
   const n = dates.length;
   const cashPerBar = Math.pow(1 + cashAnnualRate, 1 / barsPerYear) - 1;
-  const flatPerBar = flatAssets.map(a => ({ weight: a.weight, perBar: Math.pow(1 + a.annualRate, 1 / barsPerYear) - 1 }));
+  const flatPerBar = flatAssets.map(a => Math.pow(1 + a.annualRate, 1 / barsPerYear) - 1);
+
+  // Objetivos fijos, y valores que van derivando a partir de ellos.
+  const targetTickers = weightsList.slice();
+  const targetFlat = flatAssets.map(a => a.weight);
+  let tickerVals = targetTickers.slice();
+  let cashVal = cashWeight;
+  let flatVals = targetFlat.slice();
+
   const portfolioEquity = new Array(n).fill(1);
   const cashOnlyEquity = new Array(n).fill(1);
   const dailyReturns = [];
+  const rebalanceDates = [];
+  let lastYear = dates[0].slice(0, 4);
+
   for (let i = 1; i < n; i++) {
-    let blended = cashWeight * cashPerBar;
-    for (let k = 0; k < closesList.length; k++) {
+    for (let k = 0; k < tickerVals.length; k++) {
       const c = closesList[k];
-      blended += weightsList[k] * (c[i] - c[i - 1]) / c[i - 1];
+      tickerVals[k] *= c[i] / c[i - 1];
     }
-    for (const f of flatPerBar) blended += f.weight * f.perBar;
-    portfolioEquity[i] = portfolioEquity[i - 1] * (1 + blended);
+    cashVal *= 1 + cashPerBar;
+    for (let k = 0; k < flatVals.length; k++) flatVals[k] *= 1 + flatPerBar[k];
+
+    const total = tickerVals.reduce((a, b) => a + b, 0) + cashVal + flatVals.reduce((a, b) => a + b, 0);
+    dailyReturns.push(total / portfolioEquity[i - 1] - 1);
+    portfolioEquity[i] = total;
     cashOnlyEquity[i] = cashOnlyEquity[i - 1] * (1 + cashPerBar);
-    dailyReturns.push(blended);
+
+    const year = dates[i].slice(0, 4);
+    const isNewYear = year !== lastYear;
+    if (isNewYear) lastYear = year;
+    // "annual" cuadra en la primera sesión de cada año nuevo; "daily" cuadra
+    // siempre (equivale al modelo anterior, se conserva para poder compararlo);
+    // "none" no cuadra nunca y deja que los pesos deriven.
+    if (rebalance === 'daily' || (rebalance === 'annual' && isNewYear)) {
+      if (rebalance === 'annual') rebalanceDates.push(dates[i]);
+      tickerVals = targetTickers.map(w => total * w);
+      cashVal = total * cashWeight;
+      flatVals = targetFlat.map(w => total * w);
+    }
   }
-  return { dates, portfolioEquity, cashOnlyEquity, dailyReturns };
+
+  // Los pesos con los que se termina, que es lo que hace visible la deriva.
+  const finalTotal = portfolioEquity[n - 1];
+  const finalWeights = {
+    tickers: tickerVals.map(v => v / finalTotal),
+    cash: cashVal / finalTotal,
+    flat: flatVals.map(v => v / finalTotal),
+  };
+
+  return { dates, portfolioEquity, cashOnlyEquity, dailyReturns, rebalanceDates, finalWeights };
 }
 
 // Las mismas rentabilidades diarias mezcladas que la línea de aporte único,
@@ -737,16 +805,28 @@ function renderDonut(svg, segments, { centerLabel = 'Tu cartera', tooltipEl = nu
         transform: `rotate(-90 ${cx} ${cy})`,
         class: 'donut-hit',
       });
-      hit.addEventListener('pointerenter', () => {
+      // Ratón, teclado y toque llegan al mismo sitio: en móvil no hay "pasar
+      // por encima", y con teclado el donut sería inaccesible si solo
+      // escuchara al puntero.
+      hit.setAttribute('tabindex', '0');
+      hit.setAttribute('role', 'button');
+      hit.setAttribute('aria-label', `${seg.name}: ${formatPctValue(seg.displayPct, 1)}`);
+      const show = () => {
         svg.classList.add('has-hover');
+        hoverGroup.querySelectorAll('.donut-seg').forEach(el => el.classList.remove('is-hovered'));
         arc.classList.add('is-hovered');
         showDonutTooltip(tooltipEl, seg, amount);
-      });
-      hit.addEventListener('pointerleave', () => {
+      };
+      const hide = () => {
         svg.classList.remove('has-hover');
         arc.classList.remove('is-hovered');
         tooltipEl.hidden = true;
-      });
+      };
+      hit.addEventListener('pointerenter', show);
+      hit.addEventListener('pointerleave', hide);
+      hit.addEventListener('focus', show);
+      hit.addEventListener('blur', hide);
+      hit.addEventListener('click', show);
       hoverGroup.appendChild(hit);
     }
 
@@ -1047,6 +1127,7 @@ const seeResultsBtn = document.getElementById('seeResultsBtn');
 const amountInput = document.getElementById('amountInput');
 const monthlyInput = document.getElementById('monthlyInput');
 const restartBtn = document.getElementById('restartBtn');
+const retryRow = document.getElementById('retryRow');
 const previewDonut = document.getElementById('previewDonut');
 const previewLegend = document.getElementById('previewLegend');
 const previewRiskLabel = document.getElementById('previewRiskLabel');
@@ -1136,6 +1217,16 @@ function showStep(step) {
   updateCloudForQuestion(qKey);
   renderProgress();
   renderPreview();
+
+  // Con lector de pantalla, cambiar de pregunta sin más deja al usuario sin
+  // saber que la pantalla ha cambiado: el foco se queda donde estaba (en un
+  // botón que ya no existe). Llevar el foco al enunciado nuevo hace que se
+  // lea la pregunta y sitúa el recorrido por teclado en el sitio correcto.
+  const heading = document.querySelector(`#q-${qKey} h2`);
+  if (heading && !screenQuiz.hidden) {
+    heading.setAttribute('tabindex', '-1');
+    heading.focus({ preventScroll: true });
+  }
 }
 
 function nextStep() {
@@ -1367,12 +1458,22 @@ const allocationDonut = document.getElementById('allocationDonut');
 const donutLegend = document.getElementById('donutLegend');
 const donutTooltip = document.getElementById('donutTooltip');
 const narrativeList = document.getElementById('narrativeList');
+const driftNotice = document.getElementById('driftNotice');
+const coverageNotice = document.getElementById('coverageNotice');
+const comparisonTableBody = document.getElementById('comparisonTableBody');
+const comparisonTakeaway = document.getElementById('comparisonTakeaway');
 const backtestStory = document.getElementById('backtestStory');
 const statGrid = document.getElementById('statGrid');
 const explanationDetail = document.getElementById('explanationDetail');
 const detailTableBody = document.getElementById('detailTableBody');
 const layer3Toggle = document.getElementById('layer3Toggle');
 const layer3Body = document.getElementById('layer3Body');
+
+document.getElementById('retryBtn').addEventListener('click', () => {
+  backtestStory.textContent = 'Cargando datos históricos reales…';
+  retryRow.hidden = true;
+  runDashboard();
+});
 
 layer3Toggle.addEventListener('click', () => {
   const expanded = layer3Toggle.getAttribute('aria-expanded') === 'true';
@@ -1485,15 +1586,21 @@ async function runDashboard() {
     const tickerHoldings = holdings.filter(h => h.hasRealData && h.ticker);
     const flatHoldings = holdings.filter(h => !h.hasRealData && h.key !== 'cash');
 
-    const fetchedSeries = await Promise.all(tickerHoldings.map(h => fetchTickerSeries(h.ticker)));
+    const fetchedSeries = await mapWithConcurrency(tickerHoldings, 3, h => fetchTickerSeries(h.ticker));
     const aligned = alignSeriesSet(fetchedSeries);
-    const blend = blendPortfolio({
+    const cashAnnualRate = ALLOCATIONS.instruments.cash.illustrativeAnnualRate;
+    const flatAssets = flatHoldings.map(h => ({ weight: h.weight, annualRate: h.illustrativeAnnualRate }));
+    const runSim = (weightsList, cashWeight, flats, rebalance) => simulatePortfolio({
       dates: aligned.dates, closesList: aligned.closesList,
-      weightsList: tickerHoldings.map(h => h.weight),
-      cashWeight: finalWeights.cash,
-      cashAnnualRate: ALLOCATIONS.instruments.cash.illustrativeAnnualRate,
-      flatAssets: flatHoldings.map(h => ({ weight: h.weight, annualRate: h.illustrativeAnnualRate })),
+      weightsList, cashWeight, cashAnnualRate, flatAssets: flats, rebalance,
     });
+
+    const tickerWeights = tickerHoldings.map(h => h.weight);
+    // La cartera "de verdad" se rebalancea una vez al año, que es la práctica
+    // que la propia app enseña. La versión sin rebalancear se calcula también
+    // para poder enseñar, en euros, qué aporta ese gesto.
+    const blend = runSim(tickerWeights, finalWeights.cash, flatAssets, 'annual');
+    const drifted = runSim(tickerWeights, finalWeights.cash, flatAssets, 'none');
 
     const n = blend.dates.length;
     const growth = blend.portfolioEquity[n - 1];
@@ -1511,6 +1618,33 @@ async function runDashboard() {
     const dcaSeries = hasMonthly ? simulateDCA({ dates: blend.dates, dailyReturns: blend.dailyReturns, initialAmount: answers.amount, monthlyAmount: answers.monthly }) : null;
     const totalInvested = answers.amount + (hasMonthly ? answers.monthly * Math.round(years * 12) : 0);
 
+    // Qué parte de la cartera lleva precios reales detrás. Si no es el 100 %,
+    // la volatilidad y la caída máxima salen MÁS BAJAS de lo que serían en la
+    // realidad, porque los tramos de tasa fija (crowdfunding, private equity)
+    // aportan rentabilidad sin aportar ni un solo sobresalto. Decirlo importa:
+    // callarlo haría que la cartera pareciese más tranquila de lo que es.
+    const realDataShare = holdings.filter(h => h.hasRealData).reduce((a, h) => a + h.weight, 0);
+    const estimatedShare = 1 - realDataShare;
+
+    // La caída máxima en porcentaje no dice gran cosa hasta que la traduces a
+    // dinero: ver esa cifra en euros es lo que de verdad explica por qué la
+    // gente vende en el peor momento.
+    let peak = blend.portfolioEquity[0], ddPeak = peak, ddTrough = peak;
+    for (const v of blend.portfolioEquity) {
+      if (v > peak) peak = v;
+      if ((v - peak) / peak < (ddTrough - ddPeak) / ddPeak) { ddPeak = peak; ddTrough = v; }
+    }
+    const ddPeakEUR = answers.amount * ddPeak;
+    const ddTroughEUR = answers.amount * ddTrough;
+
+    // Lo que aporta rebalancear una vez al año, en euros, frente a no tocar
+    // nada nunca. Es el mismo concepto que enseñan las nubes, ahora medido
+    // sobre TU cartera en vez de contado en abstracto.
+    const driftedValue = answers.amount * drifted.portfolioEquity[n - 1];
+    const rebalanceEdge = finalValue - driftedValue;
+    const driftedEquityWeight = drifted.finalWeights.tickers
+      .reduce((a, w, i) => a + (tickerHoldings[i].category === 'equities' ? w : 0), 0);
+
     backtestStory.textContent = hasMonthly
       ? `Si hubieras invertido ${formatEUR(answers.amount, 0)} hace ${years.toFixed(1)} años (${shortDate(blend.dates[0])}) y hubieras aportado ${formatEUR(answers.monthly, 0)} más cada mes, hoy tendrías unos ${formatEUR(dcaSeries[n - 1], 0)} habiendo puesto ${formatEUR(totalInvested, 0)} de tu bolsillo — frente a ${formatEUR(finalValue, 0)} si solo hubieras puesto el importe inicial y nada más.`
       : `Si hubieras invertido ${formatEUR(answers.amount, 0)} así hace ${years.toFixed(1)} años (${shortDate(blend.dates[0])}), hoy tendrías unos ${formatEUR(finalValue, 0)}. Dejarlo todo en efectivo, en cambio, habría dado ${formatEUR(cashOnlyValue, 0)}.`;
@@ -1520,11 +1654,21 @@ async function runDashboard() {
       { label: 'Rentabilidad total', animate: true, value: growth - 1, format: v => formatSignedPct(v, 1), tone: growth >= 1 ? 'good' : 'bad', note: `En ${years.toFixed(1)} años` },
       { label: 'Rentabilidad anualizada', animate: true, value: cagr, format: v => formatSignedPct(v, 1), tone: cagr >= 0 ? 'good' : 'bad', note: 'TAE equivalente (CAGR)' },
       { label: 'Volatilidad anual', animate: true, value: vol, format: v => formatPct(v, 1), note: 'Cuánto se movió por el camino' },
-      { label: 'Máxima caída', animate: true, value: dd, format: v => formatPct(v, 1), tone: 'bad', note: 'De su punto más alto al más bajo' },
+      { label: 'Máxima caída', animate: true, value: dd, format: v => formatPct(v, 1), tone: 'bad', note: `Habrías visto ${formatEUR(ddPeakEUR, 0)} convertirse en ${formatEUR(ddTroughEUR, 0)}` },
       { label: 'Ventaja sobre el efectivo', animate: true, value: finalValue - cashOnlyValue, format: v => formatEUR(v, 0), tone: finalValue >= cashOnlyValue ? 'good' : 'bad', note: `El efectivo habría dado ${formatEUR(cashOnlyValue, 0)}` },
       best ? { label: 'Mejor año', text: `${formatSignedPct(best.ret, 1)}`, tone: 'good', note: `Año ${best.year}` } : null,
       worst ? { label: 'Peor año', text: `${formatSignedPct(worst.ret, 1)}`, tone: 'bad', note: `Año ${worst.year}` } : null,
+      { label: 'Rebalanceando cada año', animate: true, value: rebalanceEdge, format: v => formatEUR(v, 0), tone: rebalanceEdge >= 0 ? 'good' : 'bad', note: `Frente a no tocar nada nunca (${formatEUR(driftedValue, 0)})` },
+      { label: 'Respaldado por datos reales', animate: true, value: realDataShare, format: v => formatPct(v, 0), note: estimatedShare > 0.0001 ? `El resto usa tasas estimadas` : 'Toda la cartera tiene precios reales' },
     ].filter(Boolean));
+
+    // Avisos metodológicos: los dos son cosas que inflan el resultado si no se
+    // dicen, así que se dicen.
+    driftNotice.textContent = `Estas cifras suponen que rebalanceas una vez al año, volviendo a los porcentajes de arriba. Si no lo hicieras, tras ${years.toFixed(1)} años la renta variable habría derivado hasta pesar ${formatPct(driftedEquityWeight, 0)} y acabarías con ${formatEUR(driftedValue, 0)} en lugar de ${formatEUR(finalValue, 0)}.`;
+    coverageNotice.hidden = estimatedShare <= 0.0001;
+    if (!coverageNotice.hidden) {
+      coverageNotice.textContent = `Ojo: el ${formatPct(estimatedShare, 0)} de esta cartera (crowdfunding inmobiliario y/o private equity) no tiene cotización diaria pública, así que se modela con una tasa anual fija. Eso significa que la volatilidad y la caída máxima de arriba son un suelo: en la realidad esa parte también se movería, y las cifras serían algo peores.`;
+    }
 
     const chartSeries = [
       { name: hasMonthly ? 'Solo aporte inicial' : 'Tu cartera', color: 'var(--series-1)', data: blend.portfolioEquity.map(v => answers.amount * v) },
@@ -1541,6 +1685,56 @@ async function runDashboard() {
       tooltipFormat: v => formatEUR(v, 0),
     });
     buildLegend(document.getElementById('pfLegend'), chartSeries.map(s => ({ name: s.name, color: s.color })));
+    lastRender = { segments, amount: answers.amount, chart: { dates: blend.dates, series: chartSeries } };
+
+    /* Comparativa: la misma ventana temporal, los mismos datos, pero
+       llevándolo todo a un solo tipo de activo. Es la forma más directa de
+       ver para qué sirve diversificar — normalmente la cartera no gana a la
+       renta variable pura en rentabilidad, pero sí en caídas, y ahí está la
+       gracia. Sin descargar nada nuevo: se reutilizan las series ya en mano. */
+    const onlyOf = category => {
+      const w = tickerHoldings.map(h => (h.category === category ? h.weight : 0));
+      const s = w.reduce((a, b) => a + b, 0);
+      return s > 0 ? w.map(x => x / s) : null;
+    };
+    const zeroFlats = flatAssets.map(f => ({ ...f, weight: 0 }));
+    const comparisons = [{ name: 'Tu cartera', sim: blend, highlight: true }];
+    [['equities', 'Solo renta variable'], ['bonds', 'Solo renta fija']].forEach(([cat, label]) => {
+      const w = onlyOf(cat);
+      if (w) comparisons.push({ name: label, sim: runSim(w, 0, zeroFlats, 'annual') });
+    });
+
+    comparisonTableBody.textContent = '';
+    comparisons.forEach(c => {
+      const eq = c.sim.portfolioEquity;
+      const g = eq[eq.length - 1];
+      const row = document.createElement('tr');
+      if (c.highlight) row.className = 'is-you';
+      [c.name, formatEUR(answers.amount * g, 0), formatSignedPct(Math.pow(g, 1 / years) - 1, 1),
+        formatPct(annualizedVol(c.sim.dailyReturns, 252), 1), formatPct(maxDrawdown(eq), 1),
+      ].forEach((text, ci) => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        if (ci >= 1) td.classList.add('num');
+        row.appendChild(td);
+      });
+      comparisonTableBody.appendChild(row);
+    });
+    const cashRow = document.createElement('tr');
+    ['Solo efectivo', formatEUR(cashOnlyValue, 0), formatSignedPct(cashAnnualRate, 1), formatPct(0, 1), formatPct(0, 1)]
+      .forEach((text, ci) => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        if (ci >= 1) td.classList.add('num');
+        cashRow.appendChild(td);
+      });
+    comparisonTableBody.appendChild(cashRow);
+
+    // La lectura de la comparativa, escrita para que no haya que deducirla.
+    const equityOnly = comparisons.find(c => c.name === 'Solo renta variable');
+    comparisonTakeaway.textContent = equityOnly
+      ? `Fíjate en las dos últimas columnas más que en la primera: llevarlo todo a renta variable habría dado ${formatEUR(answers.amount * equityOnly.sim.portfolioEquity[equityOnly.sim.portfolioEquity.length - 1], 0)}, pero con una caída máxima del ${formatPct(Math.abs(maxDrawdown(equityOnly.sim.portfolioEquity)), 0)} en vez del ${formatPct(Math.abs(dd), 0)}. Diversificar no busca ganar más, busca que el camino sea aguantable — porque la cartera que abandonas a mitad no te sirve de nada.`
+      : 'Diversificar no busca ganar más, busca que el camino sea lo bastante aguantable como para no abandonarlo a mitad.';
 
     // Las filas con datos reales comparten la volatilidad anualizada de la
     // cartera; el efectivo y los sleeves de tasa fija (crowdfunding, private
@@ -1595,9 +1789,17 @@ async function runDashboard() {
       totalRow.appendChild(td);
     });
     detailTableBody.appendChild(totalRow);
+    retryRow.hidden = true;
   } catch (err) {
     console.error(err);
-    backtestStory.textContent = 'No hemos podido cargar los datos históricos ahora mismo (puede ser el límite de la API gratuita). Inténtalo de nuevo en unos segundos.';
+    // El mensaje nombra el ticker que ha fallado en vez de un "algo ha ido
+    // mal" genérico, y ofrece reintentar: con el plan gratuito (8 peticiones
+    // por minuto) y una selección amplia, el 429 es un escenario real y
+    // esperable, no un caso raro.
+    backtestStory.textContent = `${err.message}. El plan gratuito de datos permite 8 peticiones por minuto y has elegido bastantes instrumentos, así que puede ser eso — espera unos segundos y reinténtalo.`;
+    driftNotice.textContent = '';
+    coverageNotice.hidden = true;
+    retryRow.hidden = false;
   }
 }
 
@@ -1606,8 +1808,30 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
+// Al cambiar el tamaño solo hay que volver a DIBUJAR, no volver a calcular.
+// Antes esto llamaba a runDashboard() entero: recalculaba la cartera, volvía a
+// pedir las series y relanzaba todas las animaciones, así que arrastrar el
+// borde de la ventana hacía que las cifras se pusieran a contar desde cero una
+// y otra vez. Ahora se guarda lo último dibujado y solo se repintan los
+// gráficos, que son lo único que depende del ancho.
+let lastRender = null;
+function redrawCharts() {
+  if (!lastRender) return;
+  renderDonut(allocationDonut, lastRender.segments, { tooltipEl: donutTooltip, amount: lastRender.amount });
+  if (lastRender.chart) {
+    renderLineChart({
+      svg: document.getElementById('pfChart'),
+      tooltipEl: document.getElementById('pfTooltip'),
+      dates: lastRender.chart.dates,
+      series: lastRender.chart.series,
+      yFormat: v => formatEUR(v, 0),
+      tooltipFormat: v => formatEUR(v, 0),
+    });
+  }
+}
+
 window.addEventListener('resize', debounce(() => {
-  if (!screenDashboard.hidden) runDashboard();
+  if (!screenDashboard.hidden) redrawCharts();
   else if (!screenQuiz.hidden) renderPreview();
 }, 200));
 

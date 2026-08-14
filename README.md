@@ -80,9 +80,17 @@ roles (Revolut, Kraken, BVNK, Affirm, UST, and similar).
      closes at exactly 100 %
    - **Capa 2** — the plain-language story ("si hubieras invertido X hace N
      años…"), a row of **stat tiles** (final value, total return, annualized
-     return/CAGR, annualized volatility, max drawdown, edge over cash, best
-     and worst calendar year — all counting up on load), and the equity-curve
-     chart with a crosshair tooltip
+     return/CAGR, annualized volatility, max drawdown *translated into the
+     euros you'd have watched evaporate*, edge over cash, best and worst
+     calendar year, what annual rebalancing was worth in €, and how much of
+     the portfolio is backed by real prices — all counting up on load), and
+     the equity-curve chart with a crosshair tooltip
+   - **¿Y si lo hubieras metido todo a una sola cosa?** — the same window and
+     the same data, concentrated into one asset class at a time. Usually your
+     diversified portfolio *loses* on return and *wins* on drawdown, which is
+     the entire point of diversification and is far more convincing shown
+     than asserted. Costs no extra API calls: it reuses the series already in
+     hand
    - **De dónde sale cada porcentaje** — the real answer to "explícamelo
      todo": a numbered chain that derives your allocation step by step with
      *your* figures — which signals capped your risk tier and to what, the
@@ -283,6 +291,35 @@ repeatedly would mean a real bill, not just a 429. Pre-generating the content
 at build time removes that risk entirely while keeping every explanation
 genuinely LLM-authored, not templated filler.
 
+## The backtest model (and what it assumes)
+
+Earlier versions blended the portfolio as `Σ wₖ · rₖ` — a weighted sum of daily
+returns with constant weights. That is convenient, and it is also **an
+unstated assumption that you rebalance every single day**, which nobody does
+and which quietly flatters the result (it harvests a volatility premium and
+smooths the drawdown).
+
+`simulatePortfolio()` in [app.js](app.js) replaces it with a real
+unit-tracking model: each position's *value* compounds with its own price
+series, weights **drift** as markets move, and the portfolio is only squared
+back to target on the rebalance schedule you ask for — `'annual'` (the
+default, and the practice the app itself teaches), `'none'`, or `'daily'`.
+The regression suite asserts that `'daily'` reproduces the old model
+bit-for-bit, which is both a migration safety net and the proof that the old
+model was daily rebalancing all along.
+
+Two consequences are surfaced in the UI rather than buried:
+
+- **The rebalancing assumption is stated**, together with what would have
+  happened without it — the final € figure *and* how far the equity weight
+  would have drifted from its target.
+- **Data coverage is stated.** Flat-rate sleeves (real-estate crowdfunding,
+  private equity) contribute return with *zero* variance, so any portfolio
+  containing them reports a volatility and a max drawdown that are a **lower
+  bound**, not the real figure. The dashboard shows what share of the
+  portfolio is backed by real prices and says so explicitly when it is below
+  100 %.
+
 ## Backtest data
 
 - Equities bucket → whichever index you chose: `SPY` (S&P 500), `QQQ`
@@ -323,8 +360,15 @@ lump-sum-only line.
 This reuses the same `TWELVE_DATA_API_KEY` embedded in the sibling
 [`trading-backtester`](https://github.com/andregomezzenteno-sudo/trading-backtester)
 project (same free-tier, rate-limited, intentionally-public key — see that
-repo's README for the full reasoning) and uses far fewer calls per session
-than that project does.
+repo's README for the full reasoning).
+
+Because multi-select means a maximal portfolio can need **ten** tickers while
+the free tier allows eight requests per minute, the fetch layer is built for
+that reality rather than hoping: the cache stores the *promise* (so two
+concurrent requests for one symbol can't both miss and double-spend quota),
+requests go out in bounded batches instead of all at once, a 429 is retried
+after a backoff, and if a symbol still fails the UI names **which** one and
+offers a retry instead of a generic "something went wrong".
 
 ## Architecture
 

@@ -613,8 +613,39 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
 .detail-table .member-row td { color: var(--text-secondary); }
 .detail-table .member-row td:nth-child(2) { padding-left: 22px; }
 .detail-table .total-row td { font-weight: 700; border-top: 1.5px solid var(--baseline); border-bottom: none; }
-.dash-card.layer-narrative { animation-delay: 0.16s; }
-.dash-card.layer-3 { animation-delay: 0.24s; }
+.dash-card.layer-compare { animation-delay: 0.16s; }
+.dash-card.layer-narrative { animation-delay: 0.24s; }
+.dash-card.layer-3 { animation-delay: 0.32s; }
+
+/* Comparativa contra carteras de un solo activo */
+.compare-table { min-width: 520px; }
+.compare-table td:first-child { font-weight: 600; color: var(--text-primary); }
+.compare-table tr.is-you td {
+  background: color-mix(in srgb, var(--brand) 9%, var(--surface-1));
+  font-weight: 700;
+}
+.compare-table tr.is-you td:first-child::after {
+  content: " ←";
+  color: var(--brand);
+}
+.takeaway {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  background: var(--page-plane);
+  border-left: 3px solid var(--brand);
+  border-radius: 4px;
+  padding: 12px 14px;
+}
+.retry-row { margin: 0; display: flex; }
+.retry-row[hidden] { display: none; }
+
+/* El foco del enunciado al cambiar de pregunta es para lectores de pantalla:
+   no debe dibujar un cerco visible a quien navega con ratón. */
+.quiz-card h2:focus { outline: none; }
+.quiz-card h2:focus-visible { outline: 2px solid var(--brand); outline-offset: 4px; border-radius: 4px; }
+.donut-hit:focus { outline: none; }
+.donut-hit:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .table-footnote { font-size: 0.78rem !important; color: var(--text-muted) !important; }
 
 /* Nubes que caen — sustituyen al antiguo cajón lateral y, antes de eso, a la

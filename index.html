@@ -658,6 +658,28 @@
           <div class="tooltip" id="pfTooltip" hidden></div>
         </div>
         <div class="legend" id="pfLegend"></div>
+        <p class="cap-note" id="driftNotice"></p>
+        <p class="cap-note" id="coverageNotice" hidden></p>
+        <p class="retry-row" id="retryRow" hidden>
+          <button class="btn-secondary" id="retryBtn" type="button">Reintentar la descarga</button>
+        </p>
+      </div>
+
+      <div class="dash-card layer-compare">
+        <h2>¿Y si lo hubieras metido todo a una sola cosa?</h2>
+        <p class="dash-story">Mismo periodo, mismos datos, pero concentrando la cartera en un único tipo de activo.</p>
+        <div class="table-scroll">
+          <table class="detail-table compare-table">
+            <thead>
+              <tr>
+                <th>Cartera</th><th>Valor final</th><th>Rentab. anual</th>
+                <th>Volatilidad</th><th>Máxima caída</th>
+              </tr>
+            </thead>
+            <tbody id="comparisonTableBody"></tbody>
+          </table>
+        </div>
+        <p class="takeaway" id="comparisonTakeaway"></p>
       </div>
 
       <div class="dash-card layer-narrative">
