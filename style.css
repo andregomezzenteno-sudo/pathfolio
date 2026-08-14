@@ -21,30 +21,11 @@
   --brand-ink:   #ffffff;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme="light"])) {
-    color-scheme: dark;
-    --page-plane:     #171310;
-    --surface-1:      #221d18;
-    --text-primary:   #fbf5ee;
-    --text-secondary: #cabfaf;
-    --text-muted:     #948a7e;
-    --gridline:       #352e26;
-    --baseline:       #493f34;
-    --border:         rgba(255,255,255,0.10);
-    --success-text:   #4fce4f;
-
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --series-3: #199e70;
-
-    --status-good:     #0ca30c;
-    --status-critical: #e66767;
-
-    --brand:       #e07a4f;
-    --brand-ink:   #1c1108;
-  }
-}
+/* PathFolio deliberately does NOT auto-switch to a dark palette on
+   prefers-color-scheme: the warm cream/terracotta look is the product's
+   identity (à la Claude Academy), not a generic UI that should chase the
+   OS setting. Dark mode stays available only behind an explicit manual
+   [data-theme="dark"] toggle, should one ever be added. */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --page-plane:     #171310;
@@ -79,12 +60,15 @@ body {
 }
 
 .page {
-  max-width: 760px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 40px 20px 80px;
+  padding: 40px 24px 80px;
   display: flex;
   flex-direction: column;
   gap: 28px;
+}
+@media (min-width: 720px) {
+  .page { padding: 56px 40px 96px; gap: 32px; }
 }
 
 /* Sketch icons — hand-drawn "boil" animation: 3 stacked frames of the same
@@ -203,6 +187,9 @@ body {
   align-items: center;
   gap: 16px;
 }
+@media (min-width: 720px) {
+  .landing-card { padding: 72px 64px; }
+}
 .landing-eyebrow {
   margin: 0;
   font-size: 0.78rem;
@@ -220,10 +207,13 @@ body {
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 24px;
-  padding: 40px;
+  padding: 36px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
+}
+@media (min-width: 720px) {
+  .quiz-card { padding: 52px 56px; gap: 26px; }
 }
 .quiz-card[hidden] { display: none; }
 .quiz-eyebrow {
@@ -234,21 +224,22 @@ body {
   letter-spacing: 0.04em;
   color: var(--brand);
 }
-.quiz-card h2 { margin: 0; font-size: 1.3rem; line-height: 1.4; }
+.quiz-card h2 { margin: 0; font-size: 1.3rem; line-height: 1.42; max-width: 42ch; }
+@media (min-width: 720px) { .quiz-card h2 { font-size: 1.55rem; } }
 .quiz-hint { margin: -10px 0 0; color: var(--text-muted); font-size: 0.85rem; }
 
 .quiz-options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
 }
 .option-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 10px;
-  padding: 24px 16px;
+  gap: 12px;
+  padding: 28px 20px;
   border-radius: 16px;
   border: 1px solid var(--baseline);
   background: var(--page-plane);
@@ -268,22 +259,22 @@ body {
 .lesson-card { background: color-mix(in srgb, var(--brand) 6%, var(--surface-1)); }
 .lesson-trio {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
 }
 .lesson-trio-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 8px;
-  padding: 16px;
-  border-radius: 14px;
+  gap: 12px;
+  padding: 28px 20px;
+  border-radius: 16px;
   background: var(--surface-1);
   border: 1px solid var(--border);
 }
-.lesson-trio-item strong { font-size: 0.95rem; }
-.lesson-trio-item p { margin: 0; font-size: 0.82rem; color: var(--text-secondary); }
+.lesson-trio-item strong { font-size: 1.02rem; }
+.lesson-trio-item p { margin: 0; font-size: 0.86rem; color: var(--text-secondary); line-height: 1.5; }
 
 /* Sliders */
 .slider-row { display: flex; flex-direction: column; gap: 8px; }
@@ -350,7 +341,10 @@ body {
   padding: 32px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+}
+@media (min-width: 720px) {
+  .dash-card { padding: 44px 48px; }
 }
 .dash-eyebrow {
   margin: 0;
@@ -360,8 +354,8 @@ body {
   letter-spacing: 0.03em;
   color: var(--text-muted);
 }
-.dash-card h2 { margin: 0; font-size: 1.15rem; line-height: 1.45; }
-.dash-story { margin: 0; color: var(--text-secondary); }
+.dash-card h2 { margin: 0; font-size: 1.15rem; line-height: 1.45; max-width: 55ch; }
+.dash-story { margin: 0; color: var(--text-secondary); max-width: 65ch; }
 .cap-note {
   margin: 0;
   font-size: 0.85rem;
@@ -463,7 +457,7 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
   position: fixed;
   top: 0; right: 0;
   height: 100%;
-  width: min(360px, 92vw);
+  width: min(400px, 92vw);
   background: var(--surface-1);
   border-left: 1px solid var(--border);
   z-index: 30;
@@ -501,8 +495,24 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
 }
 .topic-chip.active { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 14%, var(--page-plane)); color: var(--text-primary); }
 .drawer-content { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.drawer-content h3 { margin: 0; font-size: 1.05rem; }
-.drawer-content p { margin: 0; color: var(--text-secondary); font-size: 0.92rem; }
+.drawer-content h3 { margin: 0; font-size: 1.1rem; line-height: 1.35; }
+.drawer-hook { margin: 0; color: var(--text-primary); font-size: 1rem; font-weight: 600; line-height: 1.4; }
+.drawer-facts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.drawer-facts li {
+  position: relative;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.drawer-facts li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 8px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--brand);
+}
 
 @media (max-width: 640px) {
   .drawer-panel {

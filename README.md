@@ -21,11 +21,14 @@ roles (Revolut, Kraken, BVNK, Affirm, UST, and similar).
    slide explains all three (with sketch icons) before asking which you'd
    prefer. That choice is real: it changes which ETF the backtest actually
    fetches.
-2. **A "¿Sabías que?" drawer**, reachable from any screen, with six optional
-   topics (acciones, bonos, efectivo, índices, private equity, volatilidad) —
-   never gating progress, always one tap away. Every icon uses a hand-drawn
-   "boil" animation (three jittered variants of the same sketch, cycled with
-   hard cuts) rather than a smooth vector tween.
+2. **A "¿Sabías que?" drawer**, reachable from any screen, with ten optional
+   topics (acciones, bonos, efectivo, índices, fondos indexados/ETFs, REITs,
+   criptomonedas, interés compuesto, private equity, volatilidad) — never
+   gating progress, always one tap away. Each topic is a one-sentence hook
+   plus 2–3 short bullet facts, not a paragraph — meant to be skimmed, not
+   studied. Every icon uses a hand-drawn "boil" animation (three jittered
+   variants of the same sketch, cycled with hard cuts) rather than a smooth
+   vector tween.
 3. **A deterministic allocation** across three plain-language buckets
    ("empresas grandes del mundo", "gobiernos/empresas", "efectivo"), decided by
    a small rules table (`allocations.json`) — never by the LLM. Two

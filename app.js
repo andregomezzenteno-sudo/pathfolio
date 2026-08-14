@@ -39,6 +39,10 @@ const SKETCH_ICONS = {
   bonds:        'M14 12 H50 V44 H14 Z M20 20 H44 M20 28 H44 M20 36 H36 M26 44 L20 56 L26 50 L32 56 L32 44',
   vault:        'M12 10 H52 V54 H12 Z M32 32 C36 32 39 29 39 25 C39 21 36 18 32 18 C28 18 25 21 25 25 C25 29 28 32 32 32 Z M32 32 V40 M20 10 V4 M44 10 V4',
   rollercoaster:'M6 44 L18 20 L30 48 L42 12 L58 36',
+  layers:       'M32 8 L52 18 L32 28 L12 18 Z M12 32 L32 22 L52 32 L32 42 Z M12 46 L32 36 L52 46 L32 56 Z',
+  building:     'M16 12 H48 V56 H16 Z M22 20 H28 M36 20 H42 M22 30 H28 M36 30 H42 M22 40 H28 M36 40 H42 M26 48 H38 V56 H26 Z',
+  coin:         'M32 12 C42 12 50 20 50 30 C50 40 42 48 32 48 C22 48 14 40 14 30 C14 20 22 12 32 12 Z M26 24 H38 M26 36 H38 M30 20 V40',
+  spiral:       'M33 40 C29 40 26 37 26 33 C26 28 30 24 35 24 C41 24 46 29 46 35 C46 42 40 48 32 48 C23 48 16 41 16 32 C16 22 24 14 34 14',
 };
 
 function jitterPathD(d, seed) {
@@ -536,7 +540,8 @@ const drawerPanel = document.getElementById('drawerPanel');
 const drawerClose = document.getElementById('drawerClose');
 const drawerChips = document.getElementById('drawerChips');
 const drawerTitle = document.getElementById('drawerTitle');
-const drawerText = document.getElementById('drawerText');
+const drawerHook = document.getElementById('drawerHook');
+const drawerFacts = document.getElementById('drawerFacts');
 const drawerIcon = document.getElementById('drawerIcon');
 
 function openDrawer(defaultTopic) {
@@ -564,7 +569,13 @@ function setDrawerTopic(key) {
   const topic = LESSONS.topics[key];
   if (!topic) return;
   drawerTitle.textContent = topic.title;
-  drawerText.textContent = topic.text;
+  drawerHook.textContent = topic.hook;
+  drawerFacts.textContent = '';
+  topic.facts.forEach(fact => {
+    const li = document.createElement('li');
+    li.textContent = fact;
+    drawerFacts.appendChild(li);
+  });
   renderSketchIcon(drawerIcon, topic.icon, 64);
   drawerChips.querySelectorAll('.topic-chip').forEach(c => c.classList.toggle('active', c.dataset.topic === key));
 }

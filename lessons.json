@@ -1,35 +1,105 @@
 {
-  "_provenance": "Written by Claude (Anthropic) during development, same authorship pattern as archetypes.json — see README.md.",
+  "_provenance": "Written by Claude (Anthropic) during development, same authorship pattern as archetypes.json — see README.md. Format is deliberately terse (one hook sentence + 2-3 short facts) rather than paragraphs, so it reads fast and invites reading rather than a wall of text.",
   "topics": {
     "acciones": {
       "title": "¿Qué son las acciones?",
       "icon": "stocks",
-      "text": "Una acción es un pedacito de una empresa. Si comprás una acción de una empresa grande, sos dueño de una parte diminuta de esa empresa — si le va bien y gana más dinero, tu pedacito vale más; si le va mal, vale menos. Comprar \"un fondo de acciones\" (como los que usamos acá) significa comprar pedacitos de cientos o miles de empresas a la vez, en vez de apostar a una sola."
+      "hook": "Un pedacito de una empresa — literal.",
+      "facts": [
+        "Si la empresa gana más, tu pedacito vale más.",
+        "Un fondo de acciones compra cientos a la vez, no apuesta a una sola.",
+        "Es la parte de tu cartera que más sube y más baja."
+      ]
     },
     "bonos": {
       "title": "¿Qué son los bonos?",
       "icon": "bonds",
-      "text": "Un bono es, básicamente, prestarle plata a alguien — un gobierno o una empresa grande — a cambio de que te la devuelvan con un interés. Es más predecible que una acción: sabés de antemano (más o menos) cuánto vas a recibir y cuándo. Por eso los bonos se mueven mucho menos que las acciones, y se usan para darle estabilidad a una cartera."
+      "hook": "Le prestás plata a un gobierno o empresa, con interés.",
+      "facts": [
+        "Sabés de antemano, más o menos, cuánto y cuándo cobrás.",
+        "Se mueve mucho menos que las acciones.",
+        "Le da estabilidad al resto de la cartera."
+      ]
     },
     "efectivo": {
       "title": "¿Por qué tener algo en efectivo?",
       "icon": "cash",
-      "text": "Tener una parte en efectivo (o algo parecido, como una cuenta remunerada) es tu colchón de tranquilidad: plata que no está expuesta a que el mercado suba o baje, disponible si la necesitás rápido. No suele crecer mucho — a veces ni le gana a la inflación — pero cumple otra función: darte margen para no tener que vender acciones o bonos justo en un mal momento."
+      "hook": "Tu colchón de tranquilidad.",
+      "facts": [
+        "No suele crecer mucho — a veces ni le gana a la inflación.",
+        "Te da margen para no vender en un mal momento.",
+        "Es disponibilidad, no rentabilidad."
+      ]
     },
     "indices": {
-      "title": "S&P 500, NASDAQ 100 y MSCI World — ¿cuál es la diferencia?",
+      "title": "S&P 500 vs. NASDAQ vs. MSCI",
       "icon": "globe",
-      "text": "Los tres son formas de comprar \"un pedacito de muchas empresas grandes a la vez\", pero con enfoques distintos. El S&P 500 son las ~500 empresas más grandes de Estados Unidos — su resultado depende casi todo de cómo le va a la economía estadounidense. El NASDAQ 100 también son empresas de EEUU, pero con mucho más peso en tecnología — puede crecer más rápido, pero también caer más fuerte. El MSCI World junta miles de empresas grandes de todo el planeta, no solo de EEUU — es la opción más repartida entre países, así que depende menos de lo que le pase a una sola economía."
+      "hook": "Tres formas de comprar muchas empresas grandes de una vez.",
+      "facts": [
+        "S&P 500: las ~500 más grandes de Estados Unidos.",
+        "NASDAQ 100: EEUU, con mucho peso en tecnología.",
+        "MSCI World: miles de empresas de todo el mundo."
+      ]
+    },
+    "fondosIndexados": {
+      "title": "¿Qué es un ETF o fondo indexado?",
+      "icon": "layers",
+      "hook": "La forma más simple de diversificar sin elegir empresa por empresa.",
+      "facts": [
+        "Se compra y se vende al instante, como una acción.",
+        "Sigue un índice (como el S&P 500) en vez de que alguien elija qué comprar.",
+        "Por eso suele cobrar comisiones mucho más bajas que un fondo tradicional."
+      ]
+    },
+    "reits": {
+      "title": "¿Qué es un REIT (bienes raíces)?",
+      "icon": "building",
+      "hook": "Invertir en inmuebles sin comprar un edificio.",
+      "facts": [
+        "Es una empresa que posee y alquila propiedades — comprás una acción de ella.",
+        "Por ley, reparte gran parte de sus ganancias como dividendos.",
+        "Te da exposición a bienes raíces con la liquidez de una acción."
+      ]
+    },
+    "cripto": {
+      "title": "¿Y las criptomonedas?",
+      "icon": "coin",
+      "hook": "Activos digitales, sin banco central detrás.",
+      "facts": [
+        "Mucho más volátiles que acciones o bonos.",
+        "Todavía sin el historial largo que tienen otros activos.",
+        "Por eso PathFolio no las incluye en esta cartera de ejemplo."
+      ]
+    },
+    "interesCompuesto": {
+      "title": "¿Qué es el interés compuesto?",
+      "icon": "spiral",
+      "hook": "Ganar intereses sobre los intereses que ya ganaste.",
+      "facts": [
+        "Por eso el tiempo importa más que el monto inicial.",
+        "$1.000 al 7% anual son ~$2.000 en 10 años, pero ~$4.000 en 20.",
+        "Empezar antes gana, incluso con menos plata."
+      ]
     },
     "privateEquity": {
       "title": "¿Qué es el private equity?",
       "icon": "vault",
-      "text": "Es invertir directamente en empresas que no cotizan en bolsa — no podés comprarlas con un click como una acción. Tradicionalmente estuvo reservado a inversores institucionales o personas con mucho capital, porque requiere montos altos y tu dinero queda \"encerrado\" varios años sin poder sacarlo (esto se llama iliquidez). En los últimos años aparecieron fondos que buscan abrirle esta puerta al inversor minorista — pero justamente por lo difícil que es conseguir datos reales y comparables de este mundo, PathFolio no lo incluye como opción: no queremos mostrarte números inventados."
+      "hook": "Invertir en empresas que no cotizan en bolsa.",
+      "facts": [
+        "Tradicionalmente, solo para inversores institucionales o con mucho capital.",
+        "Tu dinero queda encerrado varios años (iliquidez).",
+        "No lo incluimos acá: no hay datos reales y gratuitos para mostrarte."
+      ]
     },
     "volatilidad": {
       "title": "¿Qué es la volatilidad?",
       "icon": "rollercoaster",
-      "text": "Es simplemente cuánto sube y baja el valor de una inversión en el camino. Dos inversiones pueden terminar valiendo lo mismo en 10 años, pero una llegó ahí con subidas y bajadas bruscas (alta volatilidad) y la otra con un camino mucho más parejo (baja volatilidad). No es \"bueno\" ni \"malo\" en sí mismo — es sobre qué tan cómodo estás viendo ese camino, no solo el destino final."
+      "hook": "Cuánto sube y baja el valor en el camino.",
+      "facts": [
+        "No es \"bueno\" ni \"malo\" — es sobre qué tan cómodo estás viéndolo.",
+        "Dos inversiones pueden llegar al mismo lugar por caminos muy distintos.",
+        "Más volatilidad no siempre significa más riesgo a largo plazo."
+      ]
     }
   }
 }
