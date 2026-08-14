@@ -244,6 +244,120 @@
         </div>
       </div>
 
+      <!-- REITs knowledge gate -->
+      <div class="quiz-card" id="q-reitsKnowledge" data-question="reitsKnowledge" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Sabés qué es un REIT — invertir en bienes raíces sin comprar una propiedad?</h2>
+        <div class="knowledge-gate" data-options="reitsKnowledge">
+          <button class="option-card knowledge-card" type="button" data-value="si">
+            <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
+            <span class="option-label">Sí, ya sé</span>
+          </button>
+          <button class="option-card knowledge-card" type="button" data-value="no">
+            <span class="sketch-icon-slot" data-icon="question" data-size="36"></span>
+            <span class="option-label">No, explicame</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- REITs lesson (conditional) -->
+      <div class="quiz-card lesson-card" id="q-reitsLesson" data-question="reitsLesson" hidden>
+        <p class="quiz-eyebrow">Una explicación rápida</p>
+        <h2>Un REIT es una empresa dueña de inmuebles — comprás una acción de ella</h2>
+        <div class="lesson-trio">
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="building" data-size="44"></span>
+            <strong>Posee y alquila</strong>
+            <p>Departamentos, oficinas, shoppings, centros de datos — la empresa cobra el alquiler.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="cash" data-size="44"></span>
+            <strong>Reparte dividendos</strong>
+            <p>Por ley, entrega gran parte de sus ganancias a los accionistas.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="check" data-size="44"></span>
+            <strong>Liquidez de acción</strong>
+            <p>A diferencia de un inmueble real, lo comprás y vendés al instante.</p>
+          </div>
+        </div>
+        <button class="btn-primary" data-advance="reitsLesson" type="button">Ya entendí, continuar →</button>
+      </div>
+
+      <!-- REITs choice: real, carves a slice out of the equities weight -->
+      <div class="quiz-card" id="q-reitsChoice" data-question="reitsChoice" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Querés sumarle una porción en bienes raíces a tu cartera?</h2>
+        <p class="quiz-hint">Si decís que sí, le restamos una parte a "empresas grandes" para dársela a REITs — tu riesgo total no cambia mucho.</p>
+        <div class="quiz-options" data-options="reitsChoice">
+          <button class="option-card" type="button" data-value="si">
+            <span class="sketch-icon-slot" data-icon="building" data-size="40"></span>
+            <span class="option-label">Sí, sumala</span>
+          </button>
+          <button class="option-card" type="button" data-value="no">
+            <span class="sketch-icon-slot" data-icon="check" data-size="40"></span>
+            <span class="option-label">No, gracias</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- crypto knowledge gate -->
+      <div class="quiz-card" id="q-cryptoKnowledge" data-question="cryptoKnowledge" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Sabés qué son las criptomonedas?</h2>
+        <div class="knowledge-gate" data-options="cryptoKnowledge">
+          <button class="option-card knowledge-card" type="button" data-value="si">
+            <span class="sketch-icon-slot" data-icon="check" data-size="36"></span>
+            <span class="option-label">Sí, ya sé</span>
+          </button>
+          <button class="option-card knowledge-card" type="button" data-value="no">
+            <span class="sketch-icon-slot" data-icon="question" data-size="36"></span>
+            <span class="option-label">No, explicame</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- crypto lesson (conditional) -->
+      <div class="quiz-card lesson-card" id="q-cryptoLesson" data-question="cryptoLesson" hidden>
+        <p class="quiz-eyebrow">Una explicación rápida</p>
+        <h2>Activos digitales, sin banco central detrás</h2>
+        <div class="lesson-trio">
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="coin" data-size="44"></span>
+            <strong>Muy volátiles</strong>
+            <p>Sube y baja mucho más fuerte que acciones o bonos.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="calendar" data-size="44"></span>
+            <strong>Historial corto</strong>
+            <p>Bitcoin existe desde 2009 — poco tiempo comparado con acciones o bonos.</p>
+          </div>
+          <div class="lesson-trio-item">
+            <span class="sketch-icon-slot" data-icon="rollercoaster" data-size="44"></span>
+            <strong>Solo si sobra riesgo</strong>
+            <p>Por eso acá es una porción chica, y solo si tu perfil lo permite.</p>
+          </div>
+        </div>
+        <button class="btn-primary" data-advance="cryptoLesson" type="button">Ya entendí, continuar →</button>
+      </div>
+
+      <!-- crypto choice: real, but only actually applied if the FINAL risk tier qualifies -->
+      <div class="quiz-card" id="q-cryptoChoice" data-question="cryptoChoice" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Te gustaría sumar una porción chica y opcional en bitcoin?</h2>
+        <p class="quiz-hint">Solo la incluimos si, al final, tu perfil de riesgo da para "arriesgado" — si no, te avisamos y la dejamos afuera.</p>
+        <div class="quiz-options" data-options="cryptoChoice">
+          <button class="option-card" type="button" data-value="si">
+            <span class="sketch-icon-slot" data-icon="coin" data-size="40"></span>
+            <span class="option-label">Sí, si mi perfil da</span>
+          </button>
+          <button class="option-card" type="button" data-value="no">
+            <span class="sketch-icon-slot" data-icon="check" data-size="40"></span>
+            <span class="option-label">No, prefiero sin cripto</span>
+          </button>
+        </div>
+      </div>
+
       <!-- style -->
       <div class="quiz-card" id="q-style" data-question="style" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
@@ -308,6 +422,7 @@
         <p class="cap-note" id="volNotice" hidden></p>
         <p class="cap-note" id="ageNotice" hidden></p>
         <p class="cap-note" id="tiltNotice" hidden></p>
+        <p class="cap-note" id="cryptoNotice" hidden></p>
       </div>
 
       <div class="dash-card layer-2">
@@ -341,25 +456,13 @@
 
   </main>
 
-  <!-- ===================== "¿SABÍAS QUE?" DRAWER ===================== -->
-  <button class="drawer-tab" id="drawerTab" type="button" aria-expanded="false" aria-controls="drawerPanel">
-    <span class="sketch-icon-slot" data-icon="question" data-size="20"></span>
-    <span>¿Sabías que?</span>
-  </button>
-  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
-  <aside class="drawer-panel" id="drawerPanel" hidden aria-hidden="true">
-    <div class="drawer-head">
-      <span>Aprendé un poco más</span>
-      <button class="drawer-close" id="drawerClose" type="button" aria-label="Cerrar">✕</button>
+  <!-- ===================== FLOATING FACT CLOUD ===================== -->
+  <div class="fact-cloud" id="factCloud" aria-hidden="true">
+    <div class="cloud-shape sketch-icon-slot" data-icon="cloud" data-size="150"></div>
+    <div class="cloud-bubble">
+      <p id="cloudFactText">—</p>
     </div>
-    <div class="drawer-chips" id="drawerChips"></div>
-    <div class="drawer-content">
-      <div class="sketch-icon-slot" id="drawerIcon" data-size="64"></div>
-      <h3 id="drawerTitle">—</h3>
-      <p class="drawer-hook" id="drawerHook">—</p>
-      <ul class="drawer-facts" id="drawerFacts"></ul>
-    </div>
-  </aside>
+  </div>
 
   <footer class="app-footer">
     <p><strong>Esto es una simulación educativa.</strong> No es asesoramiento financiero, no ejecuta operaciones reales, y no debería ser la única base para decisiones de inversión. Consultá a un asesor financiero registrado antes de invertir dinero real.</p>

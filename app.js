@@ -5,16 +5,21 @@
 let ALLOCATIONS = null;
 let ARCHETYPES = null;
 let LESSONS = null;
+let CLOUD_FACTS = null;
 
 async function loadContent() {
-  const [allocRes, archRes, lessonsRes] = await Promise.all([
+  const [allocRes, archRes, lessonsRes, cloudRes] = await Promise.all([
     fetch('allocations.json'),
     fetch('archetypes.json'),
     fetch('lessons.json'),
+    fetch('cloudFacts.json'),
   ]);
   ALLOCATIONS = await allocRes.json();
   ARCHETYPES = await archRes.json();
   LESSONS = await lessonsRes.json();
+  CLOUD_FACTS = await cloudRes.json();
+  updateCloudForQuestion(QUESTIONS[currentStep]);
+  startCloudCycle();
 }
 
 /* ---------- Sketch icons: hand-drawn "boil" animation ---------- */
@@ -43,6 +48,7 @@ const SKETCH_ICONS = {
   government:   'M32 8 L52 22 H12 Z M16 26 V50 M24 26 V50 M32 26 V50 M40 26 V50 M48 26 V50 M10 50 H54 M10 56 H54',
   balance:      'M32 8 V52 M14 20 H50 M14 20 L6 38 H22 Z M50 20 L42 38 H58 Z M22 52 H42',
   calendar:     'M12 14 H52 V54 H12 Z M12 26 H52 M20 14 V6 M44 14 V6 M20 36 H28 M36 36 H44 M20 46 H28 M36 46 H44',
+  cloud:        'M16 40 C10 40 6 35 6 29 C6 23 11 18 17 18 C18 10 25 4 34 4 C43 4 50 11 51 20 C58 21 63 27 63 34 C63 41 57 46 50 46 H20 C18 46 16 44 16 40 Z',
   building:     'M16 12 H48 V56 H16 Z M22 20 H28 M36 20 H42 M22 30 H28 M36 30 H42 M22 40 H28 M36 40 H42 M26 48 H38 V56 H26 Z',
   coin:         'M32 12 C42 12 50 20 50 30 C50 40 42 48 32 48 C22 48 14 40 14 30 C14 20 22 12 32 12 Z M26 24 H38 M26 36 H38 M30 20 V40',
   spiral:       'M33 40 C29 40 26 37 26 33 C26 28 30 24 35 24 C41 24 46 29 46 35 C46 42 40 48 32 48 C23 48 16 41 16 32 C16 22 24 14 34 14',
@@ -162,6 +168,35 @@ function adjustWeightsForInstrumentRisk(baseWeights, equityRiskMultiplier, bonds
   return { equities, bonds, cash };
 }
 
+// Optional REITs/crypto sleeves are real carve-outs FROM the equities weight
+// (not a new fixed bucket, not decorative) — each takes a tier-scaled slice
+// of whatever the equities weight already is after the instrument tilt, and
+// that slice comes straight out of equities, leaving bonds/cash untouched.
+// Crypto only ever actually lands here if the FINAL effective risk tier
+// qualifies, regardless of what the user picked earlier — a small-but-real
+// allocation only makes sense once every other signal has already agreed
+// the person can carry that much risk, so this re-checks it at the end
+// rather than trusting an answer given before the full picture was in.
+function applySleeves(weights, { includeReits, includeCrypto, effectiveRisk }, allocations) {
+  const result = { equities: weights.equities, bonds: weights.bonds, cash: weights.cash, reits: 0, crypto: 0 };
+
+  if (includeReits) {
+    const frac = allocations.reitsFractionByTier[effectiveRisk] || 0;
+    const sleeve = result.equities * frac;
+    result.equities -= sleeve;
+    result.reits = sleeve;
+  }
+
+  const cryptoQualifies = includeCrypto && effectiveRisk === allocations.cryptoRequiresTier;
+  if (cryptoQualifies) {
+    const sleeve = result.equities * allocations.cryptoFraction;
+    result.equities -= sleeve;
+    result.crypto = sleeve;
+  }
+
+  return { weights: result, cryptoIncluded: cryptoQualifies, cryptoRequestedButExcluded: includeCrypto && !cryptoQualifies };
+}
+
 function getExplanation(effectiveRisk, horizon, archetypes) {
   const key = `${effectiveRisk}|${horizon}`;
   return archetypes.explanations[key] || null;
@@ -211,25 +246,30 @@ async function fetchTickerSeries(ticker) {
 
 /* ---------- Portfolio math ---------- */
 
-function alignByDate(datesA, closesA, datesB, closesB) {
-  const mapB = new Map(datesB.map((d, i) => [d, closesB[i]]));
-  const dates = [], a = [], b = [];
-  datesA.forEach((d, i) => {
-    if (mapB.has(d)) { dates.push(d); a.push(closesA[i]); b.push(mapB.get(d)); }
-  });
-  return { dates, equityCloses: a, bondCloses: b };
+// Generalized to N series (equities, bonds, and now optionally REITs/crypto)
+// instead of a fixed pair — intersects every series down to the dates they
+// all share, so an added sleeve can never silently misalign the others.
+function alignSeriesSet(seriesList) {
+  const maps = seriesList.map(s => new Map(s.dates.map((d, i) => [d, s.closes[i]])));
+  const dates = seriesList[0].dates.filter(d => maps.every(m => m.has(d)));
+  const closesList = maps.map(m => dates.map(d => m.get(d)));
+  return { dates, closesList };
 }
 
-function blendPortfolio({ dates, equityCloses, bondCloses, weights, cashAnnualRate, barsPerYear = 252 }) {
+// weightsList lines up 1:1 with closesList (same order as alignSeriesSet's
+// input) — cash is handled separately since it has no price series to blend.
+function blendPortfolio({ dates, closesList, weightsList, cashWeight, cashAnnualRate, barsPerYear = 252 }) {
   const n = dates.length;
   const cashPerBar = Math.pow(1 + cashAnnualRate, 1 / barsPerYear) - 1;
   const portfolioEquity = new Array(n).fill(1);
   const cashOnlyEquity = new Array(n).fill(1);
   const dailyReturns = [];
   for (let i = 1; i < n; i++) {
-    const eqRet = (equityCloses[i] - equityCloses[i - 1]) / equityCloses[i - 1];
-    const bondRet = (bondCloses[i] - bondCloses[i - 1]) / bondCloses[i - 1];
-    const blended = weights.equities * eqRet + weights.bonds * bondRet + weights.cash * cashPerBar;
+    let blended = cashWeight * cashPerBar;
+    for (let k = 0; k < closesList.length; k++) {
+      const c = closesList[k];
+      blended += weightsList[k] * (c[i] - c[i - 1]) / c[i - 1];
+    }
     portfolioEquity[i] = portfolioEquity[i - 1] * (1 + blended);
     cashOnlyEquity[i] = cashOnlyEquity[i - 1] * (1 + cashPerBar);
     dailyReturns.push(blended);
@@ -494,13 +534,25 @@ function renderLineChart({ svg, tooltipEl, dates, series, yFormat, tooltipFormat
 
 /* ---------- Questionnaire state machine ---------- */
 
-const QUESTIONS = ['age', 'risk', 'horizon', 'knowledge', 'indexLesson', 'equityIndex', 'bondsKnowledge', 'bondsLesson', 'bondsChoice', 'style', 'volatility', 'amount'];
+const QUESTIONS = [
+  'age', 'risk', 'horizon',
+  'knowledge', 'indexLesson', 'equityIndex',
+  'bondsKnowledge', 'bondsLesson', 'bondsChoice',
+  'reitsKnowledge', 'reitsLesson', 'reitsChoice',
+  'cryptoKnowledge', 'cryptoLesson', 'cryptoChoice',
+  'style', 'volatility', 'amount',
+];
 // Each conditional lesson is skipped when the paired gate question was answered "si".
-const CONDITIONAL_LESSONS = { indexLesson: 'knowledge', bondsLesson: 'bondsKnowledge' };
+const CONDITIONAL_LESSONS = {
+  indexLesson: 'knowledge', bondsLesson: 'bondsKnowledge',
+  reitsLesson: 'reitsKnowledge', cryptoLesson: 'cryptoKnowledge',
+};
 const answers = {
   age: null, risk: 3, horizon: null, knowledge: null, equityIndex: null,
-  bondsKnowledge: null, bondsChoice: null, style: null, volatility: 3,
-  amount: 1000, monthly: 0,
+  bondsKnowledge: null, bondsChoice: null,
+  reitsKnowledge: null, reitsChoice: null,
+  cryptoKnowledge: null, cryptoChoice: null,
+  style: null, volatility: 3, amount: 1000, monthly: 0,
 };
 let currentStep = 0;
 
@@ -548,6 +600,8 @@ const CONNECTORS = {
   risk: a => a.age ? `Con ${a.age} años, pensemos en cómo reaccionás ante las bajadas.` : null,
   knowledge: a => a.horizon ? `Ya que esto es ${HORIZON_PHRASE[a.horizon]}, hablemos de la parte de acciones.` : null,
   bondsKnowledge: a => a.equityIndex ? `Con ${EQUITY_LABEL[a.equityIndex]} elegido, vamos con la otra mitad clásica de una cartera: los bonos.` : null,
+  reitsKnowledge: () => 'Más allá de acciones y bonos, hay otras piezas que podés sumar — empecemos por bienes raíces.',
+  cryptoKnowledge: a => a.reitsChoice === 'si' ? 'Con los REITs sumados, una última pieza opcional — mucho más arriesgada.' : 'Una última pieza opcional, mucho más arriesgada que el resto.',
   volatility: a => `Dijiste que tu tolerancia al riesgo es ${RISK_PHRASE[a.risk]} — probémosla con un escenario real.`,
   amount: () => 'Con tu perfil casi listo, solo falta ponerle números.',
 };
@@ -564,6 +618,7 @@ function showStep(step) {
     connectorEl.hidden = !text;
     connectorEl.textContent = text || '';
   }
+  updateCloudForQuestion(qKey);
   renderProgress();
 }
 
@@ -629,79 +684,56 @@ restartBtn.addEventListener('click', () => {
   document.querySelectorAll('.option-card.selected').forEach(el => el.classList.remove('selected'));
   answers.age = answers.horizon = answers.knowledge = answers.equityIndex = null;
   answers.bondsKnowledge = answers.bondsChoice = answers.style = null;
+  answers.reitsKnowledge = answers.reitsChoice = null;
+  answers.cryptoKnowledge = answers.cryptoChoice = null;
   answers.risk = 3; answers.volatility = 3; answers.monthly = 0;
   riskSlider.value = 3; document.getElementById('volatilitySlider').value = 3; monthlyInput.value = 0;
   updateRiskPreview();
   goToQuiz();
 });
 
-/* ---------- "¿Sabías que?" drawer ---------- */
+/* ---------- Floating fact cloud (replaces the old side drawer) ---------- */
 
 const SCREEN_TO_TOPIC = {
   age: 'interesCompuesto', risk: 'volatilidad', horizon: 'diversificacion', knowledge: 'indices', indexLesson: 'indices',
   equityIndex: 'indices', bondsKnowledge: 'bonos', bondsLesson: 'bonos', bondsChoice: 'diversificacion',
+  reitsKnowledge: 'reits', reitsLesson: 'reits', reitsChoice: 'reits',
+  cryptoKnowledge: 'cripto', cryptoLesson: 'cripto', cryptoChoice: 'cripto',
   style: 'fondosIndexados', volatility: 'rebalanceo', amount: 'dcaVsLumpSum',
 };
 
-const drawerTab = document.getElementById('drawerTab');
-const drawerBackdrop = document.getElementById('drawerBackdrop');
-const drawerPanel = document.getElementById('drawerPanel');
-const drawerClose = document.getElementById('drawerClose');
-const drawerChips = document.getElementById('drawerChips');
-const drawerTitle = document.getElementById('drawerTitle');
-const drawerHook = document.getElementById('drawerHook');
-const drawerFacts = document.getElementById('drawerFacts');
-const drawerIcon = document.getElementById('drawerIcon');
+const cloudFactText = document.getElementById('cloudFactText');
+let cloudFactTimer = null;
+let cloudFactPool = [];
+let cloudFactIndex = 0;
 
-function openDrawer(defaultTopic) {
-  if (!LESSONS) return;
-  drawerBackdrop.hidden = false;
-  drawerPanel.hidden = false;
-  drawerPanel.setAttribute('aria-hidden', 'false');
-  requestAnimationFrame(() => drawerPanel.classList.add('open'));
-  drawerTab.setAttribute('aria-expanded', 'true');
-
-  drawerChips.textContent = '';
-  Object.keys(LESSONS.topics).forEach(key => {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'topic-chip';
-    chip.textContent = LESSONS.topics[key].title.replace(/[¿?]/g, '').split(' — ')[0];
-    chip.dataset.topic = key;
-    chip.addEventListener('click', () => setDrawerTopic(key));
-    drawerChips.appendChild(chip);
-  });
-  setDrawerTopic(defaultTopic in LESSONS.topics ? defaultTopic : Object.keys(LESSONS.topics)[0]);
+function setCloudTopic(topic) {
+  if (!CLOUD_FACTS) return;
+  const facts = CLOUD_FACTS.facts[topic];
+  if (!facts || !facts.length || facts === cloudFactPool) return;
+  cloudFactPool = facts;
+  cloudFactIndex = 0;
+  showCloudFact();
 }
 
-function setDrawerTopic(key) {
-  const topic = LESSONS.topics[key];
-  if (!topic) return;
-  drawerTitle.textContent = topic.title;
-  drawerHook.textContent = topic.hook;
-  drawerFacts.textContent = '';
-  topic.facts.forEach(fact => {
-    const li = document.createElement('li');
-    li.textContent = fact;
-    drawerFacts.appendChild(li);
-  });
-  renderSketchIcon(drawerIcon, topic.icon, 64);
-  drawerChips.querySelectorAll('.topic-chip').forEach(c => c.classList.toggle('active', c.dataset.topic === key));
+function showCloudFact() {
+  if (!cloudFactText || !cloudFactPool.length) return;
+  cloudFactText.classList.add('fading');
+  setTimeout(() => {
+    cloudFactText.textContent = cloudFactPool[cloudFactIndex % cloudFactPool.length];
+    cloudFactText.classList.remove('fading');
+    cloudFactIndex += 1;
+  }, 400);
 }
 
-function closeDrawer() {
-  drawerPanel.classList.remove('open');
-  drawerTab.setAttribute('aria-expanded', 'false');
-  drawerPanel.setAttribute('aria-hidden', 'true');
-  setTimeout(() => { drawerPanel.hidden = true; drawerBackdrop.hidden = true; }, 220);
+function startCloudCycle() {
+  if (cloudFactTimer) return;
+  cloudFactTimer = setInterval(showCloudFact, 8000);
 }
 
-drawerTab.addEventListener('click', () => {
-  const currentQuestion = !screenQuiz.hidden ? QUESTIONS[currentStep] : 'amount';
-  openDrawer(SCREEN_TO_TOPIC[currentQuestion] || 'acciones');
-});
-drawerClose.addEventListener('click', closeDrawer);
-drawerBackdrop.addEventListener('click', closeDrawer);
+function updateCloudForQuestion(questionKey) {
+  setCloudTopic(SCREEN_TO_TOPIC[questionKey] || 'acciones');
+}
 
 /* ---------- Dashboard ---------- */
 
@@ -710,6 +742,7 @@ const capNotice = document.getElementById('capNotice');
 const volNotice = document.getElementById('volNotice');
 const ageNotice = document.getElementById('ageNotice');
 const tiltNotice = document.getElementById('tiltNotice');
+const cryptoNotice = document.getElementById('cryptoNotice');
 const allocationDonut = document.getElementById('allocationDonut');
 const donutLegend = document.getElementById('donutLegend');
 const backtestStory = document.getElementById('backtestStory');
@@ -729,6 +762,7 @@ async function runDashboard() {
   progressBarOuter.hidden = true;
   screenDashboard.hidden = false;
   backtestStory.textContent = 'Cargando datos históricos reales…';
+  setCloudTopic('dcaVsLumpSum');
 
   const { effectiveRisk, wasCappedByHorizon, wasCappedByVolatility, wasCappedByAge } = computeEffectiveRisk(answers.risk, answers.horizon, answers.volatility, answers.age, ALLOCATIONS);
   const baseWeights = getAllocationWeights(effectiveRisk, ALLOCATIONS);
@@ -756,11 +790,25 @@ async function runDashboard() {
     tiltNotice.textContent = `${equityInstrument.label} y/o ${bondsInstrument.label} son más o menos volátiles que nuestras opciones de referencia, así que le dimos a las empresas grandes ${eqDir} de peso del que te hubiera tocado por defecto — buscando mantener el riesgo total parecido, sin importar qué instrumento específico elegiste.`;
   }
 
+  const { weights: finalWeights, cryptoIncluded, cryptoRequestedButExcluded } = applySleeves(
+    weights, { includeReits: answers.reitsChoice === 'si', includeCrypto: answers.cryptoChoice === 'si', effectiveRisk }, ALLOCATIONS
+  );
+  cryptoNotice.hidden = !cryptoRequestedButExcluded;
+  if (cryptoRequestedButExcluded) {
+    cryptoNotice.textContent = `Pediste sumar bitcoin, pero tu perfil final terminó siendo "${effectiveRisk}", no "arriesgado" — así que lo dejamos afuera. Una porción de un activo tan volátil solo tiene sentido si cada otra señal (horizonte, caídas reales, edad) ya está de acuerdo.`;
+  }
+
+  const includeReits = finalWeights.reits > 0;
+  const reitsInstrument = ALLOCATIONS.reitsInstrument;
+  const cryptoInstrument = ALLOCATIONS.cryptoInstrument;
+
   const donutSegments = [
-    { name: `Empresas grandes (${equityInstrument.label})`, weight: weights.equities, color: 'var(--series-1)' },
-    { name: `Bonos (${bondsInstrument.label})`, weight: weights.bonds, color: 'var(--series-2)' },
-    { name: 'Efectivo', weight: weights.cash, color: 'var(--series-3)' },
+    { name: `Empresas grandes (${equityInstrument.label})`, weight: finalWeights.equities, color: 'var(--series-1)' },
+    { name: `Bonos (${bondsInstrument.label})`, weight: finalWeights.bonds, color: 'var(--series-2)' },
+    { name: 'Efectivo', weight: finalWeights.cash, color: 'var(--series-3)' },
   ];
+  if (includeReits) donutSegments.push({ name: reitsInstrument.label, weight: finalWeights.reits, color: 'var(--series-4)' });
+  if (cryptoIncluded) donutSegments.push({ name: cryptoInstrument.label, weight: finalWeights.crypto, color: 'var(--series-5)' });
   renderDonut(allocationDonut, donutSegments);
   buildDonutLegend(donutLegend, donutSegments);
 
@@ -770,12 +818,21 @@ async function runDashboard() {
   explanationDetail.textContent = explanation ? explanation.detail : '';
 
   try {
-    const equitySeries = await fetchTickerSeries(equityInstrument.ticker);
-    const bondSeries = await fetchTickerSeries(bondsInstrument.ticker);
+    const seriesSpecs = [
+      { key: 'equities', ticker: equityInstrument.ticker, weight: finalWeights.equities },
+      { key: 'bonds', ticker: bondsInstrument.ticker, weight: finalWeights.bonds },
+    ];
+    if (includeReits) seriesSpecs.push({ key: 'reits', ticker: reitsInstrument.ticker, weight: finalWeights.reits });
+    if (cryptoIncluded) seriesSpecs.push({ key: 'crypto', ticker: cryptoInstrument.ticker, weight: finalWeights.crypto });
 
-    const aligned = alignByDate(equitySeries.dates, equitySeries.closes, bondSeries.dates, bondSeries.closes);
+    const fetchedSeries = await Promise.all(seriesSpecs.map(s => fetchTickerSeries(s.ticker)));
+    const aligned = alignSeriesSet(fetchedSeries);
     const cashRate = ALLOCATIONS.instruments.cash.illustrativeAnnualRate;
-    const blend = blendPortfolio({ dates: aligned.dates, equityCloses: aligned.equityCloses, bondCloses: aligned.bondCloses, weights, cashAnnualRate: cashRate });
+    const blend = blendPortfolio({
+      dates: aligned.dates, closesList: aligned.closesList,
+      weightsList: seriesSpecs.map(s => s.weight),
+      cashWeight: finalWeights.cash, cashAnnualRate: cashRate,
+    });
 
     const n = blend.dates.length;
     const finalValue = answers.amount * blend.portfolioEquity[n - 1];
@@ -809,10 +866,12 @@ async function runDashboard() {
     const dd = maxDrawdown(blend.portfolioEquity);
     detailTableBody.textContent = '';
     const rows = [
-      [`Empresas grandes (${equityInstrument.label})`, equityInstrument.ticker, weights.equities, equityInstrument.expenseRatio],
-      [`Bonos (${bondsInstrument.label})`, bondsInstrument.ticker, weights.bonds, bondsInstrument.expenseRatio],
-      ['Efectivo', '—', weights.cash, null],
+      [`Empresas grandes (${equityInstrument.label})`, equityInstrument.ticker, finalWeights.equities, equityInstrument.expenseRatio],
+      [`Bonos (${bondsInstrument.label})`, bondsInstrument.ticker, finalWeights.bonds, bondsInstrument.expenseRatio],
+      ['Efectivo', '—', finalWeights.cash, null],
     ];
+    if (includeReits) rows.push([reitsInstrument.label, reitsInstrument.ticker, finalWeights.reits, reitsInstrument.expenseRatio]);
+    if (cryptoIncluded) rows.push([cryptoInstrument.label, cryptoInstrument.ticker, finalWeights.crypto, cryptoInstrument.expenseRatio]);
     rows.forEach(([name, ticker, weight, ter]) => {
       const tr = document.createElement('tr');
       [name, ticker, formatPct(weight, 0), name.startsWith('Efectivo') ? '—' : formatPct(vol, 1), ter == null ? '—' : formatPct(ter, 2)].forEach((text, ci) => {

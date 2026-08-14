@@ -1,0 +1,60 @@
+{
+  "_provenance": "Written by Claude (Anthropic) during development — short, single-sentence trivia (historical, curious, or just informative) shown by the floating cloud, contextual to whichever question is on screen. Deliberately terser than lessons.json: this is ambient color while you answer, not something to stop and read.",
+  "facts": {
+    "acciones": [
+      "El S&P 500 devolvió en promedio ~10% anual (antes de inflación) desde 1926.",
+      "Hay más de 58.000 empresas cotizando en bolsas de todo el mundo.",
+      "La acción más antigua que sigue cotizando es de una minera sueca fundada en 1288."
+    ],
+    "bonos": [
+      "El mercado global de bonos vale más que el de acciones: unos $130 billones de dólares.",
+      "El bono más antiguo conocido es de Venecia, del año 1171.",
+      "Japón tuvo tasas de interés en cero o negativas durante más de dos décadas."
+    ],
+    "efectivo": [
+      "La Reserva Federal de EEUU apunta a una inflación de 2% anual como objetivo.",
+      "El primer cajero automático del mundo abrió en Londres, en 1967.",
+      "Solo una fracción chica del dinero del mundo existe como billetes y monedas físicas."
+    ],
+    "indices": [
+      "El S&P 500 se creó en 1957 con 500 empresas — hoy sigue teniendo ese número.",
+      "El NASDAQ fue, en 1971, el primer mercado bursátil 100% electrónico del mundo.",
+      "El MSCI World cubre unas 1.400 empresas de 23 países desarrollados."
+    ],
+    "reits": [
+      "El primer REIT se creó en EEUU en 1960, con una ley firmada por el presidente Eisenhower.",
+      "Hoy existen REITs de casi todo: departamentos, shoppings, centros de datos, hasta torres de celulares.",
+      "Por ley, un REIT en EEUU debe repartir al menos el 90% de sus ganancias como dividendos."
+    ],
+    "cripto": [
+      "Bitcoin nació en 2009, creado bajo el seudónimo Satoshi Nakamoto — nadie sabe quién es en realidad.",
+      "Solo van a existir 21 millones de bitcoins, para siempre — está escrito en el código.",
+      "El primer uso real de bitcoin fue pagar dos pizzas, en 2010, por 10.000 BTC."
+    ],
+    "volatilidad": [
+      "El peor año del S&P 500 en el siglo XX fue 1931, con una caída de casi 44%.",
+      "El mercado tardó unos 4 años en recuperarse de la crisis de 2008; de la de 2020, apenas 5 meses.",
+      "En la mayoría de los años, el mercado de EEUU tiene en algún momento una caída de al menos 10%."
+    ],
+    "interesCompuesto": [
+      "$1.000 al 7% anual son ~$2.000 en 10 años, pero ~$4.000 en 20 — el tiempo hace el trabajo pesado.",
+      "Empezar 10 años antes suele importar más que duplicar cuánto invertís por mes."
+    ],
+    "diversificacion": [
+      "Harry Markowitz ganó el Nobel de Economía en 1990, en parte por formalizar por qué diversificar reduce el riesgo.",
+      "Combinar activos que no se mueven igual es lo que suaviza el camino, no solo tener \"muchas cosas\"."
+    ],
+    "rebalanceo": [
+      "Rebalancear una o dos veces al año suele ser suficiente — hacerlo todos los días no mejora el resultado.",
+      "\"Vender lo que subió, comprar lo que bajó\" es la base de varias estrategias profesionales."
+    ],
+    "fondosIndexados": [
+      "El primer fondo indexado para el público general se lanzó en 1976, creado por John Bogle.",
+      "Hoy, buena parte del dinero en fondos de EEUU está en fondos indexados, no gestionados activamente."
+    ],
+    "dcaVsLumpSum": [
+      "Estudios históricos muestran que invertir todo de una vez le gana a hacerlo de a poco en la mayoría de los períodos.",
+      "Aun así, mucha gente prefiere aportar de a poco — reduce el arrepentimiento de invertir justo antes de una caída."
+    ]
+  }
+}

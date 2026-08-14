@@ -12,29 +12,35 @@ roles (Revolut, Kraken, BVNK, Affirm, UST, and similar).
 
 ## What it does
 
-1. **A 12-step questionnaire**, styled as a short course rather than a form,
+1. **An 18-step questionnaire**, styled as a short course rather than a form,
    with connective narrative text ("ya que esto es para tu jubilación,
    hablemos de...") linking each screen to the answer before it rather than
    reading like a stack of unrelated fields:
    - Age bracket, risk tolerance (1–5 slider, live "stability vs. growth"
      preview), and time horizon set the baseline.
-   - Two parallel **adaptive choices** — one for the equity slot (S&P 500 /
-     NASDAQ 100 / MSCI World), one for the bonds slot (government / corporate
-     / mixed) — each first asks if you already know the difference, shows an
-     illustrated lesson only if not, then asks which you'd prefer. Both
-     choices are real: they change which ETF the backtest actually fetches.
+   - **Four parallel adaptive choices** — equity index (S&P 500 / NASDAQ 100 /
+     MSCI World), bonds type (government / corporate / mixed), REITs
+     (bienes raíces), and crypto (Bitcoin) — each first asks if you already
+     know what it is, shows an illustrated lesson only if not, then asks for a
+     real choice. Every choice actually moves the portfolio: the equity/bonds
+     picks change which ETF the backtest fetches and tilt the weights (see
+     *The risk tilt*), and REITs/crypto are real optional slices carved
+     straight out of the allocation, not just facts you read about (see
+     *The sleeve carve-outs*).
    - Explanation style, a second drawdown-tolerance slider (cross-checked
      against the first risk answer), and finally an amount — with an optional
      monthly contribution that unlocks a lump-sum-vs-dollar-cost-averaging
      comparison on the results chart.
-2. **A "¿Sabías que?" drawer**, reachable from any screen, with fourteen
-   optional topics (acciones, bonos, efectivo, índices, fondos indexados/ETFs,
-   REITs, criptomonedas, interés compuesto, private equity, volatilidad,
-   diversificación, rebalanceo, inflación, aporte único vs. mensual) — never
-   gating progress, always one tap away, defaulting to whichever topic is
-   most relevant to the screen you're on. Each topic is a one-sentence hook
-   plus 2–3 short bullet facts, not a paragraph — meant to be skimmed, not
-   studied.
+2. **A floating "¿Sabías que?" cloud**, drifting slowly across the top of the
+   screen on every quiz screen, dropping short contextual trivia (historical,
+   curious, or informative one-liners) about whatever product the current
+   question is actually about — index-related facts while you're choosing an
+   index, REIT facts on the REITs question, and so on (see `SCREEN_TO_TOPIC`
+   and [`cloudFacts.json`](cloudFacts.json) in [app.js](app.js)). It cycles a
+   new fact every few seconds, never blocks the questionnaire, and respects
+   `prefers-reduced-motion`. This replaced an earlier side-drawer design —
+   the cloud keeps the same "always optional, never gating" spirit but
+   surfaces facts passively instead of requiring a tap.
 3. **Everything is sketch-styled**, not just the icons — every card, button,
    and chip carries a second, hand-jittered outline (an SVG
    `feTurbulence`/`feDisplacementMap` filter) layered over its normal crisp
@@ -43,18 +49,20 @@ roles (Revolut, Kraken, BVNK, Affirm, UST, and similar).
    separate "boil" animation (three jittered variants of the same sketch,
    cycled with hard cuts) rather than a smooth vector tween. See *The sketch
    system* below.
-4. **A deterministic allocation** across three plain-language buckets
-   ("empresas grandes del mundo", "gobiernos/empresas", "efectivo"), decided by
-   a small rules table (`allocations.json`) — never by the LLM. Three
-   independent signals can each pull the risk tier down (never up): a short
-   time horizon, a low tolerance for real drawdowns that disagrees with the
-   stated risk slider, and an age bracket of 60+ (the classic retirement
-   glide-path principle — less time for a bad sequence of returns to recover
-   from, regardless of how the person feels about risk). See *Why the
-   allocation is deterministic* below.
+4. **A deterministic allocation** across up to five plain-language buckets
+   ("empresas grandes del mundo", "gobiernos/empresas", "efectivo", and the
+   optional "bienes raíces" and "Bitcoin" sleeves), decided by a small rules
+   table (`allocations.json`) — never by the LLM. Three independent signals
+   can each pull the risk tier down (never up): a short time horizon, a low
+   tolerance for real drawdowns that disagrees with the stated risk slider,
+   and an age bracket of 60+ (the classic retirement glide-path principle —
+   less time for a bad sequence of returns to recover from, regardless of how
+   the person feels about risk). See *Why the allocation is deterministic*
+   below.
 4. **A three-layer dashboard:**
-   - **Capa 1** — headline + a donut chart of the allocation breakdown, with a
-     legend carrying the direct percentage labels
+   - **Capa 1** — headline + a donut chart of the allocation breakdown (3 to 5
+     segments depending on whether REITs/crypto were chosen and qualify), with
+     a legend carrying the direct percentage labels
    - **Capa 2** — "si hubieras invertido $X hace N años, hoy tendrías $Y", with
      a real equity-curve chart blended from actual historical ETF prices
    - **Capa 3** — technical detail: real tickers (reflecting whichever index
@@ -128,6 +136,26 @@ on real risk-parity/volatility-targeting portfolio construction, not a
 live-computed one — the multipliers are documented estimates, not pulled
 from the fetched price history.
 
+## The sleeve carve-outs
+
+REITs and crypto aren't bolted onto the allocation as a fixed extra slice —
+`applySleeves()` in [app.js](app.js) carves them directly **out of the
+equities weight**, never out of bonds or cash, so the "safety floor" set by
+the risk/horizon/age/volatility signals is never touched by an optional
+choice. REITs scale with the *effective* risk tier
+(`reitsFractionByTier` in [allocations.json](allocations.json): 8% of
+equities at conservador, up to 15% at arriesgado) since real estate's role as
+a diversifier is more useful the more equity exposure you already have.
+Crypto is flatter (`cryptoFraction`, 8% of equities) but far more strictly
+gated: it's only ever actually included if your **final** computed risk tier
+— after every cap has already been applied — is "arriesgado," regardless of
+what you requested on the crypto question. Ask for crypto but land at
+"moderado" once age/horizon/volatility caps are applied, and the dashboard
+shows a transparent notice explaining it was excluded and why, rather than
+silently dropping it or silently including it anyway. When both sleeves
+apply, crypto is carved from the equities weight *after* REITs already has
+been, so the two always stack to a valid, fully-summing allocation.
+
 ## The sketch system
 
 Two SVG filters (`#sketchWobble` for UI chrome, `#sketchWobbleChart` for
@@ -155,8 +183,10 @@ this" FAQ snippets. Run it yourself with an `ANTHROPIC_API_KEY` and it
 regenerates [`archetypes.json`](archetypes.json) live, end to end.
 
 The content actually shipped in `archetypes.json` (and in
-[`lessons.json`](lessons.json), the "¿Sabías que?" drawer's six topics,
-including the private-equity explainer) was written directly by Claude
+[`lessons.json`](lessons.json) — the fourteen inline lesson slides shown when
+you say you don't already know a topic, including the private-equity
+explainer — and in [`cloudFacts.json`](cloudFacts.json), the short one-liners
+the floating fact cloud cycles through) was written directly by Claude
 (Anthropic) during development — in the same voice and scope that pipeline is
 designed to produce, just at build time instead of per visitor.
 This is the reason the public site never calls a paid API live: doing so would
@@ -175,20 +205,27 @@ genuinely LLM-authored, not templated filler.
 - Bonds bucket → whichever choice you made: `GOVT` (U.S. Treasuries), `LQD`
   (investment-grade corporate), or `BND` (a blended mix) — see `bondsOptions`
   in the same file
+- REITs sleeve (if chosen) → `VNQ` (Vanguard Real Estate ETF)
+- Crypto sleeve (if chosen and it qualifies) → `BTC/USD`
 - Cash bucket → a flat illustrative annual rate (no market price series exists
   to fetch for plain cash)
 
 Each ticker is fetched **once and cached by symbol** (`tickerSeriesCache` in
-[app.js](app.js), shared by both pickers) — not once per profile — from
-[Twelve Data](https://twelvedata.com/)'s free tier, confirmed during
-development to return ~8–10 years of daily history even on the free plan.
-Every profile's chart is a different **weighted blend** of the chosen
-equity series and the chosen bond series, computed client-side — see
-`blendPortfolio()` in [app.js](app.js). If you also gave a monthly
-contribution amount, `simulateDCA()` adds a second line: the same blended
-daily returns, but with the monthly amount added the first time each new
-calendar month appears in the series — a simple, honest approximation of
-dollar-cost averaging next to the lump-sum-only line.
+[app.js](app.js), shared across all four pickers) — not once per profile —
+from [Twelve Data](https://twelvedata.com/)'s free tier, confirmed during
+development to return ~8–10 years of daily history even on the free plan
+(crypto included). Every profile's chart is a **weighted blend of however
+many series actually apply** (2 to 4, since REITs/crypto are optional),
+computed client-side by two generalized, N-asset-agnostic functions in
+[app.js](app.js): `alignSeriesSet()` intersects trading dates across every
+series in play, and `blendPortfolio()` takes that arbitrary-length series/
+weights list plus a separate cash weight and produces one blended daily
+return series — the same code path whether it's a 2-asset or 4-asset
+portfolio. If you also gave a monthly contribution amount, `simulateDCA()`
+adds a second line: the same blended daily returns, but with the monthly
+amount added the first time each new calendar month appears in the series —
+a simple, honest approximation of dollar-cost averaging next to the
+lump-sum-only line.
 This reuses the same `TWELVE_DATA_API_KEY` embedded in the sibling
 [`trading-backtester`](https://github.com/andregomezzenteno-sudo/trading-backtester)
 project (same free-tier, rate-limited, intentionally-public key — see that
@@ -199,13 +236,14 @@ than that project does.
 
 Static site, same pattern as `trading-backtester`: `index.html` / `style.css`
 for structure and the (distinct, warmer) design system, `app.js` for the
-questionnaire state machine, the deterministic allocation engine, the blended
-backtest math, and hand-rolled SVG chart rendering (a donut for the allocation
+questionnaire state machine, the deterministic allocation engine (including
+the sleeve carve-outs), the generalized N-asset backtest math, the floating
+fact cloud, and hand-rolled SVG chart rendering (a donut for the allocation
 breakdown, a line chart for the equity curve, plus the sketch-icon "boil"
 animation system — no charting or animation library dependency).
-`allocations.json`, `archetypes.json`, and `lessons.json` are static data
-files fetched on load. `engine/` is Python, used only offline to produce
-`archetypes.json` — it is never invoked by the deployed site.
+`allocations.json`, `archetypes.json`, `lessons.json`, and `cloudFacts.json`
+are static data files fetched on load. `engine/` is Python, used only offline
+to produce `archetypes.json` — it is never invoked by the deployed site.
 
 **Sketch icons** (`SKETCH_ICONS` in [app.js](app.js)): each icon is one simple
 SVG path (only `M`/`L`/`C`/`Z` commands, deliberately no arcs — arc flags

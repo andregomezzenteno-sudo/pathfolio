@@ -51,6 +51,16 @@
     }
   },
   "defaultBondsChoice": "mixed",
+  "_sleevesComment": "Optional sleeves (REITs, crypto) are real, user-chosen carve-outs FROM the equities weight, applied after the risk tilt above — not decorative extras. reitsFractionByTier scales with risk tier (more room in a bigger equities slice); crypto is flat and only ever actually applied when the FINAL effective risk tier is 'arriesgado', regardless of what the user picked, because a small-but-real allocation only makes sense once every other signal (horizon, drawdown tolerance, age) has already agreed the person can carry that much risk. See applySleeves() in app.js.",
+  "reitsFractionByTier": { "conservador": 0.08, "moderado": 0.12, "arriesgado": 0.15 },
+  "cryptoFraction": 0.08,
+  "cryptoRequiresTier": "arriesgado",
+  "reitsInstrument": {
+    "ticker": "VNQ", "label": "Bienes raíces (REITs)", "name": "Vanguard Real Estate ETF", "expenseRatio": 0.0013, "riskMultiplier": 1.10
+  },
+  "cryptoInstrument": {
+    "ticker": "BTC/USD", "label": "Bitcoin", "name": "Bitcoin", "expenseRatio": 0, "riskMultiplier": 3.0
+  },
   "instruments": {
     "cash": { "illustrativeAnnualRate": 0.02 }
   }

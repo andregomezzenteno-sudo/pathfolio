@@ -10,9 +10,11 @@
   --border:         rgba(36,31,26,0.10);
   --success-text:   #1a6b1a;
 
-  --series-1: #2a78d6; /* blue   — equities */
-  --series-2: #eb6834; /* orange — bonds    */
-  --series-3: #1baf7a; /* aqua   — cash     */
+  --series-1: #2a78d6; /* blue    — equities        */
+  --series-2: #eb6834; /* orange  — bonds           */
+  --series-3: #1baf7a; /* aqua    — cash            */
+  --series-4: #eda100; /* yellow  — REITs (optional) */
+  --series-5: #e87ba4; /* magenta — crypto (optional) */
 
   --status-good:     #0ca30c;
   --status-critical: #d03b3b;
@@ -41,6 +43,8 @@
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
 
   --status-good:     #0ca30c;
   --status-critical: #e66767;
@@ -96,14 +100,14 @@ body {
    Applied broadly via a plain selector list rather than a class added to
    every element, so no HTML changes were needed to roll it out everywhere. */
 .landing-card, .quiz-card, .dash-card, .lesson-trio-item, .option-card,
-.btn-primary, .btn-secondary, .topic-chip, .amount-input-row,
-.cap-note, .drawer-panel, .tooltip {
+.btn-primary, .btn-secondary, .amount-input-row,
+.cap-note, .cloud-bubble, .tooltip {
   position: relative;
 }
 .landing-card::after, .quiz-card::after, .dash-card::after,
 .lesson-trio-item::after, .option-card::after,
-.btn-primary::after, .btn-secondary::after, .topic-chip::after,
-.amount-input-row::after, .cap-note::after, .drawer-panel::after,
+.btn-primary::after, .btn-secondary::after,
+.amount-input-row::after, .cap-note::after, .cloud-bubble::after,
 .tooltip::after {
   content: "";
   position: absolute;
@@ -464,104 +468,52 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
 .detail-table th { color: var(--text-muted); font-weight: 600; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.02em; }
 .detail-table td.num { font-variant-numeric: tabular-nums; }
 
-/* "¿Sabías que?" drawer */
-.drawer-tab {
+/* Floating fact cloud — replaces the old side drawer. Drifts very slowly
+   across the top of the screen; the bubble underneath swaps to a new fact
+   every few seconds, contextual to whichever question is currently on
+   screen (topic lookup in app.js). Purely ambient — pointer-events: none so
+   it never blocks a click, and it's the one sketch element that ISN'T
+   double-outlined (see the sketch-wobble frame rule above), since it's
+   already a hand-drawn shape by construction. */
+.fact-cloud {
   position: fixed;
-  right: 0;
-  top: 40%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px 12px 14px;
-  background: var(--brand);
-  color: var(--brand-ink);
-  border: none;
-  border-radius: 999px 0 0 999px;
-  font: inherit;
-  font-weight: 700;
-  font-size: 0.85rem;
-  cursor: pointer;
-  z-index: 20;
-  box-shadow: -2px 2px 10px rgba(0,0,0,0.15);
-}
-.drawer-tab .sketch-icon-slot { color: var(--brand-ink); }
-.drawer-backdrop {
-  position: fixed; inset: 0;
-  background: rgba(20,15,10,0.35);
-  z-index: 25;
-}
-.drawer-backdrop[hidden] { display: none; }
-.drawer-panel {
-  position: fixed;
-  top: 0; right: 0;
-  height: 100%;
-  width: min(400px, 92vw);
-  background: var(--surface-1);
-  border-left: 1px solid var(--border);
-  z-index: 30;
+  top: 84px;
+  left: -25%;
+  z-index: 15;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 24px;
-  transform: translateX(100%);
-  transition: transform 0.22s ease;
-  overflow-y: auto;
-}
-.drawer-panel.open { transform: translateX(0); }
-.drawer-panel[hidden] { display: none; }
-.drawer-head {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  font-weight: 700;
+  pointer-events: none;
+  animation: cloud-drift 90s linear infinite;
 }
-.drawer-close {
-  background: none; border: none; cursor: pointer;
-  font-size: 1.1rem; color: var(--text-muted); padding: 4px;
+.cloud-shape { color: var(--baseline); }
+.cloud-shape svg.sketch-icon path.frame { fill: var(--surface-1); }
+.cloud-bubble {
+  max-width: 180px;
+  margin-top: -20px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
 }
-.drawer-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.topic-chip {
-  font: inherit;
-  font-size: 0.76rem;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--baseline);
-  background: var(--page-plane);
+.cloud-bubble p {
+  margin: 0;
+  font-size: 0.74rem;
   color: var(--text-secondary);
-  cursor: pointer;
+  line-height: 1.4;
+  text-align: center;
+  transition: opacity 0.4s ease;
 }
-.topic-chip.active { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 14%, var(--page-plane)); color: var(--text-primary); }
-.drawer-content { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.drawer-content h3 { margin: 0; font-size: 1.1rem; line-height: 1.35; }
-.drawer-hook { margin: 0; color: var(--text-primary); font-size: 1rem; font-weight: 600; line-height: 1.4; }
-.drawer-facts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; width: 100%; }
-.drawer-facts li {
-  position: relative;
-  padding-left: 18px;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.5;
+.cloud-bubble p.fading { opacity: 0; }
+@keyframes cloud-drift {
+  0%   { left: -25%; }
+  100% { left: 115%; }
 }
-.drawer-facts li::before {
-  content: "";
-  position: absolute;
-  left: 0; top: 8px;
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--brand);
+@media (prefers-reduced-motion: reduce) {
+  .fact-cloud { animation: none; left: 12px; }
 }
-
-@media (max-width: 640px) {
-  .drawer-panel {
-    top: auto; bottom: 0; right: 0; left: 0;
-    width: 100%; height: auto; max-height: 80vh;
-    border-left: none; border-top: 1px solid var(--border);
-    border-radius: 20px 20px 0 0;
-    transform: translateY(100%);
-  }
-  .drawer-panel.open { transform: translateY(0); }
-  .drawer-tab { top: auto; bottom: 90px; }
+@media (max-width: 760px) {
+  .fact-cloud { display: none; }
 }
 
 /* Footer */
