@@ -18,7 +18,8 @@ const CLOUD_FACTS = JSON.parse(read('cloudFacts.json'));
 import engine from '../engine.js';
 
 const {
-  sliderToTier, computeEffectiveRisk, resolvePicks, averageRiskMultiplier,
+  sliderToTier, computeEffectiveRisk, getAllocationWeights, interpolateCurve,
+  resolvePicks, weightedRiskMultiplier, splitByMix,
   adjustWeightsForInstrumentRisk, applySleeves, computeAllocation, buildAllocationNarrative,
   alignSeriesSet, simulatePortfolio, simulateDCA, annualizedVol, maxDrawdown,
   calendarYearReturns, realValue, displayPercents,
@@ -53,17 +54,45 @@ const baseAnswers = () => ({
   altChoice: null, altType: [], volatility: 50, amount: 1000,
 });
 
-/* ---- allocations.json: coherencia básica ---- */
+/* ---- la curva de riesgo: continua y monótona ---- */
 {
-  for (const tier of ALLOCATIONS.riskOrder) {
-    const w = ALLOCATIONS.buckets[tier];
-    assert(approx(w.equities + w.bonds + w.cash, 1, 1e-9), `los pesos de ${tier} deberían sumar 1`);
+  for (const p of ALLOCATIONS.riskCurve) {
+    assert(approx(p.equities + p.bonds + p.cash, 1, 1e-9), `el ancla de puntuación ${p.score} debería sumar 1`);
   }
-  const eqByTier = ALLOCATIONS.riskOrder.map(t => ALLOCATIONS.buckets[t].equities);
-  for (let i = 1; i < eqByTier.length; i++) {
-    assert(eqByTier[i] > eqByTier[i - 1], 'riskOrder debería crecer monótonamente en renta variable');
+  const sorted = ALLOCATIONS.riskCurve.slice().sort((a, b) => a.score - b.score);
+  for (let i = 1; i < sorted.length; i++) {
+    assert(sorted[i].equities > sorted[i - 1].equities, 'más riesgo debería significar siempre más renta variable');
+    assert(sorted[i].bonds < sorted[i - 1].bonds, 'más riesgo debería significar siempre menos renta fija');
   }
-  console.log('OK: los pesos de allocations.json suman 1 y crecen de forma monótona por nivel de riesgo');
+  for (let score = 0; score <= 100; score += 1) {
+    const w = getAllocationWeights(score, ALLOCATIONS);
+    assert(approx(w.equities + w.bonds + w.cash, 1, 1e-9), `los pesos en la puntuación ${score} deberían sumar 1`);
+    assert(w.equities >= 0 && w.bonds >= 0 && w.cash >= 0, `sin pesos negativos en la puntuación ${score}`);
+  }
+  console.log('OK: la curva de riesgo suma 1 y crece de forma monótona en las 101 puntuaciones posibles');
+}
+
+/* ---- EL PUNTO CLAVE: el slider tiene que mover la cartera de verdad ---- */
+{
+  // El fallo que motivó este rediseño: el slider continuo se colapsaba en tres
+  // cajas fijas, así que poner 0 o poner 33 daba EXACTAMENTE la misma cartera
+  // y mover la barra parecía no servir de nada.
+  const seen = new Set();
+  for (let score = 0; score <= 100; score += 1) {
+    const w = getAllocationWeights(score, ALLOCATIONS);
+    seen.add(w.equities.toFixed(6));
+  }
+  assert(seen.size === 101, `cada una de las 101 puntuaciones debería dar una cartera distinta, solo hubo ${seen.size} distintas`);
+
+  // Y en concreto, los valores que antes colisionaban dentro del mismo nivel.
+  const a = getAllocationWeights(0, ALLOCATIONS);
+  const b = getAllocationWeights(33, ALLOCATIONS);
+  assert(Math.abs(a.equities - b.equities) > 0.2,
+    `0 y 33 deberían dar carteras claramente distintas (antes eran idénticas): ${a.equities} vs ${b.equities}`);
+  const c = getAllocationWeights(67, ALLOCATIONS);
+  const d = getAllocationWeights(100, ALLOCATIONS);
+  assert(Math.abs(c.equities - d.equities) > 0.2, '67 y 100 también deberían diferenciarse con claridad');
+  console.log(`OK: las 101 posiciones del slider dan 101 carteras distintas (0 -> ${(a.equities * 100).toFixed(0)} % en renta variable, 33 -> ${(b.equities * 100).toFixed(0)} %, 100 -> ${(d.equities * 100).toFixed(0)} %)`);
 }
 
 /* ---- slider continuo: los tres tramos y sus fronteras exactas ---- */
@@ -75,29 +104,38 @@ const baseAnswers = () => ({
   console.log('OK: el slider continuo (0-100) mapea a los tres niveles con fronteras exactas en 33/34 y 66/67');
 }
 
-/* ---- los tres topes de riesgo, sueltos y combinados ---- */
+/* ---- los tres topes, ahora como puntuaciones máximas ---- */
 {
   const r1 = computeEffectiveRisk(100, 'viaje', 100, '31-45', ALLOCATIONS);
-  assert(r1.effectiveRisk === 'moderado' && r1.wasCappedByHorizon, 'un horizonte corto debería topar arriesgado en moderado');
+  assert(r1.riskScore === ALLOCATIONS.horizonMaxScore.viaje && r1.wasCappedByHorizon,
+    `un horizonte corto debería topar en ${ALLOCATIONS.horizonMaxScore.viaje}, topó en ${r1.riskScore}`);
 
-  const r2 = computeEffectiveRisk(100, 'jubilacion', 10, '31-45', ALLOCATIONS);
-  assert(r2.effectiveRisk === 'conservador' && r2.wasCappedByVolatility, 'una tolerancia baja a caídas reales debería topar hacia abajo');
+  // La tolerancia a caídas topa con su PROPIO valor, no con un escalón: eso es
+  // exactamente lo que significa esa pregunta.
+  const r2 = computeEffectiveRisk(90, 'jubilacion', 55, '31-45', ALLOCATIONS);
+  assert(r2.riskScore === 55 && r2.wasCappedByVolatility,
+    `la tolerancia a caídas debería topar en su propio valor (55), topó en ${r2.riskScore}`);
 
   const r3 = computeEffectiveRisk(100, 'jubilacion', 100, '60+', ALLOCATIONS);
-  assert(r3.effectiveRisk === 'moderado' && r3.wasCappedByAge, '60+ debería topar en moderado aunque todo lo demás diga arriesgado');
+  assert(r3.riskScore === ALLOCATIONS.ageMaxScore['60+'] && r3.wasCappedByAge, '60+ debería topar por edad');
 
-  const r4 = computeEffectiveRisk(100, 'viaje', 10, '60+', ALLOCATIONS);
-  assert(r4.effectiveRisk === 'conservador', 'los tres topes juntos deberían llevar al nivel más conservador');
+  const r4 = computeEffectiveRisk(100, 'viaje', 20, '60+', ALLOCATIONS);
+  assert(r4.riskScore === 20, `los tres topes juntos deberían dejar el más restrictivo (20), dejaron ${r4.riskScore}`);
 
   const r5 = computeEffectiveRisk(100, 'jubilacion', 100, '31-45', ALLOCATIONS);
-  assert(r5.effectiveRisk === 'arriesgado' && !r5.wasCappedByHorizon && !r5.wasCappedByVolatility && !r5.wasCappedByAge,
-    'sin señales en contra, arriesgado debería quedarse en arriesgado sin avisos falsos');
+  assert(r5.riskScore === 100 && !r5.wasCappedByHorizon && !r5.wasCappedByVolatility && !r5.wasCappedByAge,
+    'sin señales en contra no debería toparse nada ni avisarse de ajustes que no ocurrieron');
 
-  const r6 = computeEffectiveRisk(10, 'viaje', 10, '60+', ALLOCATIONS);
-  assert(r6.effectiveRisk === 'conservador' && !r6.wasCappedByHorizon && !r6.wasCappedByAge,
-    'un perfil que YA es conservador no debería reportarse como "ajustado" por topes que no le afectan');
+  const r6 = computeEffectiveRisk(10, 'viaje', 90, '60+', ALLOCATIONS);
+  assert(r6.riskScore === 10 && !r6.wasCappedByHorizon && !r6.wasCappedByAge,
+    'un perfil que ya está por debajo de todos los topes no debería reportarse como ajustado');
 
-  console.log('OK: horizonte, tolerancia a caídas y edad solo bajan el nivel, se combinan bien y nunca avisan de un ajuste que no ocurrió');
+  // Un tope nunca puede SUBIR el riesgo.
+  for (let score = 0; score <= 100; score += 7) {
+    const r = computeEffectiveRisk(score, 'viaje', 30, '60+', ALLOCATIONS);
+    assert(r.riskScore <= score, `los topes nunca deben subir el riesgo (${score} -> ${r.riskScore})`);
+  }
+  console.log('OK: los topes son puntuaciones máximas, conservan la resolución del slider y nunca suben el riesgo');
 }
 
 /* ---- una pregunta SIN RESPONDER no debe topar nada ---- */
@@ -106,17 +144,17 @@ const baseAnswers = () => ({
   // debe seguir siendo arriesgado en la vista previa en vivo: un valor por
   // defecto del slider no es una respuesta de la persona.
   const pending = computeEffectiveRisk(88, 'jubilacion', null, '31-45', ALLOCATIONS);
-  assert(pending.effectiveRisk === 'arriesgado' && !pending.wasCappedByVolatility,
+  assert(pending.riskScore === 88 && !pending.wasCappedByVolatility,
     `con la volatilidad sin responder no debería toparse nada, dio ${JSON.stringify(pending)}`);
 
   // En cuanto se responde de verdad con un valor bajo, sí debe topar.
   const answered = computeEffectiveRisk(88, 'jubilacion', 50, '31-45', ALLOCATIONS);
-  assert(answered.effectiveRisk === 'moderado' && answered.wasCappedByVolatility,
+  assert(answered.riskScore === 50 && answered.wasCappedByVolatility,
     'una vez respondida, una tolerancia media sí debería topar un perfil arriesgado');
 
   // Lo mismo aplica a horizonte y edad, que ya son null hasta responderse.
   const nothingAnswered = computeEffectiveRisk(88, null, null, null, ALLOCATIONS);
-  assert(nothingAnswered.effectiveRisk === 'arriesgado', 'sin ninguna señal respondida no debería aplicarse ningún tope');
+  assert(nothingAnswered.riskScore === 88, 'sin ninguna señal respondida no debería aplicarse ningún tope');
   console.log('OK: las preguntas sin responder no topan el perfil (un valor por defecto del slider no cuenta como respuesta)');
 }
 
@@ -124,7 +162,7 @@ const baseAnswers = () => ({
 {
   const missing = [];
   for (const statedRisk of [10, 50, 100]) {
-    for (const horizon of Object.keys(ALLOCATIONS.horizonCap)) {
+    for (const horizon of Object.keys(ALLOCATIONS.horizonMaxScore)) {
       const { effectiveRisk } = computeEffectiveRisk(statedRisk, horizon, 100, '31-45', ALLOCATIONS);
       if (!ARCHETYPES.explanations[`${effectiveRisk}|${horizon}`]) missing.push(`${effectiveRisk}|${horizon}`);
     }
@@ -149,25 +187,39 @@ const baseAnswers = () => ({
   console.log('OK: resolvePicks admite selección múltiple y cae a la opción de referencia ante entradas vacías o inválidas');
 }
 
-/* ---- el ajuste por riesgo usa la MEDIA de los instrumentos elegidos ---- */
+/* ---- el ajuste por riesgo usa la media PONDERADA por tu reparto ---- */
 {
   const base = { equities: 0.50, bonds: 0.40, cash: 0.10 };
   const D = ALLOCATIONS.tiltDampening;
+  const picks = resolvePicks(['nasdaq100', 'msci'], ALLOCATIONS.equityIndexOptions, 'msci');
 
-  const neutral = adjustWeightsForInstrumentRisk(base, 1.0, 1.0, D);
-  assert(approx(neutral.equities, base.equities, 1e-9), 'instrumentos de referencia (multiplicador 1.0) no deberían producir ningún ajuste');
+  assert(approx(adjustWeightsForInstrumentRisk(base, 1.0, 1.0, D).equities, base.equities, 1e-9),
+    'instrumentos de referencia no deberían producir ajuste');
 
-  const onlyNasdaq = adjustWeightsForInstrumentRisk(base, ALLOCATIONS.equityIndexOptions.nasdaq100.riskMultiplier, 1.0, D);
-  assert(onlyNasdaq.equities < base.equities - 0.005, 'elegir solo NASDAQ 100 debería recortar el peso de renta variable de forma visible');
+  const even = weightedRiskMultiplier(picks, {});
+  assert(approx(even, (1.35 + 1.0) / 2, 1e-9), `a partes iguales la media debería ser 1.175, dio ${even}`);
 
-  const bothIndices = resolvePicks(['nasdaq100', 'msci'], ALLOCATIONS.equityIndexOptions, 'msci');
-  const avg = averageRiskMultiplier(bothIndices);
-  assert(approx(avg, (1.35 + 1.0) / 2, 1e-9), `la media de NASDAQ+MSCI debería ser 1.175, dio ${avg}`);
-  const mixed = adjustWeightsForInstrumentRisk(base, avg, 1.0, D);
-  assert(mixed.equities > onlyNasdaq.equities && mixed.equities < base.equities,
-    'mezclar NASDAQ con MSCI debería quedar a medio camino entre elegir solo NASDAQ y no ajustar nada');
-  assert(approx(mixed.cash, base.cash, 1e-9), 'el efectivo nunca debería moverse por la elección de instrumento');
-  console.log(`OK: con selección múltiple el ajuste usa la media (NASDAQ solo: ${(onlyNasdaq.equities * 100).toFixed(1)}%, NASDAQ+MSCI: ${(mixed.equities * 100).toFixed(1)}%, referencia: 50.0%)`);
+  // Si alguien pone casi todo en NASDAQ, el ajuste tiene que notarlo casi
+  // entero en vez de promediarlo como si fuese mitad y mitad.
+  const heavyNasdaq = weightedRiskMultiplier(picks, { nasdaq100: 9, msci: 1 });
+  const heavyMsci = weightedRiskMultiplier(picks, { nasdaq100: 1, msci: 9 });
+  assert(heavyNasdaq > even && even > heavyMsci,
+    `el multiplicador debería seguir al reparto elegido: ${heavyMsci} < ${even} < ${heavyNasdaq}`);
+  assert(approx(heavyNasdaq, 1.35 * 0.9 + 1.0 * 0.1, 1e-9), 'la ponderación debería ser exacta, no aproximada');
+  console.log(`OK: el ajuste por riesgo sigue tu reparto (90 % NASDAQ -> ${heavyNasdaq.toFixed(3)}, mitad y mitad -> ${even.toFixed(3)}, 90 % MSCI -> ${heavyMsci.toFixed(3)})`);
+}
+
+/* ---- el reparto dentro de un bloque lo decide el usuario ---- */
+{
+  const picks = resolvePicks(['sp500', 'nasdaq100'], ALLOCATIONS.equityIndexOptions, 'msci');
+  const even = splitByMix(picks, 0.6, 'equities', {});
+  assert(approx(even[0].weight, even[1].weight, 1e-12), 'sin reparto explícito debería ir a partes iguales');
+
+  const tilted = splitByMix(picks, 0.6, 'equities', { sp500: 2, nasdaq100: 8 });
+  assert(approx(tilted[0].weight, 0.6 * 0.2, 1e-12), `2 frente a 8 debería dar el 20 %, dio ${tilted[0].weight / 0.6}`);
+  assert(approx(tilted[1].weight, 0.6 * 0.8, 1e-12), '8 frente a 2 debería dar el 80 %');
+  assert(approx(tilted[0].weight + tilted[1].weight, 0.6, 1e-12), 'el reparto debería seguir sumando el peso del bloque');
+  console.log('OK: dentro de un bloque, el reparto entre instrumentos lo fija el usuario y sigue sumando el peso del bloque');
 }
 
 /* ---- computeAllocation: el peso de cada bloque se reparte entre lo elegido ---- */
@@ -410,52 +462,99 @@ const baseAnswers = () => ({
   console.log(`OK: la inflación descuenta correctamente (${Math.round(realValue(90000, 0.02, 10))} € de hoy equivalen a 90.000 € dentro de 10 años al 2 %)`);
 }
 
-/* ---- applySleeves: los tres recortes, sus topes y su orden ---- */
+/* ---- los recortes opcionales, ahora con umbral propio por subtipo ---- */
 {
-  const moderado = { equities: 0.50, bonds: 0.40, cash: 0.10 };
-  const arriesgado = { equities: 0.80, bonds: 0.15, cash: 0.05 };
-  const none = { includeRealEstate: false, includeAlternative: false, includePrivateEquity: false, effectiveRisk: 'moderado', initialAmount: 0 };
+  const full = extra => computeAllocation({
+    ...baseAnswers(), age: '31-45', horizon: 'jubilacion', volatility: 100,
+    equityIndex: ['msci'], bondsChoice: ['mixed'], ...extra,
+  }, ALLOCATIONS);
 
-  const noop = applySleeves(moderado, none, ALLOCATIONS);
-  assert(noop.weights.equities === moderado.equities && noop.weights.realEstate === 0, 'sin sleeves debería ser una operación nula');
+  // applySleeves solo recorta: recibe fracciones ya resueltas.
+  const carved = applySleeves({ equities: 0.8, bonds: 0.15, cash: 0.05 },
+    { realEstateFraction: 0.1, alternativeFraction: 0.1, privateEquityFraction: 0.1 });
+  assert(approx(carved.bonds, 0.15, 1e-12) && approx(carved.cash, 0.05, 1e-12),
+    'los recortes salen solo de renta variable: renta fija y efectivo no se tocan');
+  assert(approx(Object.values(carved).reduce((a, b) => a + b, 0), 1, 1e-12), 'tras recortar, los pesos siguen sumando 1');
+  assert(approx(carved.alternative, (0.8 * 0.9) * 0.1, 1e-12),
+    'cada recorte se aplica sobre lo que queda del anterior, no sobre el original');
 
-  const re = applySleeves(moderado, { ...none, includeRealEstate: true }, ALLOCATIONS);
-  const expectedRE = moderado.equities * ALLOCATIONS.realEstateFractionByTier.moderado;
-  assert(approx(re.weights.realEstate, expectedRE, 1e-9), 'el recorte inmobiliario debería salir de la fracción del nivel de riesgo');
-  assert(approx(re.weights.bonds, moderado.bonds, 1e-9) && approx(re.weights.cash, moderado.cash, 1e-9), 'renta fija y efectivo no deberían tocarse');
-  assert(approx(Object.values(re.weights).reduce((a, b) => a + b, 0), 1, 1e-9), 'los pesos deberían seguir sumando 1');
+  // EL PUNTO QUE FALLABA: oro y bitcoin no pueden compartir umbral. Con riesgo
+  // moderado el oro entra y el bitcoin no.
+  const moderate = full({ risk: 50, altChoice: 'si', altType: ['metales', 'crypto'] });
+  assert(moderate.altPicks.map(p => p.key).join() === 'metales',
+    `con riesgo 50 debería entrar el oro y no el bitcoin, entró: ${moderate.altPicks.map(p => p.key)}`);
+  assert(moderate.altRejected.map(p => p.key).join() === 'crypto', 'el bitcoin debería quedar rechazado, con su motivo');
+  assert(moderate.weights.alternative > 0, 'que se rechace uno no debe tumbar el bloque entero');
 
-  const altDenied = applySleeves(moderado, { ...none, includeAlternative: true }, ALLOCATIONS);
-  assert(!altDenied.alternativeIncluded && altDenied.alternativeRequestedButExcluded, 'otras inversiones debería excluirse fuera de arriesgado y marcar el motivo');
+  const aggressive = full({ risk: 95, altChoice: 'si', altType: ['metales', 'crypto'] });
+  assert(aggressive.altPicks.length === 2 && aggressive.altRejected.length === 0,
+    'con riesgo alto deberían entrar los dos');
 
-  const arriesgadoNone = { ...none, effectiveRisk: 'arriesgado' };
-  const altOk = applySleeves(arriesgado, { ...arriesgadoNone, includeAlternative: true }, ALLOCATIONS);
-  assert(altOk.alternativeIncluded && approx(altOk.weights.alternative, arriesgado.equities * ALLOCATIONS.alternativeFraction, 1e-9), 'otras inversiones debería entrar en arriesgado');
+  const timid = full({ risk: 10, altChoice: 'si', altType: ['crypto'] });
+  assert(timid.altPicks.length === 0 && timid.weights.alternative === 0,
+    'si no cualifica ninguno, el bloque no debería existir');
 
-  // private equity: las 4 combinaciones de riesgo x capital
-  const peBoth = applySleeves(moderado, { ...none, includePrivateEquity: true, initialAmount: 1000 }, ALLOCATIONS);
-  assert(peBoth.privateEquityExcludedReason === 'ambos', `riesgo bajo + capital corto debería dar motivo 'ambos', dio '${peBoth.privateEquityExcludedReason}'`);
-  const peCapital = applySleeves(arriesgado, { ...arriesgadoNone, includePrivateEquity: true, initialAmount: 1000 }, ALLOCATIONS);
-  assert(peCapital.privateEquityExcludedReason === 'capital', `riesgo OK + capital corto debería dar motivo 'capital', dio '${peCapital.privateEquityExcludedReason}'`);
-  const peRisk = applySleeves(moderado, { ...none, includePrivateEquity: true, initialAmount: 50000 }, ALLOCATIONS);
-  assert(peRisk.privateEquityExcludedReason === 'riesgo', `capital OK + riesgo bajo debería dar motivo 'riesgo', dio '${peRisk.privateEquityExcludedReason}'`);
-  const peOk = applySleeves(arriesgado, { ...arriesgadoNone, includePrivateEquity: true, initialAmount: 50000 }, ALLOCATIONS);
-  assert(peOk.privateEquityIncluded && !peOk.privateEquityRequestedButExcluded, 'con riesgo y capital suficientes debería entrar');
-  assert(approx(peOk.weights.privateEquity, arriesgado.equities * ALLOCATIONS.privateEquityFraction, 1e-9), 'el recorte de private equity no cuadra');
+  // El tamaño del recorte escala con la puntuación, ya no es fijo.
+  const reLow = full({ risk: 20, realEstateChoice: 'si', realEstateType: ['reits'] });
+  const reHigh = full({ risk: 95, realEstateChoice: 'si', realEstateType: ['reits'] });
+  assert(reHigh.weights.realEstate > reLow.weights.realEstate,
+    'el bloque inmobiliario debería crecer con la puntuación de riesgo, no ser fijo');
+  console.log(`OK: cada subtipo tiene su umbral — con riesgo 50 entra el oro y se rechaza el bitcoin, y el tamaño del bloque escala (inmobiliario ${(reLow.weights.realEstate * 100).toFixed(1)} % con riesgo 20 vs ${(reHigh.weights.realEstate * 100).toFixed(1)} % con riesgo 95)`);
+}
 
-  // el mínimo se comprueba con >=, así que justo en el umbral debe entrar
-  const peExact = applySleeves(arriesgado, { ...arriesgadoNone, includePrivateEquity: true, initialAmount: ALLOCATIONS.privateEquityMinAmount }, ALLOCATIONS);
-  assert(peExact.privateEquityIncluded, 'un importe exactamente igual al mínimo debería considerarse suficiente');
+/* ---- private equity: manda la iliquidez, no el ser "arriesgado" ---- */
+{
+  const pe = extra => computeAllocation({
+    ...baseAnswers(), age: '31-45', volatility: 100, peChoice: 'si',
+    equityIndex: ['msci'], bondsChoice: ['mixed'], ...extra,
+  }, ALLOCATIONS);
 
-  // los tres apilados, cada uno sobre lo que queda del anterior
-  const all3 = applySleeves(arriesgado, { includeRealEstate: true, includeAlternative: true, includePrivateEquity: true, effectiveRisk: 'arriesgado', initialAmount: 50000 }, ALLOCATIONS);
-  const afterRE = arriesgado.equities * (1 - ALLOCATIONS.realEstateFractionByTier.arriesgado);
-  const expectedAlt = afterRE * ALLOCATIONS.alternativeFraction;
-  const expectedPE = (afterRE - expectedAlt) * ALLOCATIONS.privateEquityFraction;
-  assert(approx(all3.weights.alternative, expectedAlt, 1e-9), 'otras inversiones debería recortarse sobre la renta variable ya reducida por el inmobiliario');
-  assert(approx(all3.weights.privateEquity, expectedPE, 1e-9), 'private equity debería recortarse sobre lo que queda tras los dos anteriores');
-  assert(approx(Object.values(all3.weights).reduce((a, b) => a + b, 0), 1, 1e-9), 'con los tres sleeves los pesos deberían seguir sumando 1');
-  console.log('OK: los tres sleeves recortan solo de renta variable, respetan sus topes (incluido el mínimo exacto de PE) y se apilan en orden sumando 1');
+  // El fallo que se reportó: con capital de sobra seguía sin entrar nunca,
+  // porque exigía perfil "arriesgado". Con riesgo medio y horizonte largo
+  // ahora sí entra.
+  const moderateLongTerm = pe({ risk: 50, horizon: 'jubilacion', amount: 50000 });
+  assert(moderateLongTerm.privateEquityIncluded,
+    'con riesgo medio, horizonte largo y capital suficiente, el private equity SÍ debería entrar');
+  assert(moderateLongTerm.weights.privateEquity > 0, 'y debería tener peso real en la cartera');
+
+  // Pero la iliquidez sigue mandando: horizonte corto lo deja fuera aunque
+  // sobre el dinero.
+  const richButShortTerm = pe({ risk: 95, horizon: 'viaje', amount: 500000 });
+  assert(!richButShortTerm.privateEquityIncluded && richButShortTerm.privateEquityExcludedReasons.includes('horizonte'),
+    'con horizonte corto debería quedar fuera por iliquidez, por mucho capital que haya');
+
+  const poorLongTerm = pe({ risk: 95, horizon: 'jubilacion', amount: 500 });
+  assert(!poorLongTerm.privateEquityIncluded && poorLongTerm.privateEquityExcludedReasons.includes('capital'),
+    'sin llegar al mínimo debería quedar fuera por capital');
+
+  const timidLongTerm = pe({ risk: 15, horizon: 'jubilacion', amount: 50000 });
+  assert(!timidLongTerm.privateEquityIncluded && timidLongTerm.privateEquityExcludedReasons.includes('riesgo'),
+    'por debajo del suelo de riesgo debería quedar fuera');
+
+  const exact = pe({ risk: ALLOCATIONS.privateEquityMinScore, horizon: 'jubilacion', amount: ALLOCATIONS.privateEquityMinAmount });
+  assert(exact.privateEquityIncluded, 'justo en los mínimos debería considerarse suficiente');
+  console.log('OK: private equity entra con riesgo medio y horizonte largo (antes no entraba nunca), y sigue fuera si el horizonte es corto o falta capital');
+}
+
+/* ---- todo junto: los pesos siempre cuadran ---- */
+{
+  const everything = computeAllocation({
+    ...baseAnswers(), age: '31-45', horizon: 'jubilacion', risk: 100, volatility: 100, amount: 100000,
+    equityIndex: ['sp500', 'nasdaq100', 'msci', 'dowjones'],
+    equityTilt: ['tecnologia', 'industriales', 'europa', 'emergentes', 'smallcaps', 'salud', 'energia'],
+    bondsChoice: ['govt', 'corporate', 'inflacion', 'mixed'],
+    realEstateChoice: 'si', realEstateType: ['reits', 'crowdfunding'],
+    peChoice: 'si', altChoice: 'si', altType: ['metales', 'plata', 'materiasPrimas', 'crypto'],
+    mix: { nasdaq100: 9, tecnologia: 8, crypto: 1 },
+  }, ALLOCATIONS);
+  assert(everything.segments.length === 6, `con todo activado deberían salir las 6 categorías, salieron ${everything.segments.length}`);
+  assert(everything.holdings.length === 23, `deberían desglosarse 23 posiciones (11 renta variable + 4 renta fija + 2 inmobiliario + 1 PE + 4 otras + efectivo), salieron ${everything.holdings.length}`);
+  assert(approx(everything.holdings.reduce((a, h) => a + h.weight, 0), 1, 1e-9), 'todas las posiciones deberían sumar 1');
+  for (const seg of everything.segments) {
+    const inner = seg.members.reduce((a, m) => a + m.weight, 0);
+    assert(approx(inner, seg.weight, 1e-12), `los instrumentos de ${seg.name} deberían sumar el peso de su categoría`);
+  }
+  console.log(`OK: con 23 posiciones a la vez y repartos personalizados, todo sigue cuadrando en las 6 categorías`);
 }
 
 /* ---- DCA ---- */

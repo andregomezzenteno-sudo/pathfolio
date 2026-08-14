@@ -73,28 +73,65 @@ def load_allocations() -> dict:
         return json.load(f)
 
 
-def compute_effective_risk(stated_risk: str, horizon: str, allocations: dict) -> tuple[str, bool]:
-    """Mirrors computeEffectiveRisk() in ../app.js — horizon can only pull the
-    effective risk tier DOWN from what the user stated, never up: a short
-    horizon objectively limits how much volatility you can absorb before
-    needing the money, regardless of stated risk appetite."""
-    cap = allocations["horizonCap"].get(horizon)
-    if not cap:
-        return stated_risk, False
-    order = allocations["riskOrder"]
-    effective = cap if order.index(cap) < order.index(stated_risk) else stated_risk
-    return effective, effective != stated_risk
+def tier_of(score: float) -> str:
+    """Espejo de sliderToTier() en ../engine.js."""
+    if score <= 33:
+        return "conservador"
+    if score <= 66:
+        return "moderado"
+    return "arriesgado"
+
+
+def interpolate_curve(points: list, x: float, field: str) -> float:
+    """Espejo de interpolateCurve() en ../engine.js. El reparto sale de una
+    curva continua, no de tres cajas fijas: cada puntuación de riesgo da los
+    suyos."""
+    pts = sorted(points, key=lambda p: p["score"])
+    if x <= pts[0]["score"]:
+        return pts[0][field]
+    if x >= pts[-1]["score"]:
+        return pts[-1][field]
+    for i in range(1, len(pts)):
+        if x <= pts[i]["score"]:
+            a, b = pts[i - 1], pts[i]
+            t = (x - a["score"]) / (b["score"] - a["score"])
+            return a[field] + t * (b[field] - a[field])
+    return pts[-1][field]
+
+
+def weights_for_score(score: float, allocations: dict) -> dict:
+    """Espejo de getAllocationWeights() en ../engine.js."""
+    w = {k: interpolate_curve(allocations["riskCurve"], score, k)
+         for k in ("equities", "bonds", "cash")}
+    total = sum(w.values())
+    return {k: v / total for k, v in w.items()}
+
+
+def compute_effective_score(stated_score: float, horizon: str, allocations: dict) -> tuple[float, bool]:
+    """Espejo de computeEffectiveRisk() en ../engine.js: el horizonte solo
+    puede BAJAR la puntuación, nunca subirla, y el tope es una puntuación
+    máxima en vez de un escalón — así no se pierde la resolución del slider."""
+    cap = allocations["horizonMaxScore"].get(horizon, 100)
+    if cap is not None and cap < stated_score:
+        return cap, True
+    return stated_score, False
+
+
+# Puntuación representativa de cada nivel: se usa solo para redactar el texto
+# del arquetipo, que habla del perfil en general. Los pesos que ve el usuario
+# salen de SU puntuación exacta, no de estas.
+TIER_SCORE = {"conservador": 16, "moderado": 50, "arriesgado": 84}
 
 
 def reachable_combinations(allocations: dict) -> list[tuple[str, str]]:
-    """Every (effective_risk, horizon) pair the app can actually reach after
-    the horizon cap is applied — e.g. "arriesgado" never survives a "viaje"
-    horizon, so that combination is never generated."""
+    """Cada par (nivel efectivo, horizonte) que la app puede alcanzar de verdad
+    tras aplicar el tope del horizonte — p. ej. "arriesgado" nunca sobrevive a
+    un horizonte de "viaje", así que esa combinación no se genera."""
     combos = set()
-    for stated_risk in allocations["riskOrder"]:
-        for horizon in allocations["horizonCap"]:
-            effective, _ = compute_effective_risk(stated_risk, horizon, allocations)
-            combos.add((effective, horizon))
+    for tier, score in TIER_SCORE.items():
+        for horizon in allocations["horizonMaxScore"]:
+            effective_score, _ = compute_effective_score(score, horizon, allocations)
+            combos.add((tier_of(effective_score), horizon))
     return sorted(combos)
 
 
@@ -179,7 +216,7 @@ def main():
 
     explanations = {}
     for effective_risk, horizon in reachable_combinations(allocations):
-        weights = allocations["buckets"][effective_risk]
+        weights = weights_for_score(TIER_SCORE[effective_risk], allocations)
         result = app.invoke({
             "effective_risk": effective_risk,
             "horizon": horizon,

@@ -34,6 +34,10 @@ const fixtures = {
   GOVT: buildFixture(17, 0.00005), LQD: buildFixture(19, 0.00007), BND: buildFixture(23, 0.00008),
   VNQ: buildFixture(51, 0.0003), GLD: buildFixture(61, 0.0002), DBC: buildFixture(67, 0.0001),
   'BTC/USD': buildFixture(77, 0.0012),
+  DIA: buildFixture(29, 0.00045), TIP: buildFixture(31, 0.00006), SLV: buildFixture(37, 0.00015),
+  XLK: buildFixture(41, 0.0007), XLI: buildFixture(43, 0.0004), XLV: buildFixture(47, 0.0003),
+  XLE: buildFixture(53, 0.0002), VGK: buildFixture(59, 0.00035), VWO: buildFixture(71, 0.0003),
+  IJR: buildFixture(73, 0.0004),
 };
 const fetchedUrls = [];
 
@@ -83,6 +87,7 @@ async function main() {
     click(btn);
   }
   const advance = q => click(doc.querySelector(`[data-advance="${q}"]`));
+  const absNum = t => Math.abs(parseFloat(t.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')));
   const step = async (fn) => { fn(); await wait(220); };
 
   /* ---------- lessons.json ya no se descarga ---------- */
@@ -210,8 +215,32 @@ async function main() {
   pick('equityIndex', 'nasdaq100'); // se desmarca
   assert(eqContinue.textContent.includes('1 opción'), 'volver a pulsar debería desmarcar');
   pick('equityIndex', 'nasdaq100');
+
+  // El reparto dentro del bloque: aparece solo al marcar 2+, y mover el peso
+  // tiene que cambiar el porcentaje que se muestra.
+  const mixPanel = doc.querySelector('[data-mix="equityIndex"]');
+  assert(!mixPanel.hidden, 'con dos índices marcados debería aparecer el reparto entre ellos');
+  const mixRows = mixPanel.querySelectorAll('.mix-row');
+  assert(mixRows.length === 2, `debería haber un control por instrumento elegido, hubo ${mixRows.length}`);
+  const pctBefore = mixRows[1].querySelector('.mix-pct').textContent;
+  const slider = mixRows[1].querySelector('input[type="range"]');
+  slider.value = '10';
+  slider.dispatchEvent(new window.Event('input', { bubbles: true }));
+  const pctAfter = mixPanel.querySelectorAll('.mix-row')[1].querySelector('.mix-pct').textContent;
+  assert(pctBefore !== pctAfter, `subir el peso debería cambiar su porcentaje (${pctBefore} -> ${pctAfter})`);
+  console.log(`OK: dentro de un bloque se puede pedir más de un instrumento que de otro (${pctBefore} -> ${pctAfter} en NASDAQ)`);
+
   await step(() => advance('equityIndex'));
   console.log('OK: los índices admiten marcar varios a la vez, se pueden desmarcar y Continuar refleja cuántos llevas');
+
+  // Inclinación hacia sectores/regiones concretos.
+  assert(visible('equityTiltAsk'), 'debería ofrecerse inclinar la cartera hacia sectores o regiones');
+  await step(() => pick('equityTiltAsk', 'si'));
+  assert(visible('equityTilt'), 'decir que sí debería mostrar los sectores y regiones');
+  pick('equityTilt', 'tecnologia');
+  pick('equityTilt', 'industriales');
+  await step(() => advance('equityTilt'));
+  console.log('OK: se puede inclinar la renta variable hacia sectores concretos (tecnología, industriales…), que era justo lo que no se podía pedir');
 
   await step(() => pick('bondsKnowledge', 'si'));
   assert(visible('bondsChoice'), 'decir que sí debería saltar la lección de renta fija');
@@ -292,19 +321,19 @@ async function main() {
   assert(tip.querySelector('.dt-pct').textContent.includes('%'), 'el tooltip debería dar el porcentaje de la categoría');
   assert(tip.querySelector('.dt-money').textContent.includes('€'), 'el tooltip debería dar el importe en euros');
   const tipMembers = tip.querySelectorAll('.dt-member');
-  assert(tipMembers.length === 2, `el tooltip de renta variable debería desglosar los 2 índices elegidos, desglosó ${tipMembers.length}`);
+  assert(tipMembers.length === 4, `el tooltip debería desglosar los 4 instrumentos de renta variable elegidos (2 índices + 2 sectores), desglosó ${tipMembers.length}`);
   assert(tipText.includes('SPY') && tipText.includes('QQQ'), 'el desglose del tooltip debería incluir los tickers reales');
   hits[0].dispatchEvent(new window.Event('pointerleave', { bubbles: false }));
   assert(tip.hidden, 'al salir del trozo el tooltip debería ocultarse');
   console.log('OK: pasar el ratón por un trozo del donut despliega categoría, %, importe y el desglose de lo que lleva dentro');
 
   // ambos índices elegidos deben descargarse de verdad y pesar lo mismo
-  ['SPY', 'QQQ', 'GOVT', 'LQD', 'VNQ', 'GLD', 'DBC'].forEach(t => {
+  ['SPY', 'QQQ', 'XLK', 'XLI', 'GOVT', 'LQD', 'VNQ', 'GLD', 'DBC'].forEach(t => {
     assert(fetchedUrls.some(u => u.includes('twelvedata.com') && u.includes('symbol=' + encodeURIComponent(t).replace('%2F', '/'))
       || u.includes('symbol=' + t)), `debería haberse descargado el ticker real ${t}`);
   });
   assert(!fetchedUrls.some(u => u.includes('symbol=BTC')), 'no se eligió cripto, así que BTC no debería descargarse');
-  console.log('OK: se descargan exactamente los tickers reales de todo lo elegido (SPY+QQQ, GOVT+LQD, VNQ, GLD+DBC) y ninguno más');
+  console.log('OK: se descargan los tickers reales de todo lo elegido, sectores incluidos (SPY+QQQ+XLK+XLI, GOVT+LQD, VNQ, GLD+DBC)');
 
   /* ---------- narración: de dónde sale cada porcentaje ---------- */
   const steps = doc.getElementById('narrativeList').querySelectorAll('.narrative-step');
@@ -340,9 +369,11 @@ async function main() {
 
   const spyRow = rows.find(r => r.textContent.includes('SPY'));
   const qqqRow = rows.find(r => r.textContent.includes('QQQ'));
-  assert(weightOf(spyRow) === weightOf(qqqRow),
-    `al elegir dos índices el peso debería repartirse a partes iguales (SPY ${weightOf(spyRow)} vs QQQ ${weightOf(qqqRow)})`);
-  console.log(`OK: el peso se reparte a partes iguales entre los instrumentos elegidos (${weightOf(spyRow).trim()} cada índice)`);
+  // Se subió el peso del NASDAQ en el panel de reparto, así que ahora tiene
+  // que pesar MÁS que el S&P: si siguieran iguales, el control no serviría.
+  assert(absNum(weightOf(qqqRow)) > absNum(weightOf(spyRow)),
+    `tras subir su peso, el NASDAQ debería pesar más que el S&P (${weightOf(qqqRow)} vs ${weightOf(spyRow)})`);
+  console.log(`OK: el reparto que fijaste manda de verdad en la cartera final (NASDAQ ${weightOf(qqqRow).trim()} frente a S&P ${weightOf(spyRow).trim()})`);
 
   /* ---------- comparativa contra carteras de un solo activo ---------- */
   const compareRows = [...doc.getElementById('comparisonTableBody').querySelectorAll('tr')];
@@ -356,7 +387,6 @@ async function main() {
   // Concentrarlo todo en renta variable tiene que salir MÁS volátil y con
   // MÁS caída que la cartera diversificada; si no, la comparación no estaría
   // enseñando lo que dice enseñar.
-  const absNum = t => Math.abs(parseFloat(t.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')));
   const cellsOf = r => [...r.querySelectorAll('td')].map(td => td.textContent);
   const equityRow = compareRows.find(r => r.textContent.includes('Solo renta variable'));
   assert(absNum(cellsOf(equityRow)[3]) > absNum(cellsOf(youRow)[3]),
@@ -414,6 +444,8 @@ async function main() {
   await step(() => pick('indexKnowledge', 'si'));
   pick('equityIndex', 'msci');
   await step(() => advance('equityIndex'));
+  await step(() => pick('equityTiltAsk', 'no'));
+  assert(visible('bondsKnowledge'), 'decir que no a la inclinación debería saltarse la pregunta de sectores');
   await step(() => pick('bondsKnowledge', 'si'));
   pick('bondsChoice', 'mixed');
   await step(() => advance('bondsChoice'));

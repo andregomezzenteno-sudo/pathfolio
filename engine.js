@@ -57,42 +57,74 @@ function ageToCapTier(age) {
   return age === '60+' ? 'moderado' : null;
 }
 
-// Tres señales independientes solo pueden BAJAR el nivel de riesgo efectivo
-// respecto al del slider, nunca subirlo: un horizonte corto limita
+// Interpolación lineal sobre una curva de puntos de anclaje. Es la pieza que
+// convierte el slider en algo que de verdad manda: en vez de tres carteras
+// posibles hay una por cada valor del 0 al 100.
+function interpolateCurve(points, x, field) {
+  const pts = points.slice().sort((a, b) => a.score - b.score);
+  if (x <= pts[0].score) return pts[0][field];
+  if (x >= pts[pts.length - 1].score) return pts[pts.length - 1][field];
+  for (let i = 1; i < pts.length; i++) {
+    if (x <= pts[i].score) {
+      const a = pts[i - 1], b = pts[i];
+      const t = (x - a.score) / (b.score - a.score);
+      return a[field] + t * (b[field] - a[field]);
+    }
+  }
+  return pts[pts.length - 1][field];
+}
+
+// Tres señales independientes solo pueden BAJAR la puntuación de riesgo
+// respecto a la del slider, nunca subirla: un horizonte corto limita
 // objetivamente cuánta volatilidad puedes absorber, una tolerancia baja a
-// caídas reales (la pregunta de "¿venderías presa del pánico?") revela una
-// capacidad de riesgo real menor de la que sugería el slider abstracto, y un
-// tramo de edad cercano a la jubilación limita cuánto tiempo tiene una mala
-// racha para recuperarse. Las tres se aplican de forma transparente: la
-// interfaz dice cuándo y por qué se ha ajustado, nunca en silencio.
+// caídas reales revela una capacidad de riesgo menor que la declarada en
+// abstracto, y una edad cercana a la jubilación limita cuánto tiempo tiene
+// una mala racha para recuperarse.
+//
+// Los topes son PUNTUACIONES máximas, no niveles. Cuando eran niveles, topar
+// a "moderado" tiraba cualquier puntuación de 67 a 100 hasta el mismo sitio,
+// perdiendo toda la resolución del slider justo en el momento de ajustar. Y
+// la tolerancia a caídas ahora topa con su propio valor: tu riesgo efectivo
+// no puede pasar de la caída que has dicho que aguantarías, que es
+// exactamente lo que significa esa pregunta.
 function computeEffectiveRisk(riskSliderValue, horizon, volatilitySliderValue, age, allocations) {
-  const order = allocations.riskOrder;
-  let tier = sliderToTier(riskSliderValue);
+  const stated = Math.max(0, Math.min(100, riskSliderValue));
+  let score = stated;
 
-  const afterHorizon = applyCap(tier, allocations.horizonCap[horizon], order);
-  tier = afterHorizon.tier;
+  const horizonMax = horizon ? allocations.horizonMaxScore[horizon] : 100;
+  const cappedByHorizon = horizonMax != null && horizonMax < score;
+  if (cappedByHorizon) score = horizonMax;
 
-  // volatilitySliderValue es null mientras la pregunta esté SIN RESPONDER. Un
-  // valor por defecto no es una respuesta: si se tratara como tal, la vista
-  // previa en vivo toparía el perfil hacia abajo antes de que la persona haya
-  // dicho nada sobre cuánta caída aguanta. Igual que horizonte y edad, que ya
-  // son null hasta que se responden y por eso no topan nada.
-  const afterVol = applyCap(tier, volatilitySliderValue == null ? null : sliderToTier(volatilitySliderValue), order);
-  tier = afterVol.tier;
+  // volatilitySliderValue es null mientras la pregunta esté SIN RESPONDER: un
+  // valor por defecto no es una respuesta, y tratarlo como tal toparía el
+  // perfil en la vista previa antes de que la persona haya dicho nada.
+  const volMax = volatilitySliderValue == null ? 100 : volatilitySliderValue;
+  const cappedByVolatility = volMax < score;
+  if (cappedByVolatility) score = volMax;
 
-  const afterAge = applyCap(tier, ageToCapTier(age), order);
-  tier = afterAge.tier;
+  const ageMax = age ? allocations.ageMaxScore[age] : 100;
+  const cappedByAge = ageMax != null && ageMax < score;
+  if (cappedByAge) score = ageMax;
 
   return {
-    effectiveRisk: tier,
-    wasCappedByHorizon: afterHorizon.wasCapped,
-    wasCappedByVolatility: afterVol.wasCapped,
-    wasCappedByAge: afterAge.wasCapped,
+    riskScore: score,
+    statedScore: stated,
+    effectiveRisk: sliderToTier(score),
+    wasCappedByHorizon: cappedByHorizon,
+    wasCappedByVolatility: cappedByVolatility,
+    wasCappedByAge: cappedByAge,
   };
 }
 
-function getAllocationWeights(effectiveRisk, allocations) {
-  return allocations.buckets[effectiveRisk];
+// El reparto sale de la curva, no de una caja: cada puntuación da los suyos.
+function getAllocationWeights(riskScore, allocations) {
+  const w = {
+    equities: interpolateCurve(allocations.riskCurve, riskScore, 'equities'),
+    bonds: interpolateCurve(allocations.riskCurve, riskScore, 'bonds'),
+    cash: interpolateCurve(allocations.riskCurve, riskScore, 'cash'),
+  };
+  const sum = w.equities + w.bonds + w.cash;
+  return { equities: w.equities / sum, bonds: w.bonds / sum, cash: w.cash / sum };
 }
 
 // Selección MÚLTIPLE: no hay que elegir uno solo. Devuelve la lista de
@@ -103,11 +135,6 @@ function resolvePicks(selected, optionsMap, defaultKey) {
   const keys = (Array.isArray(selected) ? selected : [selected]).filter(k => k && optionsMap[k]);
   const finalKeys = keys.length ? keys : [defaultKey];
   return finalKeys.map(k => ({ key: k, ...optionsMap[k] }));
-}
-
-function averageRiskMultiplier(picks) {
-  if (!picks.length) return 1;
-  return picks.reduce((a, p) => a + (p.riskMultiplier != null ? p.riskMultiplier : 1), 0) / picks.length;
 }
 
 // Hace que la ELECCIÓN DE INSTRUMENTO mueva de verdad los porcentajes del
@@ -139,63 +166,57 @@ function adjustWeightsForInstrumentRisk(baseWeights, equityRiskMultiplier, bonds
   return { equities, bonds, cash };
 }
 
-// Los tres sleeves opcionales (inmobiliario, otras inversiones, private
-// equity) son recortes reales SOBRE el peso de renta variable — nunca un
-// bloque nuevo, nunca decorativos — aplicados en este orden, cada uno sobre
-// lo que quede de renta variable tras el anterior. El inmobiliario escala
-// con el nivel de riesgo. Otras inversiones solo entra de verdad si el nivel
-// de riesgo FINAL lo permite, sin importar lo que se pidiera antes: una
-// porción pequeña pero real de algo así solo tiene sentido cuando todas las
-// demás señales ya han coincidido en que la persona puede cargar con ese
-// riesgo, así que se vuelve a comprobar al final en vez de fiarse de una
-// respuesta dada antes de tener el cuadro completo. Private equity lleva esa
-// misma comprobación MÁS un mínimo de importe inicial, igual que los
-// vehículos reales de private equity minorista (fondos feeder, ELTIFs) piden
-// un ticket mínimo: pedirlo sin capital suficiente se excluye con aviso, no
-// se concede en silencio.
-function applySleeves(weights, { includeRealEstate, includeAlternative, includePrivateEquity, effectiveRisk, initialAmount }, allocations) {
+// Recorta los bloques opcionales sobre la renta variable, en este orden y
+// cada uno sobre lo que quede del anterior. Recibe las fracciones ya
+// resueltas: quién tiene derecho a qué se decide en computeAllocation, que es
+// donde se conocen los subtipos elegidos y la puntuación de riesgo.
+function applySleeves(weights, { realEstateFraction = 0, alternativeFraction = 0, privateEquityFraction = 0 }) {
   const result = { equities: weights.equities, bonds: weights.bonds, cash: weights.cash, realEstate: 0, alternative: 0, privateEquity: 0 };
-
-  if (includeRealEstate) {
-    const frac = allocations.realEstateFractionByTier[effectiveRisk] || 0;
-    const sleeve = result.equities * frac;
-    result.equities -= sleeve;
-    result.realEstate = sleeve;
+  for (const [key, frac] of [['realEstate', realEstateFraction], ['alternative', alternativeFraction], ['privateEquity', privateEquityFraction]]) {
+    if (frac > 0) {
+      const sleeve = result.equities * frac;
+      result.equities -= sleeve;
+      result[key] = sleeve;
+    }
   }
+  return result;
+}
 
-  const alternativeQualifies = includeAlternative && effectiveRisk === allocations.alternativeRequiresTier;
-  if (alternativeQualifies) {
-    const sleeve = result.equities * allocations.alternativeFraction;
-    result.equities -= sleeve;
-    result.alternative = sleeve;
-  }
+// Peso relativo que el usuario ha dado a cada instrumento dentro de su bloque.
+// Sin esto, elegir S&P 500 y NASDAQ repartía 50/50 y no había manera de pedir
+// "un poco más de tecnología": la elección múltiple existía pero la
+// proporción no. Por defecto todos valen lo mismo.
+const DEFAULT_MIX = 5;
+function mixWeight(mix, key) {
+  const v = mix && mix[key];
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_MIX;
+}
 
-  const peQualifiesRisk = effectiveRisk === allocations.privateEquityRequiresTier;
-  const peQualifiesCapital = (initialAmount || 0) >= allocations.privateEquityMinAmount;
-  const peQualifies = includePrivateEquity && peQualifiesRisk && peQualifiesCapital;
-  if (peQualifies) {
-    const sleeve = result.equities * allocations.privateEquityFraction;
-    result.equities -= sleeve;
-    result.privateEquity = sleeve;
-  }
+function splitByMix(picks, total, category, mix) {
+  const raw = picks.map(p => mixWeight(mix, p.key));
+  const sum = raw.reduce((a, b) => a + b, 0) || 1;
+  return picks.map((p, i) => ({
+    ...p, category, weight: total * (raw[i] / sum),
+    mixShare: raw[i] / sum,
+    hasRealData: p.hasRealData !== undefined ? p.hasRealData : true,
+  }));
+}
 
-  return {
-    weights: result,
-    alternativeIncluded: alternativeQualifies,
-    alternativeRequestedButExcluded: includeAlternative && !alternativeQualifies,
-    privateEquityIncluded: peQualifies,
-    privateEquityRequestedButExcluded: includePrivateEquity && !peQualifies,
-    privateEquityExcludedReason: includePrivateEquity && !peQualifies
-      ? (!peQualifiesRisk && !peQualifiesCapital ? 'ambos' : (!peQualifiesRisk ? 'riesgo' : 'capital'))
-      : null,
-  };
+// Media PONDERADA por el reparto elegido: si alguien pone el 80 % de su renta
+// variable en NASDAQ, el ajuste por riesgo tiene que notarlo casi entero, no
+// promediarlo como si fuese mitad y mitad.
+function weightedRiskMultiplier(picks, mix) {
+  if (!picks.length) return 1;
+  const raw = picks.map(p => mixWeight(mix, p.key));
+  const sum = raw.reduce((a, b) => a + b, 0) || 1;
+  return picks.reduce((acc, p, i) => acc + (p.riskMultiplier != null ? p.riskMultiplier : 1) * (raw[i] / sum), 0);
 }
 
 /* Categorías del donut. El color sigue SIEMPRE a la categoría, nunca a su
-   posición o tamaño, para que añadir o quitar un sleeve no repinte al resto. */
+   posición o tamaño, para que añadir o quitar un bloque no repinte al resto. */
 const CATEGORY_META = {
-  equities:     { name: 'Renta variable',        color: 'var(--series-1)', icon: 'stocks' },
-  bonds:        { name: 'Renta fija',            color: 'var(--series-2)', icon: 'bonds' },
+  equities:     { name: 'Renta variable',         color: 'var(--series-1)', icon: 'stocks' },
+  bonds:        { name: 'Renta fija',             color: 'var(--series-2)', icon: 'bonds' },
   realEstate:   { name: 'Inversión inmobiliaria', color: 'var(--series-4)', icon: 'building' },
   privateEquity:{ name: 'Private Equity',         color: 'var(--series-6)', icon: 'vault' },
   alternative:  { name: 'Otras inversiones',      color: 'var(--series-5)', icon: 'basket' },
@@ -203,51 +224,79 @@ const CATEGORY_META = {
 };
 
 // Único punto donde se decide la cartera completa. Lo usan tanto la vista
-// previa en vivo del cuestionario como el dashboard final, así que ambos no
-// pueden desincronizarse por construcción.
+// previa en vivo del cuestionario como el dashboard final, así que no pueden
+// desincronizarse por construcción.
 function computeAllocation(answers, allocations) {
   const risk = computeEffectiveRisk(answers.risk, answers.horizon, answers.volatility, answers.age, allocations);
-  const effectiveRisk = risk.effectiveRisk;
-  const baseWeights = getAllocationWeights(effectiveRisk, allocations);
+  const { riskScore, effectiveRisk } = risk;
+  const baseWeights = getAllocationWeights(riskScore, allocations);
+  const mix = answers.mix || {};
 
-  const equityPicks = resolvePicks(answers.equityIndex, allocations.equityIndexOptions, allocations.defaultEquityIndex);
+  // La renta variable puede llevar cestas amplias y, encima, inclinaciones
+  // hacia sectores o regiones concretos. Ambas viven en el mismo bloque y
+  // compiten por su peso según el reparto que haya fijado el usuario.
+  const equityKeys = [...(answers.equityIndex || []), ...(answers.equityTilt || [])];
+  const equityPicks = resolvePicks(equityKeys, allocations.equityIndexOptions, allocations.defaultEquityIndex);
   const bondsPicks = resolvePicks(answers.bondsChoice, allocations.bondsOptions, allocations.defaultBondsChoice);
 
   const tilted = adjustWeightsForInstrumentRisk(
-    baseWeights, averageRiskMultiplier(equityPicks), averageRiskMultiplier(bondsPicks), allocations.tiltDampening
+    baseWeights,
+    weightedRiskMultiplier(equityPicks, mix),
+    weightedRiskMultiplier(bondsPicks, mix),
+    allocations.tiltDampening
   );
   const wasTilted = Math.abs(tilted.equities - baseWeights.equities) > 0.005;
 
-  const sleeved = applySleeves(tilted, {
-    includeRealEstate: answers.realEstateChoice === 'si',
-    includeAlternative: answers.altChoice === 'si',
-    includePrivateEquity: answers.peChoice === 'si',
-    effectiveRisk, initialAmount: answers.amount,
-  }, allocations);
-  const w = sleeved.weights;
+  // Cada subtipo lleva su propio umbral, así que el oro puede entrar en una
+  // cartera moderada mientras el bitcoin se queda fuera. Los que no llegan se
+  // devuelven aparte para poder explicar por qué, en vez de desaparecer sin
+  // más de la pantalla.
+  const qualify = (picks, wanted) => {
+    if (!wanted) return { ok: [], rejected: [] };
+    const ok = picks.filter(p => riskScore >= (p.minScore || 0));
+    return { ok, rejected: picks.filter(p => riskScore < (p.minScore || 0)) };
+  };
 
-  const realEstatePicks = w.realEstate > 0
-    ? resolvePicks(answers.realEstateType, allocations.realEstateSubtypes, allocations.defaultRealEstateSubtype) : [];
-  const altPicks = sleeved.alternativeIncluded
-    ? resolvePicks(answers.altType, allocations.alternativeSubtypes, allocations.defaultAlternativeSubtype) : [];
+  const reWanted = answers.realEstateChoice === 'si';
+  const reAll = reWanted ? resolvePicks(answers.realEstateType, allocations.realEstateSubtypes, allocations.defaultRealEstateSubtype) : [];
+  const re = qualify(reAll, reWanted);
 
-  // El peso de cada bloque se reparte a partes iguales entre los
-  // instrumentos elegidos dentro de él: elegir S&P 500 y NASDAQ a la vez da
-  // media renta variable a cada uno, no que uno sustituya al otro.
-  const split = (picks, total, category) => picks.map(p => ({
-    ...p, category, weight: total / picks.length,
-    hasRealData: p.hasRealData !== undefined ? p.hasRealData : true,
-  }));
+  const altWanted = answers.altChoice === 'si';
+  const altAll = altWanted ? resolvePicks(answers.altType, allocations.alternativeSubtypes, allocations.defaultAlternativeSubtype) : [];
+  const alt = qualify(altAll, altWanted);
+
+  // Private equity: lo que de verdad exige este activo es ILIQUIDEZ asumible,
+  // así que manda el horizonte y el importe mínimo, con un suelo de tolerancia
+  // al riesgo. Antes pedía perfil "arriesgado" y por eso no entraba casi nunca
+  // por mucho capital que hubiera.
+  const peWanted = answers.peChoice === 'si';
+  const peHorizonOk = allocations.privateEquityHorizons.includes(answers.horizon);
+  const peScoreOk = riskScore >= allocations.privateEquityMinScore;
+  const peCapitalOk = (answers.amount || 0) >= allocations.privateEquityMinAmount;
+  const peIncluded = peWanted && peHorizonOk && peScoreOk && peCapitalOk;
+  const peReasons = [];
+  if (peWanted && !peIncluded) {
+    if (!peHorizonOk) peReasons.push('horizonte');
+    if (!peScoreOk) peReasons.push('riesgo');
+    if (!peCapitalOk) peReasons.push('capital');
+  }
+
+  const weights = applySleeves(tilted, {
+    realEstateFraction: re.ok.length ? interpolateCurve(allocations.realEstateFractionCurve, riskScore, 'fraction') : 0,
+    alternativeFraction: alt.ok.length ? interpolateCurve(allocations.alternativeFractionCurve, riskScore, 'fraction') : 0,
+    privateEquityFraction: peIncluded ? interpolateCurve(allocations.privateEquityFractionCurve, riskScore, 'fraction') : 0,
+  });
+  const w = weights;
 
   const holdings = [
-    ...split(equityPicks, w.equities, 'equities'),
-    ...split(bondsPicks, w.bonds, 'bonds'),
-    ...split(realEstatePicks, w.realEstate, 'realEstate'),
-    ...(sleeved.privateEquityIncluded ? [{
+    ...splitByMix(equityPicks, w.equities, 'equities', mix),
+    ...splitByMix(bondsPicks, w.bonds, 'bonds', mix),
+    ...splitByMix(re.ok, w.realEstate, 'realEstate', mix),
+    ...(peIncluded ? [{
       key: 'privateEquity', category: 'privateEquity', weight: w.privateEquity, hasRealData: false,
       ...allocations.privateEquityInstrument,
     }] : []),
-    ...split(altPicks, w.alternative, 'alternative'),
+    ...splitByMix(alt.ok, w.alternative, 'alternative', mix),
     { key: 'cash', category: 'cash', weight: w.cash, hasRealData: false, label: 'Efectivo', ticker: null,
       name: 'Liquidez disponible', expenseRatio: null,
       illustrativeAnnualRate: allocations.instruments.cash.illustrativeAnnualRate },
@@ -258,25 +307,26 @@ function computeAllocation(answers, allocations) {
     .map(key => ({
       key, weight: w[key], name: CATEGORY_META[key].name,
       color: CATEGORY_META[key].color, icon: CATEGORY_META[key].icon,
-      // Los miembros van como objetos, no como texto: la leyenda, el tooltip
-      // del donut y el desglose técnico necesitan el peso de cada uno por
-      // separado para poder decir "de ese 40% de renta fija, 20% es deuda
-      // pública y 20% corporativa".
       members: holdings.filter(h => h.category === key),
     }));
 
   // Los porcentajes que se muestran se calculan una sola vez, aquí, con
-  // reparto de resto mayor, y se cuelgan del propio segmento/posición. Así
-  // la leyenda, el tooltip, la tabla y la narración enseñan exactamente los
-  // mismos números y el total cuadra en 100 % en todos ellos.
+  // reparto de resto mayor, y viajan pegados al segmento/posición. Así
+  // leyenda, tooltip, tabla y narración enseñan los mismos números y el total
+  // cuadra en 100 % en todos ellos.
   const segPcts = displayPercents(segments.map(s => s.weight), 1);
   segments.forEach((s, i) => { s.displayPct = segPcts[i]; });
   const holdPcts = displayPercents(holdings.map(h => h.weight), 1);
   holdings.forEach((h, i) => { h.displayPct = holdPcts[i]; });
 
   return {
-    ...risk, ...sleeved, effectiveRisk, baseWeights, tiltedWeights: tilted, weights: w, wasTilted,
-    equityPicks, bondsPicks, realEstatePicks, altPicks, holdings, segments,
+    ...risk, effectiveRisk, baseWeights, tiltedWeights: tilted, weights: w, wasTilted,
+    equityPicks, bondsPicks, holdings, segments,
+    realEstatePicks: re.ok, realEstateRejected: re.rejected,
+    altPicks: alt.ok, altRejected: alt.rejected,
+    privateEquityIncluded: peIncluded,
+    privateEquityRequestedButExcluded: peWanted && !peIncluded,
+    privateEquityExcludedReasons: peReasons,
   };
 }
 
@@ -300,15 +350,15 @@ function buildAllocationNarrative(result, answers, allocations) {
   steps.push({
     title: `Tu perfil efectivo es ${TIER_LABEL[result.effectiveRisk]}`,
     text: caps.length
-      ? `Colocaste el riesgo en ${answers.risk}/100, que por sí solo daría "${sliderToTier(answers.risk)}". Pero ${listPhrase(caps)} ${caps.length > 1 ? 'obligan' : 'obliga'} a rebajarlo hasta "${result.effectiveRisk}". Estas señales solo pueden bajar el riesgo, nunca subirlo.`
-      : `Colocaste el riesgo en ${answers.risk}/100 y dijiste que aguantarías una caída de ${answers.volatility}/100. Ni el horizonte, ni esa tolerancia, ni tu edad obligan a rebajarlo, así que el nivel se queda en "${result.effectiveRisk}".`,
+      ? `Colocaste el riesgo en ${answers.risk}/100. Pero ${listPhrase(caps)} ${caps.length > 1 ? 'obligan' : 'obliga'} a rebajarlo hasta ${Math.round(result.riskScore)}/100 ("${result.effectiveRisk}"). Estas señales solo pueden bajar la puntuación, nunca subirla — y la rebajan al punto exacto que corresponde, no a un escalón fijo.`
+      : `Colocaste el riesgo en ${answers.risk}/100 y dijiste que aguantarías una caída de ${answers.volatility}/100. Ni el horizonte, ni esa tolerancia, ni tu edad obligan a rebajarlo, así que la puntuación se queda en ${Math.round(result.riskScore)}/100 ("${result.effectiveRisk}").`,
   });
 
   /* 2 — el reparto de partida de ese nivel */
   const basePcts = displayPercents([base.equities, base.bonds, base.cash], 1);
   steps.push({
     title: 'El reparto de partida de ese perfil',
-    text: `La tabla de asignación fija, para "${result.effectiveRisk}", un ${formatPctValue(basePcts[0])} en renta variable, un ${formatPctValue(basePcts[1])} en renta fija y un ${formatPctValue(basePcts[2])} en efectivo. Es el punto de partida antes de mirar qué instrumentos concretos elegiste.`,
+    text: `La curva de riesgo, evaluada en tu puntuación exacta de ${Math.round(result.riskScore)}/100, da un ${formatPctValue(basePcts[0])} en renta variable, un ${formatPctValue(basePcts[1])} en renta fija y un ${formatPctValue(basePcts[2])} en efectivo. Es el punto de partida antes de mirar qué instrumentos concretos elegiste.`,
   });
 
   /* 3 — cómo mueven los pesos los instrumentos elegidos */
@@ -330,11 +380,11 @@ function buildAllocationNarrative(result, answers, allocations) {
   /* 4 — cada recorte opcional, con el antes y el después */
   let runningEquity = tilted.equities;
   if (w.realEstate > 0) {
-    const frac = allocations.realEstateFractionByTier[result.effectiveRisk];
+    const frac = interpolateCurve(allocations.realEstateFractionCurve, result.riskScore, 'fraction');
     const after = runningEquity - w.realEstate;
     steps.push({
       title: 'Apartas una parte para inversión inmobiliaria',
-      text: `Al perfil "${result.effectiveRisk}" le corresponde reservar el ${formatPct(frac, 0)} de la renta variable para ladrillo. Eso son ${formatPct(w.realEstate, 1)} del total${money(w.realEstate)}, que salen de la renta variable: baja de ${formatPct(runningEquity, 1)} a ${formatPct(after, 1)}. La renta fija y el efectivo no se tocan.`,
+      text: `A una puntuación de riesgo de ${Math.round(result.riskScore)}/100 le corresponde reservar el ${formatPct(frac, 0)} de la renta variable para ladrillo. Eso son ${formatPct(w.realEstate, 1)} del total${money(w.realEstate)}, que salen de la renta variable: baja de ${formatPct(runningEquity, 1)} a ${formatPct(after, 1)}. La renta fija y el efectivo no se tocan.`,
     });
     runningEquity = after;
   }
@@ -342,7 +392,7 @@ function buildAllocationNarrative(result, answers, allocations) {
     const after = runningEquity - w.alternative;
     steps.push({
       title: 'Apartas una parte para otras inversiones',
-      text: `Se reserva el ${formatPct(allocations.alternativeFraction, 0)} de lo que queda de renta variable, es decir ${formatPct(w.alternative, 1)} del total${money(w.alternative)}, repartido entre ${listPhrase(result.altPicks.map(p => p.label))}. La renta variable baja de ${formatPct(runningEquity, 1)} a ${formatPct(after, 1)}.`,
+      text: `Se reserva el ${formatPct(interpolateCurve(allocations.alternativeFractionCurve, result.riskScore, 'fraction'), 0)} de lo que queda de renta variable, es decir ${formatPct(w.alternative, 1)} del total${money(w.alternative)}, repartido entre ${listPhrase(result.altPicks.map(p => p.label))}. La renta variable baja de ${formatPct(runningEquity, 1)} a ${formatPct(after, 1)}.`,
     });
     runningEquity = after;
   }
@@ -350,7 +400,7 @@ function buildAllocationNarrative(result, answers, allocations) {
     const after = runningEquity - w.privateEquity;
     steps.push({
       title: 'Apartas una parte para private equity',
-      text: `Tu perfil llega a "arriesgado" y tu importe (${formatEUR(answers.amount, 0)}) supera el mínimo de referencia de ${formatEUR(allocations.privateEquityMinAmount, 0)}, así que entra: el ${formatPct(allocations.privateEquityFraction, 0)} de la renta variable restante, o sea ${formatPct(w.privateEquity, 1)} del total${money(w.privateEquity)}. La renta variable queda en ${formatPct(after, 1)}.`,
+      text: `Tu horizonte permite inmovilizar dinero varios años, tu puntuación de riesgo (${Math.round(result.riskScore)}) supera el mínimo de ${allocations.privateEquityMinScore} y tu importe (${formatEUR(answers.amount, 0)}) supera el mínimo de referencia de ${formatEUR(allocations.privateEquityMinAmount, 0)}, así que entra: el ${formatPct(interpolateCurve(allocations.privateEquityFractionCurve, result.riskScore, 'fraction'), 0)} de la renta variable restante, o sea ${formatPct(w.privateEquity, 1)} del total${money(w.privateEquity)}. La renta variable queda en ${formatPct(after, 1)}.`,
     });
     runningEquity = after;
   }
@@ -571,10 +621,10 @@ function shortDate(iso) {
 
   return {
     sliderToTier, applyCap, ageToCapTier, computeEffectiveRisk, getAllocationWeights,
-    resolvePicks, averageRiskMultiplier, adjustWeightsForInstrumentRisk, applySleeves,
+    resolvePicks, weightedRiskMultiplier, applyCap, ageToCapTier, sliderToTier, getAllocationWeights, splitByMix, adjustWeightsForInstrumentRisk, applySleeves,
     CATEGORY_META, computeAllocation, buildAllocationNarrative, getExplanation,
     alignSeriesSet, simulatePortfolio, simulateDCA, annualizedVol, maxDrawdown,
-    calendarYearReturns, realValue, formatEUR, formatPct, formatPctValue, displayPercents,
+    calendarYearReturns, realValue, interpolateCurve, formatEUR, formatPct, formatPctValue, displayPercents,
     formatSignedPct, shortDate, TIER_LABEL, listPhrase,
   };
 });

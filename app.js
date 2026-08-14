@@ -558,7 +558,7 @@ function renderLineChart({ svg, tooltipEl, dates, series, yFormat, tooltipFormat
 const QUESTIONS = [
   'age', 'risk', 'horizon',
   'rvKnowledge', 'rvLesson',
-  'indexKnowledge', 'indexLesson', 'equityIndex',
+  'indexKnowledge', 'indexLesson', 'equityIndex', 'equityTiltAsk', 'equityTilt',
   'bondsKnowledge', 'bondsLesson', 'bondsChoice',
   'realEstateKnowledge', 'realEstateLesson', 'realEstateChoice', 'realEstateType',
   'peKnowledge', 'peLesson', 'peChoice',
@@ -581,18 +581,25 @@ const CONDITIONAL_STEPS = {
   realEstateType: a => a.realEstateChoice === 'si',
   peLesson: a => a.peKnowledge !== 'si',
   altLesson: a => a.altKnowledge !== 'si',
+  equityTilt: a => a.equityTiltAsk === 'si',
   altType: a => a.altChoice === 'si',
 };
 
 // Preguntas de selección múltiple: acumulan un array y avanzan con el botón
 // "Continuar" en vez de al primer clic.
-const MULTI_QUESTIONS = new Set(['equityIndex', 'bondsChoice', 'realEstateType', 'altType']);
+const MULTI_QUESTIONS = new Set(['equityIndex', 'equityTilt', 'bondsChoice', 'realEstateType', 'altType']);
 
 function freshAnswers() {
   return {
     age: null, risk: 50, horizon: null,
     rvKnowledge: null, indexKnowledge: null, equityIndex: [],
+    equityTiltAsk: null, equityTilt: [],
     bondsKnowledge: null, bondsChoice: [],
+    // Peso relativo de cada instrumento dentro de su bloque. Sin esto, elegir
+    // varios repartía siempre a partes iguales y no había forma de pedir "más
+    // tecnología" o "más oro que bitcoin": la elección múltiple existía, la
+    // proporción no.
+    mix: {},
     realEstateKnowledge: null, realEstateChoice: null, realEstateType: [],
     peKnowledge: null, peChoice: null,
     altKnowledge: null, altChoice: null, altType: [],
@@ -650,7 +657,8 @@ const CONNECTORS = {
   risk: a => a.age ? `Con ${a.age} años, pensemos en cómo encajas las bajadas.` : null,
   rvKnowledge: a => a.horizon ? `Ya que esto es ${HORIZON_PHRASE[a.horizon]}, empecemos por el bloque más grande de casi cualquier cartera.` : null,
   indexKnowledge: () => 'Vale, y dentro de la renta variable no todos los fondos compran lo mismo.',
-  equityIndex: () => 'Puedes marcar varios: el peso se reparte entre los que elijas.',
+  equityIndex: () => 'Puedes marcar varios, y decidir cuánto pesa cada uno.',
+  equityTiltAsk: () => 'Ya tienes la base. Ahora, si quieres, la afinamos.',
   bondsKnowledge: a => {
     const picks = labelsOf(a.equityIndex, ALLOCATIONS ? ALLOCATIONS.equityIndexOptions : {});
     return picks.length ? `Con ${listPhrase(picks)} en la parte de renta variable, vamos con la otra mitad clásica: la renta fija.` : null;
@@ -676,6 +684,63 @@ function syncSelections(qKey) {
     el.classList.toggle('selected', selected.includes(el.dataset.value));
   });
   syncMultiButton(qKey);
+}
+
+/* Reparto dentro de un bloque. Elegir varios instrumentos repartía siempre a
+   partes iguales, así que no había forma de decir "quiero algo más de
+   tecnología" o "más oro que bitcoin": la elección múltiple existía pero la
+   proporción no. Cada elegido recibe un peso relativo del 1 al 10 y el
+   porcentaje real sale de dividir por la suma — así no hace falta que cuadren
+   a 100 a mano, que es donde este tipo de control se vuelve incómodo. */
+function renderMixPanel(qKey) {
+  const panel = document.querySelector(`[data-mix="${qKey}"]`);
+  if (!panel) return;
+  const selected = answers[qKey] || [];
+  const optionsEl = document.querySelector(`[data-options="${qKey}"]`);
+  const labelOf = key => {
+    const card = optionsEl && optionsEl.querySelector(`.option-card[data-value="${key}"] .option-label`);
+    return card ? card.textContent : key;
+  };
+
+  panel.hidden = selected.length < 2;
+  if (panel.hidden) { panel.textContent = ''; return; }
+
+  const total = selected.reduce((a, k) => a + (answers.mix[k] || 5), 0) || 1;
+  panel.textContent = '';
+  const title = document.createElement('p');
+  title.className = 'mix-title';
+  title.textContent = '¿Cuánto peso le das a cada uno?';
+  panel.appendChild(title);
+
+  selected.forEach(key => {
+    const value = answers.mix[key] || 5;
+    const row = document.createElement('div');
+    row.className = 'mix-row';
+
+    const name = document.createElement('span');
+    name.className = 'mix-name';
+    name.textContent = labelOf(key);
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '1'; slider.max = '10'; slider.step = '1';
+    slider.value = String(value);
+    slider.setAttribute('aria-label', `Peso de ${labelOf(key)}`);
+
+    const pct = document.createElement('span');
+    pct.className = 'mix-pct';
+    pct.textContent = formatPctValue((value / total) * 100, 0);
+
+    slider.addEventListener('input', () => {
+      answers.mix[key] = parseInt(slider.value, 10);
+      renderMixPanel(qKey);
+      renderPreview();
+      syncUrl();
+    });
+
+    row.append(name, slider, pct);
+    panel.appendChild(row);
+  });
 }
 
 function syncMultiButton(qKey) {
@@ -741,6 +806,7 @@ function chooseOption(question, value, btn) {
     answers[question] = list.includes(value) ? list.filter(v => v !== value) : [...list, value];
     btn.classList.toggle('selected');
     syncMultiButton(question);
+    renderMixPanel(question);
     renderPreview();
     syncUrl();
     return;
@@ -853,10 +919,14 @@ function renderPreview() {
 const URL_KEYS = ['age', 'risk', 'horizon', 'rvKnowledge', 'indexKnowledge', 'equityIndex',
   'bondsKnowledge', 'bondsChoice', 'realEstateKnowledge', 'realEstateChoice', 'realEstateType',
   'peKnowledge', 'peChoice', 'altKnowledge', 'altChoice', 'altType',
-  'style', 'volatility', 'amount', 'monthly'];
+  'equityTiltAsk', 'equityTilt', 'style', 'volatility', 'amount', 'monthly'];
 
 function encodeAnswers(a) {
   const parts = [];
+  // El reparto entre instrumentos también forma parte de "tu" cartera, así
+  // que viaja en el enlace: sin él, compartirlo devolvería otra distinta.
+  const mixKeys = Object.keys(a.mix || {}).filter(k => a.mix[k] && a.mix[k] !== 5);
+  if (mixKeys.length) parts.push('mix=' + encodeURIComponent(mixKeys.map(k => `${k}:${a.mix[k]}`).join(',')));
   for (const k of URL_KEYS) {
     const v = a[k];
     if (v == null || (Array.isArray(v) && !v.length)) continue;
@@ -876,6 +946,13 @@ function decodeAnswers(hash) {
     return el ? [...el.querySelectorAll('.option-card')].map(b => b.dataset.value) : null;
   };
   let seen = 0;
+  if (params.has('mix')) {
+    for (const pair of params.get('mix').split(',')) {
+      const [key, raw] = pair.split(':');
+      const n = parseInt(raw, 10);
+      if (key && Number.isFinite(n) && n >= 1 && n <= 10) { out.mix[key] = n; seen++; }
+    }
+  }
   for (const k of URL_KEYS) {
     if (!params.has(k)) continue;
     const raw = params.get(k);
@@ -1112,18 +1189,21 @@ async function runDashboard() {
     const bondNames = listPhrase(result.bondsPicks.map(p => p.label));
     tiltNotice.textContent = `${eqNames} y ${bondNames} no son igual de volátiles que nuestras opciones de referencia, así que le hemos dado a la renta variable ${dir} de peso del que te habría tocado por defecto — buscando mantener el riesgo total parecido, sea cual sea el instrumento concreto que elijas.`;
   }
-  altNotice.hidden = !result.alternativeRequestedButExcluded;
-  if (result.alternativeRequestedButExcluded) {
-    altNotice.textContent = `Pediste sumar "otras inversiones", pero tu perfil final ha acabado siendo "${effectiveRisk}" y no "arriesgado", así que las hemos dejado fuera. Una porción de algo tan volátil solo tiene sentido si todas las demás señales (horizonte, caídas reales, edad) están de acuerdo.`;
+  // Cada subtipo tiene su propio umbral, así que se dice exactamente cuál se
+  // ha quedado fuera y por qué, en vez de excluir la familia entera de golpe.
+  const rejected = [...result.realEstateRejected, ...result.altRejected];
+  altNotice.hidden = rejected.length === 0;
+  if (rejected.length) {
+    altNotice.textContent = `Pediste ${listPhrase(rejected.map(r => r.label.toLowerCase()))}, pero tu puntuación de riesgo final es ${Math.round(result.riskScore)}/100 y hace falta al menos ${listPhrase(rejected.map(r => `${r.minScore} para ${r.label.toLowerCase()}`))}. Cada activo tiene su propio umbral: el oro entra en carteras moderadas, el bitcoin no.`;
   }
   peNotice.hidden = !result.privateEquityRequestedButExcluded;
   if (result.privateEquityRequestedButExcluded) {
-    const min = formatEUR(ALLOCATIONS.privateEquityMinAmount, 0);
-    peNotice.textContent = 'Pediste sumar private equity, pero ' + {
-      riesgo: `tu perfil final ha acabado siendo "${effectiveRisk}" y no "arriesgado"`,
-      capital: `los fondos de private equity minoristas suelen pedir un importe mínimo de entrada (aquí usamos ${min} como referencia) y tu importe no llega`,
-      ambos: `tu perfil final no es "arriesgado" y además tu importe no alcanza el mínimo habitual de estos fondos (${min})`,
-    }[result.privateEquityExcludedReason] + ' — así que lo hemos dejado fuera.';
+    const motivos = {
+      horizonte: 'este dinero se queda inmovilizado años y tu horizonte es demasiado corto',
+      riesgo: `tu puntuación de riesgo (${Math.round(result.riskScore)}) no llega al mínimo de ${ALLOCATIONS.privateEquityMinScore}`,
+      capital: `no llegas al importe mínimo habitual de estos fondos (${formatEUR(ALLOCATIONS.privateEquityMinAmount, 0)})`,
+    };
+    peNotice.textContent = `Pediste sumar private equity, pero ${listPhrase(result.privateEquityExcludedReasons.map(r => motivos[r]))} — así que lo hemos dejado fuera.`;
   }
 
   renderDonut(allocationDonut, segments, { tooltipEl: donutTooltip, amount: answers.amount });

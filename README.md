@@ -298,6 +298,44 @@ repeatedly would mean a real bill, not just a 429. Pre-generating the content
 at build time removes that risk entirely while keeping every explanation
 genuinely LLM-authored, not templated filler.
 
+## The risk score is continuous (and why that mattered)
+
+The first version collapsed a 0–100 slider into three fixed buckets. Setting
+the slider to 0 and to 33 produced **byte-identical portfolios**, so moving it
+felt like it did nothing — because within a tier, it *did* nothing. Worse, the
+caps worked the same way: capping "to moderado" flattened every score from 67
+to 100 onto the same point, destroying the slider's resolution exactly when
+the user was trying to fine-tune.
+
+Now `riskCurve` in [allocations.json](allocations.json) is a set of anchor
+points and the allocation is **interpolated** between them, so all 101 slider
+positions give 101 different portfolios (the suite asserts exactly that). The
+caps became maximum *scores* rather than tiers — and the drawdown-tolerance
+question now caps at its own value, which is literally what that question
+means. The three tier names survive only to label the profile and to gate the
+optional blocks, never to set weights.
+
+Everything else that felt "predefined" followed from the same root cause:
+
+- **Instrument mixes are yours.** Picking S&P 500 *and* NASDAQ used to split
+  50/50 with no way to ask for more tech. Every multi-select now carries
+  relative weight sliders, and the risk tilt uses the **weighted** average of
+  what you chose, so 90 % NASDAQ moves the portfolio almost as much as
+  picking NASDAQ alone.
+- **Sector and region tilts exist.** Dow Jones, technology, industrials,
+  health, energy, Europe, emerging markets and small caps — behind an opt-in
+  question, so beginners still see three broad choices.
+- **Gold is not Bitcoin.** Every alternative carries its *own* `minScore`
+  instead of one threshold for the whole family, so gold enters a moderate
+  portfolio (20) while Bitcoin does not (70). Rejected sub-types are named
+  individually with their threshold rather than silently dropping the block.
+- **Private equity is gated on illiquidity, not on bravado.** It used to
+  require the "arriesgado" tier and therefore almost never appeared no matter
+  how much capital you had. What this asset actually demands is a long
+  horizon, so that plus the minimum ticket now decides, with a moderate risk
+  floor.
+- **Sleeve sizes scale** with the score instead of being flat.
+
 ## Architecture: engine vs. UI
 
 [`engine.js`](engine.js) holds every decision that touches money — risk

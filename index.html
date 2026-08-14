@@ -257,8 +257,85 @@
             <span class="option-sublabel">Global y diversificado</span>
             <span class="option-examples">Inditex · Nestlé · Toyota</span>
           </button>
+          <button class="option-card" type="button" data-value="dowjones">
+            <span class="sketch-icon-slot" data-icon="factory" data-size="40"></span>
+            <span class="option-label">Dow Jones</span>
+            <span class="option-sublabel">30 gigantes muy asentados</span>
+            <span class="option-examples">Coca-Cola · Boeing · Visa</span>
+          </button>
         </div>
+        <div class="mix-panel" data-mix="equityIndex" hidden></div>
         <button class="btn-primary" data-advance="equityIndex" type="button" disabled>Elige al menos una opción</button>
+      </div>
+
+      <!-- inclinar hacia sectores o regiones -->
+      <div class="quiz-card" id="q-equityTiltAsk" data-question="equityTiltAsk" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Quieres además inclinar tu renta variable hacia algún sector o región concretos?</h2>
+        <p class="quiz-hint">Con lo que ya has elegido tienes una cartera perfectamente válida. Esto es para quien quiera, por ejemplo, más tecnología, más industria o más Europa de lo que le tocaría por defecto.</p>
+        <div class="quiz-options" data-options="equityTiltAsk">
+          <button class="option-card" type="button" data-value="si">
+            <span class="sketch-icon-slot" data-icon="chip" data-size="40"></span>
+            <span class="option-label">Sí, quiero afinarlo</span>
+          </button>
+          <button class="option-card" type="button" data-value="no">
+            <span class="sketch-icon-slot" data-icon="check" data-size="40"></span>
+            <span class="option-label">No, así está bien</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- sectores y regiones -->
+      <div class="quiz-card" id="q-equityTilt" data-question="equityTilt" hidden>
+        <p class="quiz-eyebrow connector-text" data-connector hidden></p>
+        <h2>¿Hacia dónde la inclinas?</h2>
+        <p class="quiz-hint">Entran en el mismo bloque de renta variable y compiten por su peso con lo que ya elegiste. Marca los que quieras y ajusta cuánto pesa cada uno.</p>
+        <div class="quiz-options multi" data-options="equityTilt" data-multi>
+          <button class="option-card" type="button" data-value="tecnologia">
+            <span class="sketch-icon-slot" data-icon="chip" data-size="40"></span>
+            <span class="option-label">Tecnología</span>
+            <span class="option-sublabel">Más recorrido y más sustos</span>
+            <span class="option-examples">Apple · Nvidia · Microsoft</span>
+          </button>
+          <button class="option-card" type="button" data-value="industriales">
+            <span class="sketch-icon-slot" data-icon="factory" data-size="40"></span>
+            <span class="option-label">Industriales</span>
+            <span class="option-sublabel">Maquinaria, transporte, defensa</span>
+            <span class="option-examples">Caterpillar · GE · Honeywell</span>
+          </button>
+          <button class="option-card" type="button" data-value="salud">
+            <span class="sketch-icon-slot" data-icon="check" data-size="40"></span>
+            <span class="option-label">Salud</span>
+            <span class="option-sublabel">Defensivo: aguanta mejor las crisis</span>
+            <span class="option-examples">J&amp;J · Pfizer · Eli Lilly</span>
+          </button>
+          <button class="option-card" type="button" data-value="energia">
+            <span class="sketch-icon-slot" data-icon="barrel" data-size="40"></span>
+            <span class="option-label">Energía</span>
+            <span class="option-sublabel">Muy cíclico</span>
+            <span class="option-examples">Exxon · Chevron</span>
+          </button>
+          <button class="option-card" type="button" data-value="europa">
+            <span class="sketch-icon-slot" data-icon="globe" data-size="40"></span>
+            <span class="option-label">Europa</span>
+            <span class="option-sublabel">Sin exposición a EE. UU.</span>
+            <span class="option-examples">Nestlé · ASML · Inditex</span>
+          </button>
+          <button class="option-card" type="button" data-value="emergentes">
+            <span class="sketch-icon-slot" data-icon="sprout" data-size="40"></span>
+            <span class="option-label">Emergentes</span>
+            <span class="option-sublabel">China, India, Brasil…</span>
+            <span class="option-examples">TSMC · Tencent · Reliance</span>
+          </button>
+          <button class="option-card" type="button" data-value="smallcaps">
+            <span class="sketch-icon-slot" data-icon="stocks" data-size="40"></span>
+            <span class="option-label">Pequeñas empresas</span>
+            <span class="option-sublabel">Más margen de crecimiento</span>
+            <span class="option-examples">Cientos de compañías pequeñas</span>
+          </button>
+        </div>
+        <div class="mix-panel" data-mix="equityTilt" hidden></div>
+        <button class="btn-primary" data-advance="equityTilt" type="button" disabled>Elige al menos una opción</button>
       </div>
 
       <!-- renta fija: pregunta de conocimiento -->
@@ -317,6 +394,12 @@
             <span class="option-sublabel">Algo más de rendimiento</span>
             <span class="option-examples">Bonos de grandes empresas</span>
           </button>
+          <button class="option-card" type="button" data-value="inflacion">
+            <span class="sketch-icon-slot" data-icon="spiral" data-size="40"></span>
+            <span class="option-label">Ligados a la inflación</span>
+            <span class="option-sublabel">Protegen tu poder adquisitivo</span>
+            <span class="option-examples">Bonos indexados (TIPS)</span>
+          </button>
           <button class="option-card" type="button" data-value="mixed">
             <span class="sketch-icon-slot" data-icon="layers" data-size="40"></span>
             <span class="option-label">Mezcla</span>
@@ -324,6 +407,7 @@
             <span class="option-examples">+10.000 bonos en un fondo</span>
           </button>
         </div>
+        <div class="mix-panel" data-mix="bondsChoice" hidden></div>
         <button class="btn-primary" data-advance="bondsChoice" type="button" disabled>Elige al menos una opción</button>
       </div>
 
@@ -406,6 +490,7 @@
             <span class="option-examples">Rentabilidad estimada</span>
           </button>
         </div>
+        <div class="mix-panel" data-mix="realEstateType" hidden></div>
         <button class="btn-primary" data-advance="realEstateType" type="button" disabled>Elige al menos una opción</button>
       </div>
 
@@ -541,21 +626,28 @@
             <span class="sketch-icon-slot" data-icon="coin" data-size="40"></span>
             <span class="option-label">Criptomonedas</span>
             <span class="option-sublabel">Lo más volátil de todo</span>
-            <span class="option-examples">Bitcoin</span>
+            <span class="option-examples">Entra desde riesgo 70</span>
           </button>
           <button class="option-card" type="button" data-value="metales">
             <span class="sketch-icon-slot" data-icon="ingot" data-size="40"></span>
-            <span class="option-label">Metales preciosos</span>
+            <span class="option-label">Oro</span>
             <span class="option-sublabel">El refugio clásico</span>
-            <span class="option-examples">Oro</span>
+            <span class="option-examples">Entra desde riesgo 20</span>
+          </button>
+          <button class="option-card" type="button" data-value="plata">
+            <span class="sketch-icon-slot" data-icon="ingot" data-size="40"></span>
+            <span class="option-label">Plata</span>
+            <span class="option-sublabel">Como el oro, pero más movida</span>
+            <span class="option-examples">Entra desde riesgo 40</span>
           </button>
           <button class="option-card" type="button" data-value="materiasPrimas">
             <span class="sketch-icon-slot" data-icon="barrel" data-size="40"></span>
             <span class="option-label">Materias primas</span>
-            <span class="option-sublabel">Ligadas a la economía real</span>
-            <span class="option-examples">Petróleo, trigo, cobre</span>
+            <span class="option-sublabel">Petróleo, trigo, cobre</span>
+            <span class="option-examples">Entra desde riesgo 45</span>
           </button>
         </div>
+        <div class="mix-panel" data-mix="altType" hidden></div>
         <button class="btn-primary" data-advance="altType" type="button" disabled>Elige al menos una opción</button>
       </div>
 

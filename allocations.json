@@ -1,186 +1,110 @@
 {
-  "_comment": "Única fuente de verdad del motor determinista de asignación. La consumen tanto app.js (cliente) como engine/generate_archetypes.py (generación de contenido offline), así que hay exactamente un sitio que decide qué porcentaje va a dónde.",
-  "_horizonCapComment": "horizonCap: el horizonte temporal solo puede BAJAR el nivel de riesgo efectivo respecto al que dijo el usuario, nunca subirlo — un horizonte corto limita objetivamente cuánta volatilidad puedes absorber antes de necesitar el dinero, independientemente del apetito de riesgo declarado. null = sin tope. Cada clave de horizonCap es un horizonte real (el código itera las claves de este objeto), así que aquí dentro no van claves de tipo _comment.",
-  "riskOrder": [
-    "conservador",
-    "moderado",
-    "arriesgado"
+  "_comment": "Única fuente de verdad del motor determinista. La consumen app.js/engine.js (cliente) y engine/generate_archetypes.py (contenido offline), así que hay exactamente un sitio que decide qué porcentaje va a dónde.",
+
+  "_riskCurveComment": "ANTES esto eran tres cajas fijas (conservador/moderado/arriesgado) y el slider continuo de 0-100 se colapsaba a una de las tres: poner 0 o poner 33 daba EXACTAMENTE la misma cartera, lo que hacía que mover la barra pareciese no servir de nada. Ahora el slider manda de verdad: riskCurve son puntos de anclaje y el reparto se interpola linealmente entre ellos, así que cada valor del 0 al 100 da una cartera distinta. Los tres niveles siguen existiendo, pero solo para nombrar el perfil y para decidir qué bloques opcionales se desbloquean, no para fijar los pesos.",
+  "riskOrder": ["conservador", "moderado", "arriesgado"],
+  "tierMaxScore": { "conservador": 33, "moderado": 66, "arriesgado": 100 },
+  "riskCurve": [
+    { "score": 0,   "equities": 0.08, "bonds": 0.80, "cash": 0.12 },
+    { "score": 25,  "equities": 0.28, "bonds": 0.62, "cash": 0.10 },
+    { "score": 50,  "equities": 0.52, "bonds": 0.39, "cash": 0.09 },
+    { "score": 75,  "equities": 0.72, "bonds": 0.22, "cash": 0.06 },
+    { "score": 100, "equities": 0.92, "bonds": 0.05, "cash": 0.03 }
   ],
-  "buckets": {
-    "conservador": {
-      "equities": 0.2,
-      "bonds": 0.7,
-      "cash": 0.1
-    },
-    "moderado": {
-      "equities": 0.5,
-      "bonds": 0.4,
-      "cash": 0.1
-    },
-    "arriesgado": {
-      "equities": 0.8,
-      "bonds": 0.15,
-      "cash": 0.05
-    }
-  },
-  "horizonCap": {
-    "viaje": "moderado",
-    "casa": null,
-    "crecer": null,
-    "jubilacion": null
-  },
-  "_riskTiltComment": "riskMultiplier (en cada opción de renta variable/fija) y tiltDampening hacen que la ELECCIÓN DE INSTRUMENTO mueva de verdad los porcentajes del donut, no solo la etiqueta del ticker — elegir algo más volátil (p. ej. NASDAQ 100, riskMultiplier 1.35) recorta el peso de ese bloque y se lo pasa al otro, para que el presupuesto de riesgo total quede parecido sea cual sea el fondo concreto. Con selección múltiple se usa la MEDIA de los riskMultiplier elegidos. Los multiplicadores son estimaciones ilustrativas de la volatilidad histórica de cada instrumento respecto a su referencia (msci=1.0 en renta variable, mixed=1.0 en renta fija), no calculadas en vivo — ver adjustWeightsForInstrumentRisk() en app.js y 'El ajuste por riesgo' en README.md. Los subtipos de los sleeves (inmobiliario / otras inversiones) a propósito NO llevan riskMultiplier: su impacto real viene de cambiar qué ticker real se descarga (con su volatilidad y caída histórica reales), el mismo mecanismo ya probado con el selector de índices — un multiplicador decorativo que ninguna función lee sería justo el tipo de 'elección que no mueve nada' que este proyecto evita.",
+
+  "_horizonCapComment": "El horizonte solo puede BAJAR la puntuación de riesgo, nunca subirla: un horizonte corto limita objetivamente cuánta volatilidad puedes absorber antes de necesitar el dinero. Los topes ahora son puntuaciones máximas, no niveles, para no volver a perder la resolución del slider.",
+  "horizonMaxScore": { "viaje": 45, "casa": 70, "crecer": 100, "jubilacion": 100 },
+  "ageMaxScore": { "18-30": 100, "31-45": 100, "46-60": 85, "60+": 60 },
+
+  "_riskTiltComment": "riskMultiplier y tiltDampening hacen que la ELECCIÓN DE INSTRUMENTO mueva los porcentajes, no solo la etiqueta del ticker: algo más volátil recorta el peso de su bloque y se lo pasa al otro, para que el presupuesto de riesgo total quede parecido sea cual sea el fondo. Con varios elegidos entra la media PONDERADA por el reparto que haya fijado el usuario.",
   "tiltDampening": 0.35,
+
+  "_equityComment": "Universo de renta variable en dos capas. Las 'base' son cestas amplias y es lo único que ve quien empieza. Las 'tilt' son sectores y regiones concretos, y solo aparecen si el usuario pide inclinar la cartera — así el principiante no se ahoga en opciones y quien sabe lo que quiere puede pedir más tecnología, más industria o más Europa de verdad.",
   "equityIndexOptions": {
-    "sp500": {
-      "ticker": "SPY",
-      "label": "S&P 500",
-      "name": "SPDR S&P 500 ETF Trust",
-      "expenseRatio": 0.0009,
-      "riskMultiplier": 1.05,
-      "shortDesc": "Las ~500 empresas más grandes de EE. UU.",
-      "examples": "Apple, Microsoft, Amazon, JPMorgan, Coca-Cola",
-      "blurb": "Depende casi por completo de la economía estadounidense — si a EE. UU. le va bien, esto tiende a subir; si le va mal, tiende a bajar."
-    },
-    "nasdaq100": {
-      "ticker": "QQQ",
-      "label": "NASDAQ 100",
-      "name": "Invesco QQQ Trust",
-      "expenseRatio": 0.002,
-      "riskMultiplier": 1.35,
-      "shortDesc": "100 grandes empresas de EE. UU., cargadas de tecnología",
-      "examples": "Nvidia, Meta, Tesla, Netflix, Adobe",
-      "blurb": "Muy concentrado en tecnología — puede crecer más rápido en las buenas, pero también caer más fuerte cuando al sector tech le toca una mala racha. Por eso le damos algo menos de peso que a una opción más diversificada, a igual perfil de riesgo."
-    },
-    "msci": {
-      "ticker": "VT",
-      "label": "MSCI World (global)",
-      "name": "Vanguard Total World Stock ETF",
-      "expenseRatio": 0.0007,
-      "riskMultiplier": 1.0,
-      "shortDesc": "Miles de empresas de todo el mundo, no solo de EE. UU.",
-      "examples": "Inditex, Santander, Nestlé, ASML, Toyota",
-      "blurb": "Al repartirse entre muchos países, no depende tanto de lo que le pase a una sola economía — es la opción más diversificada de las tres, y la que usamos como referencia."
-    }
+    "sp500": { "ticker": "SPY", "label": "S&P 500", "name": "SPDR S&P 500 ETF Trust", "expenseRatio": 0.0009, "riskMultiplier": 1.05, "group": "base",
+      "shortDesc": "Las ~500 mayores de EE. UU.", "examples": "Apple, Microsoft, Amazon, JPMorgan" },
+    "nasdaq100": { "ticker": "QQQ", "label": "NASDAQ 100", "name": "Invesco QQQ Trust", "expenseRatio": 0.0020, "riskMultiplier": 1.35, "group": "base",
+      "shortDesc": "EE. UU., cargado de tecnología", "examples": "Nvidia, Meta, Tesla, Netflix" },
+    "msci": { "ticker": "VT", "label": "MSCI World (global)", "name": "Vanguard Total World Stock ETF", "expenseRatio": 0.0007, "riskMultiplier": 1.00, "group": "base",
+      "shortDesc": "Miles de empresas de todo el mundo", "examples": "Inditex, Nestlé, ASML, Toyota" },
+    "dowjones": { "ticker": "DIA", "label": "Dow Jones", "name": "SPDR Dow Jones Industrial Average ETF", "expenseRatio": 0.0016, "riskMultiplier": 0.95, "group": "base",
+      "shortDesc": "30 gigantes estadounidenses muy asentados", "examples": "Coca-Cola, Boeing, McDonald's, Visa" },
+
+    "tecnologia": { "ticker": "XLK", "label": "Tecnología", "name": "Technology Select Sector SPDR", "expenseRatio": 0.0009, "riskMultiplier": 1.40, "group": "tilt",
+      "shortDesc": "Solo el sector tecnológico", "examples": "Apple, Microsoft, Nvidia, Salesforce" },
+    "industriales": { "ticker": "XLI", "label": "Industriales", "name": "Industrial Select Sector SPDR", "expenseRatio": 0.0009, "riskMultiplier": 1.10, "group": "tilt",
+      "shortDesc": "Maquinaria, transporte, defensa, construcción", "examples": "Caterpillar, GE, Union Pacific, Honeywell" },
+    "salud": { "ticker": "XLV", "label": "Salud", "name": "Health Care Select Sector SPDR", "expenseRatio": 0.0009, "riskMultiplier": 0.90, "group": "tilt",
+      "shortDesc": "Farmacéuticas y sanidad: defensivo", "examples": "Johnson & Johnson, Pfizer, Eli Lilly" },
+    "energia": { "ticker": "XLE", "label": "Energía", "name": "Energy Select Sector SPDR", "expenseRatio": 0.0009, "riskMultiplier": 1.30, "group": "tilt",
+      "shortDesc": "Petróleo y gas: muy cíclico", "examples": "Exxon, Chevron, ConocoPhillips" },
+    "europa": { "ticker": "VGK", "label": "Europa", "name": "Vanguard FTSE Europe ETF", "expenseRatio": 0.0006, "riskMultiplier": 1.05, "group": "tilt",
+      "shortDesc": "Empresas europeas, sin EE. UU.", "examples": "Nestlé, ASML, Novo Nordisk, Inditex" },
+    "emergentes": { "ticker": "VWO", "label": "Mercados emergentes", "name": "Vanguard FTSE Emerging Markets ETF", "expenseRatio": 0.0008, "riskMultiplier": 1.30, "group": "tilt",
+      "shortDesc": "China, India, Brasil…: más recorrido y más sustos", "examples": "TSMC, Tencent, Alibaba, Reliance" },
+    "smallcaps": { "ticker": "IJR", "label": "Pequeñas empresas", "name": "iShares Core S&P Small-Cap ETF", "expenseRatio": 0.0006, "riskMultiplier": 1.25, "group": "tilt",
+      "shortDesc": "Compañías pequeñas de EE. UU.", "examples": "Cientos de empresas poco conocidas" }
   },
   "defaultEquityIndex": "msci",
+
   "bondsOptions": {
-    "govt": {
-      "ticker": "GOVT",
-      "label": "Deuda pública",
-      "name": "iShares U.S. Treasury Bond ETF",
-      "expenseRatio": 0.0005,
-      "riskMultiplier": 0.85,
-      "shortDesc": "Le prestas dinero al Estado",
-      "examples": "Letras y bonos del Tesoro de EE. UU.",
-      "blurb": "El más seguro de los dos — el Tesoro de EE. UU. históricamente siempre ha pagado lo que debía, así que le damos algo más de peso que a una opción con más riesgo de impago."
-    },
-    "corporate": {
-      "ticker": "LQD",
-      "label": "Deuda corporativa",
-      "name": "iShares iBoxx Investment Grade Corporate Bond ETF",
-      "expenseRatio": 0.0014,
-      "riskMultiplier": 1.2,
-      "shortDesc": "Le prestas dinero a grandes empresas",
-      "examples": "Bonos de Apple, Pfizer, Telefónica y similares",
-      "blurb": "Algo más de riesgo que el Estado (riesgo de impago), así que suele pagar algo más de interés a cambio — y le damos algo menos de peso para compensar."
-    },
-    "mixed": {
-      "ticker": "BND",
-      "label": "Mezcla",
-      "name": "Vanguard Total Bond Market ETF",
-      "expenseRatio": 0.0003,
-      "riskMultiplier": 1.0,
-      "shortDesc": "Un fondo amplio que combina Estado y empresas",
-      "examples": "Más de 10.000 bonos distintos en un solo fondo",
-      "blurb": "El término medio: no eliges entre uno u otro, el fondo ya viene mezclado — y es el que usamos como referencia."
-    }
+    "govt": { "ticker": "GOVT", "label": "Deuda pública", "name": "iShares U.S. Treasury Bond ETF", "expenseRatio": 0.0005, "riskMultiplier": 0.85,
+      "shortDesc": "Le prestas dinero al Estado", "examples": "Letras y bonos del Tesoro de EE. UU." },
+    "corporate": { "ticker": "LQD", "label": "Deuda corporativa", "name": "iShares iBoxx Investment Grade Corporate Bond ETF", "expenseRatio": 0.0014, "riskMultiplier": 1.20,
+      "shortDesc": "Le prestas dinero a grandes empresas", "examples": "Bonos de Apple, Pfizer, Telefónica" },
+    "inflacion": { "ticker": "TIP", "label": "Ligados a la inflación", "name": "iShares TIPS Bond ETF", "expenseRatio": 0.0019, "riskMultiplier": 0.95,
+      "shortDesc": "Su valor se ajusta con la inflación", "examples": "Bonos del Tesoro indexados (TIPS)" },
+    "mixed": { "ticker": "BND", "label": "Mezcla", "name": "Vanguard Total Bond Market ETF", "expenseRatio": 0.0003, "riskMultiplier": 1.00,
+      "shortDesc": "Un fondo amplio que combina Estado y empresas", "examples": "Más de 10.000 bonos en un solo fondo" }
   },
   "defaultBondsChoice": "mixed",
-  "_sleevesComment": "Tres sleeves opcionales (inmobiliario, otras inversiones, private equity) son recortes reales elegidos por el usuario SOBRE el peso de renta variable, aplicados después del ajuste por riesgo y en ese orden — nunca decorativos, nunca sacados de renta fija o efectivo. Inmobiliario y otras inversiones admiten SELECCIÓN MÚLTIPLE de subtipos: el peso del sleeve se reparte a partes iguales entre los elegidos. Cada subtipo resuelve a un ticker real cuando existe de verdad (hasRealData:true) o a una tasa anual ilustrativa documentada cuando no (hasRealData:false, p. ej. crowdfunding inmobiliario o private equity, que no tienen cotización diaria pública). Este proyecto nunca se inventa un ticker falso para rellenar ese hueco, mismo principio ya aplicado al efectivo. Ver applySleeves() en app.js.",
-  "realEstateFractionByTier": {
-    "conservador": 0.08,
-    "moderado": 0.12,
-    "arriesgado": 0.15
-  },
+
+  "_sleevesComment": "Los bloques opcionales se recortan de la renta variable, en este orden, y su tamaño ya NO es fijo: escala con la puntuación de riesgo mediante una curva propia, igual que el reparto principal. Además cada subtipo lleva su PROPIO umbral (minScore) en vez de un único tope para toda la familia: meter el oro y el bitcoin en el mismo saco era justo lo que impedía distinguirlos, cuando el oro es un diversificador clásico razonable a riesgo medio y el bitcoin no.",
+  "realEstateFractionCurve": [
+    { "score": 0, "fraction": 0.06 },
+    { "score": 100, "fraction": 0.16 }
+  ],
   "realEstateSubtypes": {
-    "reits": {
-      "ticker": "VNQ",
-      "label": "REITs / SOCIMIs",
-      "name": "Vanguard Real Estate ETF",
-      "expenseRatio": 0.0013,
-      "hasRealData": true,
-      "shortDesc": "Cotizan en bolsa: mucha liquidez y empiezas con poco dinero.",
-      "examples": "En España se llaman SOCIMIs: Merlin Properties, Colonial",
-      "blurb": "La forma más simple y líquida: compras y vendes al instante, como cualquier ETF, sin tener que lidiar con inquilinos ni con la caldera rota."
-    },
-    "crowdfunding": {
-      "ticker": null,
-      "illustrativeAnnualRate": 0.07,
-      "label": "Crowdfunding inmobiliario",
-      "name": "Estimación ilustrativa (sin cotización pública)",
-      "expenseRatio": null,
-      "hasRealData": false,
-      "shortDesc": "Financias un proyecto concreto junto a otros: mínimos bajos, pero mucho menos líquido.",
-      "examples": "Plataformas tipo Housers o Urbanitae",
-      "blurb": "En vez de comprar una acción de una gran inmobiliaria, pones dinero en un proyecto concreto (un edificio, una reforma). Suele pedir menos capital de entrada que comprar un piso, pero tu dinero se queda pillado más tiempo — y no hay cotización diaria real que enseñarte, así que usamos una tasa anual estimada en lugar de datos de mercado."
-    }
+    "reits": { "ticker": "VNQ", "label": "REITs / SOCIMIs", "name": "Vanguard Real Estate ETF", "expenseRatio": 0.0013, "hasRealData": true, "minScore": 0,
+      "shortDesc": "Cotizan en bolsa: mucha liquidez y entras con poco.", "examples": "En España, SOCIMIs: Merlin Properties, Colonial" },
+    "crowdfunding": { "ticker": null, "illustrativeAnnualRate": 0.07, "label": "Crowdfunding inmobiliario", "name": "Estimación ilustrativa (sin cotización pública)", "expenseRatio": null, "hasRealData": false, "minScore": 30,
+      "shortDesc": "Financias un proyecto concreto: mínimos bajos, poca liquidez.", "examples": "Plataformas tipo Housers o Urbanitae" }
   },
   "defaultRealEstateSubtype": "reits",
-  "alternativeFraction": 0.08,
-  "alternativeRequiresTier": "arriesgado",
+
+  "alternativeFractionCurve": [
+    { "score": 0, "fraction": 0.03 },
+    { "score": 100, "fraction": 0.11 }
+  ],
   "alternativeSubtypes": {
-    "crypto": {
-      "ticker": "BTC/USD",
-      "label": "Criptomonedas",
-      "name": "Bitcoin",
-      "expenseRatio": 0,
-      "hasRealData": true,
-      "shortDesc": "La más volátil de las tres, y la que menos historial tiene.",
-      "examples": "Bitcoin, la más grande y antigua",
-      "blurb": "Un activo digital sin banco central detrás. Es, con diferencia, lo más volátil de esta cartera — por eso solo entra si tu perfil de riesgo final llega a 'arriesgado'."
-    },
-    "metales": {
-      "ticker": "GLD",
-      "label": "Metales preciosos",
-      "name": "SPDR Gold Shares",
-      "expenseRatio": 0.004,
-      "hasRealData": true,
-      "shortDesc": "El refugio clásico cuando pintan bastos.",
-      "examples": "Oro, principalmente; también plata o platino",
-      "blurb": "Un metal físico que históricamente aguanta el valor cuando otros activos caen — no reparte dividendos ni intereses: lo que ganes (o pierdas) viene solo de cuánto suba o baje su precio."
-    },
-    "materiasPrimas": {
-      "ticker": "DBC",
-      "label": "Materias primas",
-      "name": "Invesco DB Commodity Index Tracking Fund",
-      "expenseRatio": 0.0087,
-      "hasRealData": true,
-      "shortDesc": "Petróleo, trigo, cobre y compañía, todo junto en un fondo.",
-      "examples": "Energía, agricultura y metales industriales",
-      "blurb": "Un fondo que sigue una cesta de materias primas físicas — se mueve mucho con la economía global, no solo con los tipos de interés."
-    }
+    "metales": { "ticker": "GLD", "label": "Oro", "name": "SPDR Gold Shares", "expenseRatio": 0.004, "hasRealData": true, "minScore": 20,
+      "shortDesc": "El refugio clásico cuando pintan bastos.", "examples": "Oro físico en custodia" },
+    "plata": { "ticker": "SLV", "label": "Plata", "name": "iShares Silver Trust", "expenseRatio": 0.005, "hasRealData": true, "minScore": 40,
+      "shortDesc": "Como el oro pero más movida: también es metal industrial.", "examples": "Plata física en custodia" },
+    "materiasPrimas": { "ticker": "DBC", "label": "Materias primas", "name": "Invesco DB Commodity Index Tracking Fund", "expenseRatio": 0.0087, "hasRealData": true, "minScore": 45,
+      "shortDesc": "Petróleo, trigo, cobre: ligadas a la economía real.", "examples": "Energía, agricultura y metales industriales" },
+    "crypto": { "ticker": "BTC/USD", "label": "Criptomonedas", "name": "Bitcoin", "expenseRatio": 0, "hasRealData": true, "minScore": 70,
+      "shortDesc": "Lo más volátil de todo, y lo que menos historial tiene.", "examples": "Bitcoin, la mayor y más antigua" }
   },
-  "defaultAlternativeSubtype": "crypto",
-  "_collectiblesComment": "Los coleccionables (arte, vinos, coches clásicos) NO están como subtipo seleccionable a propósito: no existe una cotización pública, líquida y diaria para ellos, así que no hay forma honesta de respaldarlos ni con datos reales ni con una tasa ilustrativa defendible. Se explican igualmente en la lección de otras inversiones para dar contexto, pero nunca se ofrecen como asignación real.",
-  "privateEquityFraction": 0.1,
-  "privateEquityRequiresTier": "arriesgado",
+  "defaultAlternativeSubtype": "metales",
+
+  "_collectiblesComment": "Los coleccionables (arte, vinos, coches clásicos) NO son seleccionables a propósito: no existe cotización pública, líquida y diaria, así que no hay forma honesta de respaldarlos ni con datos reales ni con una tasa defendible. Se explican en la lección para dar contexto, nunca se ofrecen como asignación.",
+
+  "_privateEquityComment": "Antes exigía perfil 'arriesgado' y punto, así que no entraba nunca aunque sobrara capital. El requisito de verdad de este activo es la ILIQUIDEZ: el dinero se queda comprometido años, de modo que lo que manda es el horizonte y el importe mínimo, más un suelo moderado de tolerancia al riesgo. Así entra cuando tiene sentido en vez de casi nunca.",
+  "privateEquityFractionCurve": [
+    { "score": 40, "fraction": 0.05 },
+    { "score": 100, "fraction": 0.13 }
+  ],
+  "privateEquityMinScore": 40,
+  "privateEquityHorizons": ["crecer", "jubilacion"],
   "privateEquityMinAmount": 10000,
   "privateEquityInstrument": {
-    "label": "Private Equity",
-    "illustrativeAnnualRate": 0.11,
-    "name": "Estimación ilustrativa (sin cotización pública)",
-    "expenseRatio": null,
-    "hasRealData": false,
-    "shortDesc": "Empresas que no cotizan en bolsa — acceso minorista limitado.",
-    "examples": "Mercadona, El Corte Inglés, Ikea, SpaceX, OpenAI",
-    "blurb": "Invertir en empresas privadas casi siempre exige un importe de entrada más alto que un ETF, y tu dinero se queda comprometido varios años (no puedes venderlo cuando te apetezca). No existe cotización diaria pública con la que calcular un backtest real, así que usamos una tasa anual estimada basada en rentabilidades históricas típicas del sector a largo plazo — que no es ninguna garantía de resultado."
+    "label": "Private Equity", "illustrativeAnnualRate": 0.11, "name": "Estimación ilustrativa (sin cotización pública)", "expenseRatio": null, "hasRealData": false,
+    "shortDesc": "Empresas que no cotizan en bolsa.",
+    "examples": "Mercadona, El Corte Inglés, Ikea, SpaceX, OpenAI"
   },
-  "instruments": {
-    "cash": {
-      "illustrativeAnnualRate": 0.02
-    }
-  },
-  "_inflationComment": "assumedAnnualInflation es una ASUNCIÓN documentada, no un dato medido: se usa el objetivo del Banco Central Europeo (2 % anual) para expresar los importes futuros en euros de hoy. Sin este descuento, una cifra nominal a diez o treinta años engaña sin querer, porque no compra lo mismo. La inflación real de cada periodo fue distinta; esto es una referencia legible, no una reconstrucción histórica.",
-  "assumedAnnualInflation": 0.02
+
+  "_inflationComment": "assumedAnnualInflation es una ASUNCIÓN documentada, no un dato medido: se usa el objetivo del Banco Central Europeo (2 % anual) para expresar importes futuros en euros de hoy. Sin ese descuento, una cifra nominal a largo plazo engaña sin querer.",
+  "assumedAnnualInflation": 0.02,
+  "instruments": { "cash": { "illustrativeAnnualRate": 0.02 } }
 }

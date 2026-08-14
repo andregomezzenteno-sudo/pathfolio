@@ -737,3 +737,42 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
 
 .dash-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 #shareBtn { min-width: 232px; }
+
+/* Reparto dentro de un bloque. Aparece solo al elegir 2+ instrumentos: con
+   uno no hay nada que repartir. Pesos relativos 1-10 en vez de porcentajes
+   que deban cuadrar a 100 a mano, que es donde este control se vuelve
+   incómodo de usar. */
+.mix-panel {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--page-plane);
+  border: 1px dashed var(--baseline);
+}
+.mix-panel[hidden] { display: none; }
+.mix-title {
+  margin: 0 0 2px; font-size: 0.78rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted);
+}
+.mix-row { display: grid; grid-template-columns: minmax(96px, 1fr) 2fr auto; align-items: center; gap: 12px; }
+.mix-name { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
+.mix-row input[type="range"] {
+  width: 100%; height: 5px; border-radius: 999px;
+  background: var(--gridline); appearance: none; -webkit-appearance: none; cursor: pointer;
+}
+.mix-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--brand); border: 2px solid var(--surface-1); cursor: grab;
+}
+.mix-row input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--brand); border: 2px solid var(--surface-1); cursor: grab;
+}
+.mix-pct {
+  font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--brand); min-width: 46px; text-align: right;
+}
+@media (max-width: 560px) {
+  .mix-row { grid-template-columns: 1fr auto; }
+  .mix-row input[type="range"] { grid-column: 1 / -1; }
+}
