@@ -38,6 +38,8 @@ const fixtures = {
   XLK: buildFixture(41, 0.0007), XLI: buildFixture(43, 0.0004), XLV: buildFixture(47, 0.0003),
   XLE: buildFixture(53, 0.0002), VGK: buildFixture(59, 0.00035), VWO: buildFixture(71, 0.0003),
   IJR: buildFixture(73, 0.0004),
+  // El tipo de cambio: sin él, las series en dólares no se pueden pasar a euros.
+  'EUR/USD': buildFixture(83, 0.00002),
 };
 const fetchedUrls = [];
 
@@ -333,6 +335,8 @@ async function main() {
       || u.includes('symbol=' + t)), `debería haberse descargado el ticker real ${t}`);
   });
   assert(!fetchedUrls.some(u => u.includes('symbol=BTC')), 'no se eligió cripto, así que BTC no debería descargarse');
+  assert(fetchedUrls.some(u => u.includes('EUR%2FUSD') || u.includes('EUR/USD')),
+    'debería descargarse el tipo de cambio: los fondos cotizan en dólares y el resultado se enseña en euros');
   console.log('OK: se descargan los tickers reales de todo lo elegido, sectores incluidos (SPY+QQQ+XLK+XLI, GOVT+LQD, VNQ, GLD+DBC)');
 
   /* ---------- narración: de dónde sale cada porcentaje ---------- */
@@ -482,6 +486,14 @@ async function main() {
   assert(inflNote.includes('efectivo'),
     'la nota de inflación debería cerrar el círculo: por eso el efectivo no es tan seguro como parece');
   console.log('OK: el dashboard cifra en euros lo que se llevan las comisiones y lo que se lleva la inflación');
+
+  /* ---------- riesgo divisa ---------- */
+  assert(statTxt.includes('Efecto del tipo de cambio'),
+    'debería mostrarse cuánto ha puesto o quitado el tipo de cambio');
+  const fxTxt = doc.getElementById('fxNotice').textContent;
+  assert(fxTxt.includes('dólares') && fxTxt.includes('riesgo divisa'),
+    'debería explicarse que los fondos cotizan en dólares y qué implica');
+  console.log('OK: los fondos en dólares se convierten a euros con el cambio de cada día, y se aísla el efecto divisa');
 
   /* ---------- estado en la URL: recargar y compartir ---------- */
   const hash = window.location.hash;

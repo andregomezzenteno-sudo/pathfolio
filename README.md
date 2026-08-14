@@ -1,16 +1,57 @@
 # PathFolio
 
-A short illustrated course, in plain Spanish with zero financial jargon, that
-turns your answers into an illustrative investment allocation — explained in
-everyday language, backed by a real historical backtest on real market data.
-No backend, no build step, no ongoing cost to run.
+**Un cuestionario ilustrado que convierte tus respuestas en una cartera de
+inversión real, explicada sin jerga y contrastada con datos de mercado
+históricos.** Sin backend, sin paso de compilación y sin coste de operación.
 
 [![Tests](https://github.com/andregomezzenteno-sudo/pathfolio/actions/workflows/test.yml/badge.svg)](https://github.com/andregomezzenteno-sudo/pathfolio/actions/workflows/test.yml)
 
-**[Live demo →](https://andregomezzenteno-sudo.github.io/pathfolio/)**
+**[Ver demo en vivo →](https://andregomezzenteno-sudo.github.io/pathfolio/)**
 
-Built as a portfolio piece connecting finance + applied AI, targeting fintech
-roles (Revolut, Kraken, BVNK, Affirm, UST, and similar).
+<!-- CAPTURAS: sustituir por imágenes reales (docs/screenshot-*.png).
+     Es lo primero que mira quien revisa el repo y ahora mismo falta. -->
+| Cuestionario | Resultado |
+|---|---|
+| _(captura pendiente)_ | _(captura pendiente)_ |
+
+---
+
+## Por qué este proyecto es distinto
+
+La mayoría de simuladores de cartera enseñan una curva bonita y callan lo que
+la hace bonita. Aquí lo interesante es justo lo contrario: **cada decisión que
+inflaría el resultado está declarada en pantalla.**
+
+- **El backtest no miente sobre lo que asume.** Una versión anterior mezclaba
+  la cartera sumando rentabilidades diarias ponderadas, que es —sin decirlo—
+  rebalancear todos los días: irreal y favorecedor. Ahora se sigue el valor
+  real de cada posición, los pesos derivan con el mercado y se declara el
+  rebalanceo anual, con cuánto aporta ese gesto en euros.
+- **Se cobran las comisiones y se descuenta la inflación.** El TER se resta
+  cada sesión y se muestra en euros lo que se ha llevado; las cifras traen
+  también su valor en euros de hoy.
+- **Se convierte la divisa.** Los fondos cotizan en dólares, así que se
+  convierten con el cambio de cada día y se aísla el efecto divisa — que para
+  quien invierte desde la zona euro es parte real del resultado.
+- **Cuando un dato no existe, se dice.** El private equity no tiene cotización
+  diaria pública: se modela con una tasa documentada y la interfaz avisa de
+  que, por eso, la volatilidad y la caída máxima que muestra son un **suelo**,
+  no la cifra real.
+- **El LLM nunca decide un número.** La asignación sale de una tabla
+  determinista auditable; el modelo solo explica en lenguaje llano algo ya
+  decidido. Es la diferencia entre "educación" y "asesoramiento", que en la UE
+  no es un matiz cosmético.
+
+## Lo que demuestra técnicamente
+
+- **Motor separado de la interfaz** ([`engine.js`](engine.js)): la lógica que
+  decide dinero no toca el DOM, así que **las pruebas importan y ejecutan el
+  código real de producción** en vez de una copia que se desincroniza.
+- **45 pruebas en CI** (motor + integración con jsdom sobre el HTML real),
+  ejecutándose en cada push. Han encontrado fallos reales: un slider que topaba
+  el perfil antes de ser respondido, un parpadeo de iconos por animaciones
+  sincronizadas y una ruta de Windows que rompía en Linux.
+- **Cero dependencias en el navegador.** Los gráficos son SVG a mano.
 
 ## What it does
 

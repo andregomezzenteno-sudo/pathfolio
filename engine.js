@@ -43,20 +43,6 @@ function sliderToTier(v) {
   return 'arriesgado';
 }
 
-function applyCap(currentTier, capTier, riskOrder) {
-  if (!capTier) return { tier: currentTier, wasCapped: false };
-  const capped = riskOrder.indexOf(capTier) < riskOrder.indexOf(currentTier) ? capTier : currentTier;
-  return { tier: capped, wasCapped: capped !== currentTier };
-}
-
-// Un tramo de edad de 60+ topa en "moderado" independientemente del riesgo
-// declarado y del horizonte — el principio clásico de la senda de jubilación:
-// queda menos tiempo para recuperarse de una mala racha, con independencia de
-// cómo se SIENTA la persona respecto al riesgo.
-function ageToCapTier(age) {
-  return age === '60+' ? 'moderado' : null;
-}
-
 // Interpolación lineal sobre una curva de puntos de anclaje. Es la pieza que
 // convierte el slider en algo que de verdad manda: en vez de tres carteras
 // posibles hay una por cada valor del 0 al 100.
@@ -456,6 +442,16 @@ function alignSeriesSet(seriesList) {
 // modela lo que de verdad le pasaría a alguien, y de paso permite enseñar
 // qué aporta rebalancear, que es uno de los conceptos que explica la app.
 //
+// Convierte series cotizadas en dólares a euros con el tipo de cambio de cada
+// día. No es un detalle cosmético: TODOS los ETFs de esta cartera (SPY, QQQ,
+// GLD, BTC/USD…) cotizan en USD, así que enseñar el resultado en euros sin
+// convertir era sencillamente incorrecto — y además escondía el riesgo divisa,
+// que para alguien que invierte desde la zona euro es una parte real de lo que
+// gana o pierde. EUR/USD dice cuántos dólares vale un euro, de ahí la división.
+function convertToEur(closesList, eurUsdCloses) {
+  return closesList.map(closes => closes.map((px, i) => px / eurUsdCloses[i]));
+}
+
 // weightsList casa 1:1 con closesList. El efectivo va aparte porque no tiene
 // serie de precios, y flatAssets cubre los sleeves que tampoco la tienen
 // (crowdfunding inmobiliario, private equity): capitalizan a su tasa anual
@@ -620,11 +616,11 @@ function shortDate(iso) {
 
 
   return {
-    sliderToTier, applyCap, ageToCapTier, computeEffectiveRisk, getAllocationWeights,
-    resolvePicks, weightedRiskMultiplier, applyCap, ageToCapTier, sliderToTier, getAllocationWeights, splitByMix, adjustWeightsForInstrumentRisk, applySleeves,
+    sliderToTier, computeEffectiveRisk, getAllocationWeights,
+    resolvePicks, weightedRiskMultiplier, sliderToTier, getAllocationWeights, splitByMix, adjustWeightsForInstrumentRisk, applySleeves,
     CATEGORY_META, computeAllocation, buildAllocationNarrative, getExplanation,
     alignSeriesSet, simulatePortfolio, simulateDCA, annualizedVol, maxDrawdown,
-    calendarYearReturns, realValue, interpolateCurve, formatEUR, formatPct, formatPctValue, displayPercents,
+    calendarYearReturns, realValue, interpolateCurve, convertToEur, formatEUR, formatPct, formatPctValue, displayPercents,
     formatSignedPct, shortDate, TIER_LABEL, listPhrase,
   };
 });

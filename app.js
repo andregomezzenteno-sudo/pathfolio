@@ -1096,6 +1096,7 @@ const coverageNotice = document.getElementById('coverageNotice');
 const comparisonTableBody = document.getElementById('comparisonTableBody');
 const comparisonTakeaway = document.getElementById('comparisonTakeaway');
 const inflationNotice = document.getElementById('inflationNotice');
+const fxNotice = document.getElementById('fxNotice');
 const backtestStory = document.getElementById('backtestStory');
 const statGrid = document.getElementById('statGrid');
 const explanationDetail = document.getElementById('explanationDetail');
@@ -1223,8 +1224,16 @@ async function runDashboard() {
     const tickerHoldings = holdings.filter(h => h.hasRealData && h.ticker);
     const flatHoldings = holdings.filter(h => !h.hasRealData && h.key !== 'cash');
 
-    const fetchedSeries = await mapWithConcurrency(tickerHoldings, 3, h => fetchTickerSeries(h.ticker));
-    const aligned = alignSeriesSet(fetchedSeries);
+    // Todos los ETFs de esta cartera cotizan en dólares, así que hace falta el
+    // tipo de cambio para expresar el resultado en euros de verdad. Se alinea
+    // junto al resto para que cada día use SU cambio, no uno medio.
+    const fetchedSeries = await mapWithConcurrency(
+      [...tickerHoldings.map(h => h.ticker), 'EUR/USD'], 3, t => fetchTickerSeries(t)
+    );
+    const alignedAll = alignSeriesSet(fetchedSeries);
+    const eurUsd = alignedAll.closesList[alignedAll.closesList.length - 1];
+    const usdCloses = alignedAll.closesList.slice(0, -1);
+    const aligned = { dates: alignedAll.dates, closesList: convertToEur(usdCloses, eurUsd) };
     const cashAnnualRate = ALLOCATIONS.instruments.cash.illustrativeAnnualRate;
     const flatAssets = flatHoldings.map(h => ({ weight: h.weight, annualRate: h.illustrativeAnnualRate }));
     const runSim = (weightsList, cashWeight, flats, rebalance, expenseRatios) => simulatePortfolio({
@@ -1241,6 +1250,16 @@ async function runDashboard() {
     const blend = runSim(tickerWeights, finalWeights.cash, flatAssets, 'annual', tickerTERs);
     const drifted = runSim(tickerWeights, finalWeights.cash, flatAssets, 'none', tickerTERs);
     const noFees = runSim(tickerWeights, finalWeights.cash, flatAssets, 'annual', null);
+
+    // La misma cartera SIN convertir divisa: la diferencia es exactamente lo
+    // que ha puesto (o quitado) el tipo de cambio, que para quien invierte
+    // desde la zona euro en activos en dólares es una parte real del
+    // resultado y no un detalle contable.
+    const unhedged = simulatePortfolio({
+      dates: alignedAll.dates, closesList: usdCloses,
+      weightsList: tickerWeights, expenseRatios: tickerTERs,
+      cashWeight: finalWeights.cash, cashAnnualRate, flatAssets, rebalance: 'annual',
+    });
 
     const n = blend.dates.length;
     const growth = blend.portfolioEquity[n - 1];
@@ -1288,6 +1307,7 @@ async function runDashboard() {
     // nada, que es exactamente por qué conviene verlo en euros y no en letra
     // pequeña.
     const feesPaid = answers.amount * noFees.portfolioEquity[n - 1] - finalValue;
+    const fxEffect = finalValue - answers.amount * unhedged.portfolioEquity[n - 1];
 
     // Valor real: los mismos euros, pero expresados en poder adquisitivo de
     // hoy. Sin esto, una cifra nominal a largo plazo engaña sin querer.
@@ -1313,9 +1333,11 @@ async function runDashboard() {
       { label: 'Rebalanceando cada año', animate: true, value: rebalanceEdge, format: v => formatEUR(v, 0), tone: rebalanceEdge >= 0 ? 'good' : 'bad', note: `Frente a no tocar nada nunca (${formatEUR(driftedValue, 0)})` },
       { label: 'Se han llevado las comisiones', animate: true, value: -feesPaid, format: v => formatEUR(v, 0), tone: 'bad', note: 'Los TER de tus fondos, ya descontados arriba' },
       { label: 'Valor real, en euros de hoy', animate: true, value: realEnd, format: v => formatEUR(v, 0), note: `Descontando un ${formatPct(inflation, 0)} de inflación anual` },
+      { label: 'Efecto del tipo de cambio', animate: true, value: fxEffect, format: v => formatEUR(v, 0), tone: fxEffect >= 0 ? 'good' : 'bad', note: 'Los fondos cotizan en dólares; tú inviertes en euros' },
       { label: 'Respaldado por datos reales', animate: true, value: realDataShare, format: v => formatPct(v, 0), note: estimatedShare > 0.0001 ? `El resto usa tasas estimadas` : 'Toda la cartera tiene precios reales' },
     ].filter(Boolean));
 
+    fxNotice.textContent = `Todos estos fondos cotizan en dólares, así que a tu resultado en euros le afecta también el tipo de cambio: aquí lo hemos convertido con el cambio EUR/USD de cada día, y esa conversión ${fxEffect >= 0 ? 'ha sumado' : 'ha restado'} ${formatEUR(Math.abs(fxEffect), 0)}. Es riesgo divisa: puedes acertar de pleno con la inversión y aun así ganar menos porque el dólar se debilitó frente al euro.`;
     inflationNotice.textContent = `Las cifras de arriba son nominales salvo donde se indica. Con una inflación del ${formatPct(inflation, 0)} anual, los ${formatEUR(nominalEnd, 0)} de dentro de ${years.toFixed(1)} años comprarían hoy lo que ${formatEUR(realEnd, 0)} — la diferencia no la pierdes en el mercado, la pierde el dinero por el mero paso del tiempo. Es también la razón por la que dejarlo todo en efectivo no es la opción segura que parece.`;
 
     // Avisos metodológicos: los dos son cosas que inflan el resultado si no se
