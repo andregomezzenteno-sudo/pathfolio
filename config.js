@@ -7,11 +7,10 @@
  * (ver worker/README.md). Cuando está puesta, el navegador nunca ve la clave
  * de la API: se la pone el Worker desde un secreto de Cloudflare.
  *
- * Si se deja vacía, la app cae a llamar directamente a Twelve Data con la
- * clave incrustada en app.js. Eso funciona y es lo que hubo hasta ahora, pero
- * deja una credencial a la vista en un repositorio público, así que la consola
- * avisa. Es un modo de desarrollo, no el destino.
+ * Es obligatoria: sin ella la app falla diciendo qué falta, en vez de volver
+ * a incrustar una credencial en el cliente. Para levantar tu propio proxy,
+ * ver worker/README.md.
  */
 window.PATHFOLIO_CONFIG = {
-  dataProxyUrl: '',
+  dataProxyUrl: 'https://pathfolio-data-proxy.allpainends.workers.dev',
 };

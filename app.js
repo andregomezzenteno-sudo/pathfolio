@@ -114,37 +114,25 @@ function renderAllSketchIcons(root = document) {
 
 /* Origen de los datos de mercado.
  *
- * Con el proxy configurado (config.js -> dataProxyUrl), el navegador llama a
- * un Cloudflare Worker que añade la clave desde un secreto suyo: la
- * credencial no viaja nunca al cliente ni aparece en el repositorio. Es el
- * camino bueno, y está en worker/.
+ * El navegador nunca ve la clave de la API: llama a un Cloudflare Worker
+ * (worker/) que la añade desde un secreto suyo. Antes la clave iba incrustada
+ * aquí y, por tanto, a la vista en un repositorio público — que es una mala
+ * señal en cualquier proyecto que se mire con ojos de fintech, por muy
+ * limitada que sea la clave.
  *
- * Sin proxy configurado se llama directamente a Twelve Data con la clave de
- * abajo. Funciona —es lo que hubo desde el principio— pero deja una
- * credencial a la vista en un repositorio público, así que se avisa por
- * consola en vez de dejarlo pasar en silencio. Se conserva para que el sitio
- * siga en pie mientras el Worker no esté desplegado, no como destino. */
-const TWELVE_DATA_API_KEY = '861f8f9854f843bb929a3eb03b49d5d7';
-let warnedAboutDirectKey = false;
-
-// Se lee la configuración en cada llamada en vez de una sola vez al cargar:
-// cuesta nada y hace que el origen de los datos sea observable y comprobable
-// sin recargar la página.
+ * La URL del proxy vive en config.js, no aquí, para que cambiar de despliegue
+ * no obligue a tocar la lógica. Se lee en cada llamada en vez de una sola vez
+ * al cargar: cuesta nada y hace que el origen de los datos sea observable. */
 const dataProxyUrl = () => (window.PATHFOLIO_CONFIG && window.PATHFOLIO_CONFIG.dataProxyUrl) || '';
 
 function marketDataUrl(symbol, outputsize) {
   const proxy = dataProxyUrl();
-  if (proxy) {
-    return `${proxy.replace(/\/$/, '')}?symbol=${encodeURIComponent(symbol)}&outputsize=${outputsize}`;
+  if (!proxy) {
+    // Sin proxy no hay de dónde sacar los datos, y la alternativa sería volver
+    // a incrustar una credencial en el cliente. Mejor fallar diciendo qué falta.
+    throw new Error('No hay proxy de datos configurado (config.js -> dataProxyUrl). Ver worker/README.md.');
   }
-  if (!warnedAboutDirectKey) {
-    warnedAboutDirectKey = true;
-    console.warn(
-      'PathFolio: llamando a Twelve Data con la clave incrustada en el cliente. ' +
-      'Configura dataProxyUrl en config.js para que la clave deje de viajar al navegador (ver worker/README.md).'
-    );
-  }
-  return `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=1day&outputsize=${outputsize}&apikey=${TWELVE_DATA_API_KEY}`;
+  return `${proxy.replace(/\/$/, '')}?symbol=${encodeURIComponent(symbol)}&outputsize=${outputsize}`;
 }
 
 async function fetchPricesTwelveData(symbol, outputsize) {

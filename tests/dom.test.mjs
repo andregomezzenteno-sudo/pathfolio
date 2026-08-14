@@ -8,7 +8,9 @@ import { fileURLToPath } from 'url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 const html = read('index.html');
-const configJs = read('config.js');
+// Se apunta el proxy a un host de prueba: lo que se comprueba es que la app
+// hable SIEMPRE con él y nunca lleve credenciales, no la URL concreta.
+const configJs = read('config.js').replace(/dataProxyUrl: '[^']*'/, "dataProxyUrl: 'https://proxy.test'");
 const i18nJs = read('i18n.js');
 const dynamicJs = read('i18n/dynamic.js');
 const engineJs = read('engine.js');
@@ -349,20 +351,24 @@ async function main() {
     'debería descargarse el tipo de cambio: los fondos cotizan en dólares y el resultado se enseña en euros');
   console.log('OK: se descargan los tickers reales de todo lo elegido, sectores incluidos (SPY+QQQ+XLK+XLI, GOVT+LQD, VNQ, GLD+DBC)');
 
-  /* ---------- origen de los datos: proxy o llamada directa ---------- */
-  // Sin proxy configurado se llama directo, con la clave a la vista, y la app
-  // debe avisarlo por consola en vez de dejarlo pasar en silencio.
-  assert(fetchedUrls.some(u => u.includes('apikey=')),
-    'sin proxy configurado se llama directamente a Twelve Data');
-  assert(warnings.some(w => /dataProxyUrl/.test(w)),
-    'debería avisarse por consola de que la clave está viajando al navegador');
+  /* ---------- origen de los datos: siempre a través del proxy ---------- */
+  // Ninguna petición debe llevar credencial: la pone el Worker desde su propio
+  // secreto. Si esto falla, la clave ha vuelto al cliente.
+  assert(!fetchedUrls.some(u => u.includes('apikey=')),
+    'ninguna petición debería llevar la clave de la API');
+  assert(fetchedUrls.some(u => u.includes('proxy.test?symbol=')),
+    'los datos de mercado deberían pedirse al proxy');
 
-  // Con proxy configurado, la clave no debe aparecer en ninguna petición.
-  window.PATHFOLIO_CONFIG.dataProxyUrl = 'https://proxy.test';
-  const viaProxy = window.eval("marketDataUrl('SPY', 2500)");
-  assert(!viaProxy.includes('apikey'), `con proxy, la URL no debe llevar la clave: "${viaProxy}"`);
-  assert(viaProxy.startsWith('https://proxy.test?symbol=SPY'), `debería apuntar al proxy: "${viaProxy}"`);
-  console.log('OK: con el proxy configurado la clave desaparece de las peticiones; sin él se llama directo y se avisa por consola');
+  // Y sin proxy configurado se falla diciendo qué falta, en vez de caer a
+  // incrustar una credencial otra vez.
+  const saved = window.PATHFOLIO_CONFIG.dataProxyUrl;
+  window.PATHFOLIO_CONFIG.dataProxyUrl = '';
+  let threw = null;
+  try { window.eval("marketDataUrl('SPY', 2500)"); } catch (e) { threw = e; }
+  assert(threw && /dataProxyUrl/.test(threw.message),
+    'sin proxy debería fallar explicando qué falta, no llamar con clave');
+  window.PATHFOLIO_CONFIG.dataProxyUrl = saved;
+  console.log('OK: la clave ya no viaja al navegador — todo pasa por el proxy, y sin él la app dice qué falta');
 
   /* ---------- narración: de dónde sale cada porcentaje ---------- */
   const steps = doc.getElementById('narrativeList').querySelectorAll('.narrative-step');

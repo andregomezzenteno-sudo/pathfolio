@@ -527,13 +527,16 @@ expuesta— sino que lleva lista blanca de símbolos, lista blanca de orígenes,
 tope de tamaño y caché de 6 horas, que además ahorra muchísima cuota en un
 plan de 8 peticiones por minuto.
 
-Se activa poniendo su URL en [`config.js`](config.js). Mientras esté vacía, la
-app llama directamente a Twelve Data y **avisa por consola** de que la clave
-está viajando al cliente: es un modo de desarrollo, no el destino. La suite
-comprueba que la lista blanca del proxy cubra exactamente los tickers que la
-app usa —ni uno de menos, que rompería un backtest, ni uno de más, que sería
-superficie de ataque gratuita— y que la clave no aparezca ni en el Worker ni
-en su configuración.
+**Está desplegado y en uso**: la app pide sus datos a
+`pathfolio-data-proxy.allpainends.workers.dev` y en el código no queda ninguna
+credencial. Si no hay proxy configurado en [`config.js`](config.js), la app
+falla diciendo qué falta en vez de volver a incrustar una clave en el cliente.
+
+Tres comprobaciones lo sostienen en la suite: que la lista blanca del proxy
+cubra **exactamente** los tickers que la app usa —ni uno de menos, que
+rompería el backtest solo para quien eligiera esa opción; ni uno de más, que
+sería superficie de ataque gratuita—, que la clave no aparezca en el Worker ni
+en su configuración, y que ninguna petición del navegador lleve credenciales.
 
 Because multi-select means a maximal portfolio can need **ten** tickers while
 the free tier allows eight requests per minute, the fetch layer is built for
