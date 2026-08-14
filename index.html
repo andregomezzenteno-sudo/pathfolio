@@ -47,7 +47,7 @@
 
   <div class="quiz-chrome" id="quizChrome" hidden>
     <button class="back-btn" id="backBtn" type="button" hidden>
-      <span aria-hidden="true">←</span> Atrás
+      <span aria-hidden="true">←</span> <span data-i18n="chrome.back">Atrás</span>
     </button>
     <div class="progress-bar-outer">
       <div class="progress-bar-fill" id="progressBarFill"></div>
@@ -109,20 +109,20 @@
         <h2 data-i18n="risk.h2">Si el dinero que has invertido bajase de valor de un día para otro, ¿cómo de tranquilo te quedarías?</h2>
         <p class="quiz-hint" data-i18n="risk.hint">Coloca la barra exactamente donde quieras: no hay casillas fijas, cualquier punto vale.</p>
         <div class="slider-row">
-          <input type="range" id="riskSlider" min="0" max="100" step="1" value="50" aria-label="Tolerancia al riesgo de 0 a 100">
+          <input type="range" id="riskSlider" min="0" max="100" step="1" value="50" aria-label="Tolerancia al riesgo de 0 a 100" data-i18n-attr="aria-label:aria.riskSlider">
           <div class="slider-labels">
-            <span>Nada tranquilo</span>
-            <span>Totalmente tranquilo</span>
+            <span data-i18n="risk.sliderMin">Nada tranquilo</span>
+            <span data-i18n="risk.sliderMax">Totalmente tranquilo</span>
           </div>
           <p class="slider-readout" id="riskReadout">50 / 100</p>
         </div>
         <div class="tradeoff-preview">
           <div class="tradeoff-side">
-            <span class="tradeoff-label">Estabilidad</span>
+            <span class="tradeoff-label" data-i18n="risk.stability">Estabilidad</span>
             <div class="tradeoff-track"><div class="tradeoff-fill" id="riskFillStability"></div></div>
           </div>
           <div class="tradeoff-side">
-            <span class="tradeoff-label">Crecimiento</span>
+            <span class="tradeoff-label" data-i18n="risk.growth">Crecimiento</span>
             <div class="tradeoff-track"><div class="tradeoff-fill" id="riskFillGrowth"></div></div>
           </div>
         </div>
@@ -682,10 +682,10 @@
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2 data-i18n="volatility.h2">Siendo realistas: ¿cuánta caída aguantarías sin vender presa del pánico?</h2>
         <div class="slider-row">
-          <input type="range" id="volatilitySlider" min="0" max="100" step="1" value="50" aria-label="Tolerancia a caídas de 0 a 100">
+          <input type="range" id="volatilitySlider" min="0" max="100" step="1" value="50" aria-label="Tolerancia a caídas de 0 a 100" data-i18n-attr="aria-label:aria.volatilitySlider">
           <div class="slider-labels">
-            <span>Casi ninguna</span>
-            <span>Un batacazo gordo, sin problema</span>
+            <span data-i18n="volatility.sliderMin">Casi ninguna</span>
+            <span data-i18n="volatility.sliderMax">Un batacazo gordo, sin problema</span>
           </div>
           <p class="slider-readout" id="volatilityReadout">50 / 100</p>
         </div>
@@ -705,7 +705,7 @@
         <h2 class="amount-secondary-h2" data-i18n="amount.h22">¿Y si además aportaras algo cada mes? (opcional)</h2>
         <div class="amount-input-row">
           <input type="number" id="monthlyInput" value="0" min="0" step="50">
-          <span class="amount-suffix">€ / mes</span>
+          <span class="amount-suffix" data-i18n="amount.perMonth">€ / mes</span>
         </div>
         <button class="btn-primary" id="seeResultsBtn" type="button" data-i18n="amount.btn">Ver mi resultado →</button>
       </div>
@@ -716,7 +716,7 @@
       <aside class="preview-panel" id="previewPanel">
         <div class="preview-inner">
           <p class="preview-title" data-i18n="preview.title">Tu cartera, en directo</p>
-          <svg id="previewDonut" class="viz-root" role="img" aria-label="Vista previa de la distribución de tu cartera"></svg>
+          <svg id="previewDonut" class="viz-root" role="img" aria-label="Vista previa de la distribución de tu cartera" data-i18n-attr="aria-label:aria.previewDonut"></svg>
           <p class="preview-risk" id="previewRiskLabel">—</p>
           <div class="donut-legend compact" id="previewLegend"></div>
           <p class="preview-note" data-i18n="preview.note">Se actualiza con cada respuesta.</p>
@@ -735,7 +735,7 @@
         <h2 id="dashHeadline" data-i18n="dash.headline">—</h2>
         <div class="donut-wrap">
           <div class="donut-holder">
-            <svg id="allocationDonut" class="viz-root" role="img" aria-label="Distribución de la cartera recomendada"></svg>
+            <svg id="allocationDonut" class="viz-root" role="img" aria-label="Distribución de la cartera recomendada" data-i18n-attr="aria-label:aria.donut"></svg>
             <div class="donut-tooltip" id="donutTooltip" hidden></div>
           </div>
           <div class="donut-legend" id="donutLegend"></div>
@@ -754,7 +754,7 @@
         <p class="dash-story" id="backtestStory">Cargando datos históricos reales…</p>
         <div class="stat-grid" id="statGrid"></div>
         <div class="chart-wrap">
-          <svg id="pfChart" class="viz-root" role="img" aria-label="Evolución histórica de la cartera recomendada"></svg>
+          <svg id="pfChart" class="viz-root" role="img" aria-label="Evolución histórica de la cartera recomendada" data-i18n-attr="aria-label:aria.chart"></svg>
           <div class="tooltip" id="pfTooltip" hidden></div>
         </div>
         <div class="legend" id="pfLegend"></div>
@@ -762,13 +762,13 @@
         <p class="cap-note" id="fxNotice"></p>
         <p class="cap-note" id="coverageNotice" hidden></p>
         <p class="retry-row" id="retryRow" hidden>
-          <button class="btn-secondary" id="retryBtn" type="button">Reintentar la descarga</button>
+          <button class="btn-secondary" id="retryBtn" type="button" data-i18n="dash.retry">Reintentar la descarga</button>
         </p>
       </div>
 
       <div class="dash-card layer-compare">
         <h2 data-i18n="compare.title">¿Y si lo hubieras metido todo a una sola cosa?</h2>
-        <p class="dash-story">Mismo periodo, mismos datos, pero concentrando la cartera en un único tipo de activo.</p>
+        <p class="dash-story" data-i18n="compare.intro">Mismo periodo, mismos datos, pero concentrando la cartera en un único tipo de activo.</p>
         <div class="table-scroll">
           <table class="detail-table compare-table">
             <thead>
@@ -785,7 +785,7 @@
 
       <div class="dash-card layer-narrative">
         <h2 data-i18n="narrative.title">De dónde sale cada porcentaje</h2>
-        <p class="dash-story">La cadena completa, paso a paso y con tus cifras — sin ninguna caja negra.</p>
+        <p class="dash-story" data-i18n="narrative.intro">La cadena completa, paso a paso y con tus cifras — sin ninguna caja negra.</p>
         <ol class="narrative-list" id="narrativeList"></ol>
       </div>
 

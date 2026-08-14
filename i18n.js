@@ -74,6 +74,16 @@ function applyToDom(root) {
     const v = catalog[el.dataset.i18nHtml];
     if (v != null) el.innerHTML = v;
   });
+  // Atributos (aria-label, title…): no son nodos de texto, así que no se ven
+  // al mirar la pantalla, pero son justo lo que lee un lector de pantalla.
+  // Formato: data-i18n-attr="aria-label:clave" (varios separados por coma).
+  scope.querySelectorAll('[data-i18n-attr]').forEach(el => {
+    el.dataset.i18nAttr.split(',').forEach(pair => {
+      const [attr, key] = pair.split(':').map(x => x.trim());
+      const v = catalog[key];
+      if (attr && v != null) el.setAttribute(attr, v);
+    });
+  });
   // Los textos que no son nodos de texto: atributos y el idioma del documento.
   document.documentElement.lang = currentLang;
 }

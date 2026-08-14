@@ -579,6 +579,50 @@ async function main() {
     `las categorías deberían traducirse, decía: "${legendEn.slice(0, 90)}"`);
   console.log('OK: el selector cambia HTML, cadenas dinámicas, narración y contenido de datos, y el idioma viaja en la URL');
 
+
+  /* ---------- nada en español debe sobrevivir al cambio a inglés ---------- */
+  // Ir parcheando textos sueltos a mano no escala: esto recorre la pantalla
+  // entera y compara contra el catálogo español, así que cualquier texto que
+  // alguien olvide marcar en el futuro aparece aquí y no en producción.
+  {
+    const esCat = JSON.parse(read('i18n/es.json'));
+    const enCat = JSON.parse(read('i18n/en.json'));
+    // Muchos textos son idénticos en los dos idiomas (nombres propios,
+    // tickers, "Dow Jones"): esos no son un fallo.
+    const sameInBoth = new Set(Object.keys(esCat).filter(k => esCat[k] === enCat[k]).map(k => esCat[k]));
+    const spanishOnly = new Set(Object.values(esCat).filter(v => !sameInBoth.has(v)));
+
+    const leftovers = [];
+    const walker = doc.createTreeWalker(doc.body, window.NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const text = node.textContent.trim();
+      if (!text) continue;
+      // Se miran TAMBIÉN las pantallas ocultas: la traducción se aplica a todo
+      // el DOM, esté visible o no, así que un texto oculto que siga en español
+      // es un texto sin marcar que aparecerá en cuanto se navegue hasta él.
+      // (Saltarse lo oculto fue el primer intento, y dejaba sin comprobar el
+      // cuestionario entero al estar el dashboard en pantalla.)
+      if (spanishOnly.has(text)) {
+        const owner = node.parentElement;
+        leftovers.push(`${text.slice(0, 40)} [${owner.tagName.toLowerCase()}.${String(owner.className).split(' ')[0]}]`);
+      }
+    }
+    assert(leftovers.length === 0,
+      `quedan ${leftovers.length} textos en español con la app en inglés: ${leftovers.slice(0, 6).map(x => `"${x}"`).join(', ')}`);
+
+    // Y ninguna entidad HTML sin decodificar: el catálogo se aplica como texto
+    // plano, así que un "&amp;" guardado se vería literal en pantalla.
+    const visible = doc.body.textContent;
+    assert(!/&(amp|lt|gt|quot|#\d+);/.test(visible),
+      `hay entidades HTML mostrándose literales (p. ej. en "S&P 500"): ${(visible.match(/&\w+;/g) || []).slice(0, 3)}`);
+
+    // Los atributos accesibles también tienen que traducirse.
+    const donutAria = doc.getElementById('allocationDonut').getAttribute('aria-label');
+    assert(/portfolio/i.test(donutAria), `el aria-label del donut debería traducirse, decía "${donutAria}"`);
+    console.log('OK: con la app en inglés no queda ni un texto en español, ni entidades sin decodificar, y los aria-label también se traducen');
+  }
+
   // Y de vuelta al español sin perder la cartera.
   click(doc.querySelector('.lang-btn[data-lang="es"]'));
   await flush(30);

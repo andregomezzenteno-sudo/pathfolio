@@ -1706,7 +1706,16 @@ async function switchLanguage(lang) {
   history.replaceState(null, '', url);
   renderVolatilityReadout();
   updateRiskPreview();
+  // Los paneles de reparto se construyen desde JS leyendo las etiquetas de las
+  // tarjetas, así que hay que rehacerlos SIEMPRE, no solo cuando el
+  // cuestionario está a la vista: si no, conservan los nombres del idioma
+  // anterior y reaparecen al volver atrás.
+  MULTI_QUESTIONS.forEach(q => renderMixPanel(q));
   if (!screenQuiz.hidden) showStep(currentStep);
+  // El tooltip del donut se rellena al pasar el ratón y conserva el texto del
+  // idioma en que se abrió. Ocultarlo no basta: hay que vaciarlo, porque el
+  // contenido sigue en el DOM y reaparecería tal cual.
+  if (donutTooltip) { donutTooltip.hidden = true; donutTooltip.textContent = ''; }
   if (!screenDashboard.hidden) runDashboard();
 }
 
