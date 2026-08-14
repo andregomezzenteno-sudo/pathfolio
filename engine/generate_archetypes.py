@@ -45,16 +45,26 @@ HORIZON_LABELS = {
     "jubilacion": "la jubilación, a muchos años vista",
 }
 RISK_LABELS = {
-    "conservador": "prioriza no perder valor por sobre crecer rápido",
+    "conservador": "prioriza no perder valor antes que crecer rápido",
     "moderado": "busca un balance entre crecer y no sufrir grandes caídas",
     "arriesgado": "prioriza el crecimiento y tolera caídas fuertes en el camino",
 }
 
+# Regla de dialecto, en un único sitio porque la usan los dos prompts. Las
+# líneas van marcadas para que el guard de dialecto de la suite de pruebas no
+# las cuente: enumeran a propósito las formas que hay que evitar.
+DIALECT_RULE = (  # dialect-guard-ignore
+    "Escribe en castellano de España, tuteando (tú, tienes, puedes, quieres). "  # dialect-guard-ignore
+    "Nada de voseo ni de formas rioplatenses (sos, tenés, podés, querés) ni de "  # dialect-guard-ignore
+    "americanismos como 'plata' por dinero: el resto de la aplicación está en "  # dialect-guard-ignore
+    "español de España y el texto tiene que sonar igual."  # dialect-guard-ignore
+)
+
 FAQ_TOPICS = {
-    "risk": "por qué le preguntamos a alguien cómo reaccionaría si su inversión bajara 20%",
-    "horizon": "por qué le preguntamos para qué es el dinero y cuándo lo va a necesitar",
-    "style": "por qué le preguntamos si prefiere detalle técnico o solo el resultado",
-    "amount": "por qué le pedimos un monto ilustrativo para invertir",
+    "risk": "por qué preguntamos cómo reaccionaría alguien si su inversión bajara un 20 %",
+    "horizon": "por qué preguntamos para qué es el dinero y cuándo se va a necesitar",
+    "style": "por qué preguntamos si se prefiere detalle técnico o solo el resultado",
+    "amount": "por qué pedimos un importe ilustrativo para invertir",
 }
 
 
@@ -89,7 +99,7 @@ def reachable_combinations(allocations: dict) -> list[tuple[str, str]]:
 
 
 class Explanation(BaseModel):
-    headline: str = Field(description="1-2 warm, direct sentences (in Rioplatense Spanish) summarizing why this allocation fits this person's situation")
+    headline: str = Field(description="1-2 warm, direct sentences (in Spain Spanish, using tú — never voseo) summarizing why this allocation fits this person's situation")
     detail: str = Field(description="A more thorough paragraph explaining the reasoning behind each component, framed as an illustrative example, never as direct personalized advice")
 
 
@@ -114,17 +124,23 @@ def build_graph(llm: ChatAnthropic):
     def explain_node(state: GraphState) -> GraphState:
         w = state["weights"]
         prompt = (
-            "Sos un asistente financiero que le explica inversiones a alguien que "
-            "nunca invirtió y le intimida el vocabulario técnico. Nada de jerga sin "
-            "explicar (ETF, volatilidad, renta fija, etc. — usá lenguaje cotidiano "
-            "en su lugar).\n\n"
+            "Eres un asistente financiero que explica inversiones a alguien que "
+            "nunca ha invertido y a quien le intimida el vocabulario técnico. Nada "
+            "de jerga sin explicar: si usas un término como ETF o volatilidad, "
+            "acláralo con lenguaje cotidiano.\n\n"
             f"Perfil: {RISK_LABELS[state['effective_risk']]}. El dinero es para "
             f"{HORIZON_LABELS[state['horizon']]}.\n"
-            f"Cartera ya decidida (no la cuestiones, tu trabajo es explicarla): "
-            f"{round(w['equities'] * 100)}% en empresas grandes del mundo, "
-            f"{round(w['bonds'] * 100)}% en préstamos a gobiernos/empresas grandes "
-            f"(bonos), {round(w['cash'] * 100)}% en efectivo.\n\n"
-            "Enmarcalo siempre como un ejemplo ilustrativo (\"así se ve una cartera "
+            f"Reparto ya decidido (no lo cuestiones, tu trabajo es explicarlo): "
+            f"{round(w['equities'] * 100)} % en renta variable (acciones de grandes "
+            f"empresas, vía fondos indexados), {round(w['bonds'] * 100)} % en renta "
+            f"fija (préstamos al Estado y a grandes empresas, los llamados bonos) y "
+            f"{round(w['cash'] * 100)} % en efectivo.\n\n"
+            "Este es el reparto BASE del perfil. La aplicación puede recortar "
+            "después una parte de la renta variable hacia bloques opcionales "
+            "(inmobiliario, private equity, otras inversiones) que el usuario elija; "
+            "no los menciones aquí, se explican por separado.\n\n"
+            "IMPORTANTE — " + DIALECT_RULE + "\n\n"
+            "Enmárcalo siempre como un ejemplo ilustrativo (\"así se ve una cartera "
             "con este perfil\"), nunca como asesoramiento directo (\"te "
             "recomendamos\")."
         )
@@ -144,10 +160,10 @@ def generate_faq(llm: ChatAnthropic) -> dict:
     faq = {}
     for key, topic in FAQ_TOPICS.items():
         prompt = (
-            "Escribí, en español rioplatense y sin jerga financiera, una respuesta "
-            "corta (2-3 frases) a la pregunta \"¿por qué me preguntan esto?\" para "
-            f"alguien que nunca invirtió. El tema es: {topic}. Devolvé solo el "
-            "texto, sin comillas."
+            "Escribe, en castellano de España y sin jerga financiera, una respuesta "
+            "corta (2-3 frases) a la pregunta \"¿por qué me preguntáis esto?\" para "
+            f"alguien que nunca ha invertido. El tema es: {topic}. " + DIALECT_RULE +
+            " Devuelve solo el texto, sin comillas."
         )
         faq[key] = llm.invoke(prompt).content.strip()
     return faq
@@ -182,8 +198,8 @@ def main():
         "faq": generate_faq(llm),
         "horizonCapNotice": (
             "Contestaste que tolerarías más riesgo, pero como esta meta es a corto "
-            "plazo, ajustamos la mezcla hacia algo más estable — así evitás tener "
-            "que vender justo en un mal momento."
+            "plazo hemos ajustado la mezcla hacia algo más estable, para que no te "
+            "veas obligado a vender justo en un mal momento."
         ),
         "explanations": explanations,
     }
