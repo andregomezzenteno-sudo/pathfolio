@@ -676,7 +676,7 @@ function renderProgress() {
 const tierLabel = tier => t('tier.' + tier);
 const horizonPhrase = h => t('horizon.' + h);
 const RISK_PHRASE = v => t('riskPhrase.' + (v <= 20 ? 1 : v <= 40 ? 2 : v <= 60 ? 3 : v <= 80 ? 4 : 5));
-const listPhrase = arr => arr.length <= 1 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1];
+const listPhrase = arr => arr.length <= 1 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + t('list.and') + arr[arr.length - 1];
 const labelsOf = (keys, map) => (keys || []).map(k => map[k] && localized(map[k]).label).filter(Boolean);
 
 const CONNECTORS = {
@@ -780,18 +780,21 @@ function syncMultiButton(qKey) {
     : count === 1 ? t('multi.one') : t('multi.many', { n: count });
 }
 
+function renderConnector(qKey) {
+  const connectorEl = document.querySelector(`#q-${qKey} [data-connector]`);
+  if (!connectorEl) return;
+  const text = CONNECTORS[qKey] ? CONNECTORS[qKey](answers) : null;
+  connectorEl.hidden = !text;
+  connectorEl.textContent = text || '';
+}
+
 function showStep(step) {
   currentStep = step;
   QUESTIONS.forEach((q, i) => {
     document.getElementById('q-' + q).hidden = i !== step;
   });
   const qKey = QUESTIONS[step];
-  const connectorEl = document.querySelector(`#q-${qKey} [data-connector]`);
-  if (connectorEl) {
-    const text = CONNECTORS[qKey] ? CONNECTORS[qKey](answers) : null;
-    connectorEl.hidden = !text;
-    connectorEl.textContent = text || '';
-  }
+  renderConnector(qKey);
   syncSelections(qKey);
   updateCloudForQuestion(qKey);
   renderProgress();
@@ -863,16 +866,28 @@ const volatilityReadout = document.getElementById('volatilityReadout');
 
 
 
-function updateRiskPreview() {
+// Igual que con volatility (ver más abajo), separar "repintar el slider" de
+// "el usuario ha respondido" importa de verdad: esta función también se
+// llama al arrancar la página y al cambiar de idioma, antes de que nadie
+// haya tocado nada. Si esas llamadas sincronizaran la URL, escribirían
+// risk=50&amount=1000 en el hash de cualquier visita nueva — y
+// restoreFromUrl() lo interpretaría como "ya hay respuestas", saltándose la
+// portada para todo el mundo. Un navegador real con sesión en limpio lo
+// detectó al instante; jsdom no, porque no aplica layout y deja "clicar" un
+// botón con hidden en su ancestro como si se viera.
+function renderRiskPreview() {
   const v = parseInt(riskSlider.value, 10);
   answers.risk = v;
   riskFillGrowth.style.width = v + '%';
   riskFillStability.style.width = (100 - v) + '%';
   riskReadout.textContent = t('slider.risk', { v, tier: tierLabel(sliderToTier(v)) });
   renderPreview();
+}
+function commitRisk() {
+  renderRiskPreview();
   syncUrl();
 }
-riskSlider.addEventListener('input', updateRiskPreview);
+riskSlider.addEventListener('input', commitRisk);
 
 // El texto del slider se pinta siempre, pero la respuesta solo se registra
 // cuando la persona lo toca o confirma la pregunta — ver la nota sobre
@@ -918,7 +933,7 @@ restartBtn.addEventListener('click', () => {
   answers = freshAnswers();
   riskSlider.value = 50; volatilitySlider.value = 50;
   amountInput.value = 1000; monthlyInput.value = 0;
-  updateRiskPreview(); renderVolatilityReadout();
+  renderRiskPreview(); renderVolatilityReadout();
   if (previewDonut) previewDonut.__prevDonut = null;
   syncUrl();
   goToQuiz();
@@ -1300,23 +1315,30 @@ async function runDashboard() {
   dashHeadline.textContent = explanation ? explanation.headline : '—';
   dashProfileTag.textContent = t('profileTag', { tier: tierLabel(effectiveRisk) });
 
+  // Cada aviso guarda su texto SOLO junto con el propio hidden, en la misma
+  // rama: nunca se muestra sin recalcularlo antes en el idioma activo. Pero
+  // si se deja el textContent de una vuelta anterior cuando el aviso pasa a
+  // estar oculto, ese resto (a veces en el idioma anterior) se queda años en
+  // el DOM sin que nadie lo vea — hasta que una prueba que SÍ mira lo oculto
+  // lo encuentra. Vaciarlo en el else es más barato que dejarlo ahí.
   capNotice.hidden = !result.wasCappedByHorizon;
   if (result.wasCappedByHorizon) capNotice.textContent = ARCHETYPES.horizonCapNotice[getLang()] || ARCHETYPES.horizonCapNotice.es;
+  else capNotice.textContent = '';
   volNotice.hidden = !result.wasCappedByVolatility;
   if (result.wasCappedByVolatility) {
     volNotice.textContent = t('notice.volatility');
-  }
+  } else volNotice.textContent = '';
   ageNotice.hidden = !result.wasCappedByAge;
   if (result.wasCappedByAge) {
     ageNotice.textContent = t('notice.age', { age: answers.age });
-  }
+  } else ageNotice.textContent = '';
   tiltNotice.hidden = !result.wasTilted;
   if (result.wasTilted) {
     const dir = t(finalWeights.equities < result.baseWeights.equities ? 'notice.tilt.less' : 'notice.tilt.more');
     const eqNames = listPhrase(result.equityPicks.map(p => p.label));
     const bondNames = listPhrase(result.bondsPicks.map(p => p.label));
     tiltNotice.textContent = t('notice.tilt', { equity: eqNames, bonds: bondNames, dir });
-  }
+  } else tiltNotice.textContent = '';
   // Cada subtipo tiene su propio umbral, así que se dice exactamente cuál se
   // ha quedado fuera y por qué, en vez de excluir la familia entera de golpe.
   const rejected = [...result.realEstateRejected, ...result.altRejected];
@@ -1327,7 +1349,7 @@ async function runDashboard() {
       score: Math.round(result.riskScore),
       thresholds: listPhrase(rejected.map(r => t('notice.rejected.threshold', { score: r.minScore, label: r.label.toLowerCase() }))),
     });
-  }
+  } else altNotice.textContent = '';
   peNotice.hidden = !result.privateEquityRequestedButExcluded;
   if (result.privateEquityRequestedButExcluded) {
     const motivos = {
@@ -1336,7 +1358,7 @@ async function runDashboard() {
       capital: t('notice.pe.capital', { min: formatEUR(ALLOCATIONS.privateEquityMinAmount, 0) }),
     };
     peNotice.textContent = t('notice.pe', { reasons: listPhrase(result.privateEquityExcludedReasons.map(r => motivos[r])) });
-  }
+  } else peNotice.textContent = '';
 
   renderDonut(allocationDonut, segments, { tooltipEl: donutTooltip, amount: answers.amount });
   buildDonutLegend(donutLegend, segments, { showMembers: true, amount: answers.amount });
@@ -1661,7 +1683,7 @@ function restoreFromUrl() {
   volatilitySlider.value = answers.volatility == null ? 50 : answers.volatility;
   amountInput.value = answers.amount;
   monthlyInput.value = answers.monthly;
-  updateRiskPreview();
+  renderRiskPreview();
   renderVolatilityReadout();
 
   const complete = ['age', 'horizon', 'style'].every(k => answers[k]) && answers.volatility != null;
@@ -1708,12 +1730,17 @@ async function switchLanguage(lang) {
   url.searchParams.set('lang', lang);
   history.replaceState(null, '', url);
   renderVolatilityReadout();
-  updateRiskPreview();
+  renderRiskPreview();
   // Los paneles de reparto se construyen desde JS leyendo las etiquetas de las
   // tarjetas, así que hay que rehacerlos SIEMPRE, no solo cuando el
   // cuestionario está a la vista: si no, conservan los nombres del idioma
   // anterior y reaparecen al volver atrás.
   MULTI_QUESTIONS.forEach(q => renderMixPanel(q));
+  // Mismo motivo con la frase de conector de cada pregunta: showStep() solo
+  // la escribe (con textContent, no con data-i18n) al navegar A esa pregunta,
+  // así que una ya visitada y ahora oculta se queda con la frase en el idioma
+  // en el que se dejó — y reaparece así en cuanto se vuelve atrás.
+  QUESTIONS.forEach(renderConnector);
   if (!screenQuiz.hidden) showStep(currentStep);
   // El tooltip del donut se rellena al pasar el ratón y conserva el texto del
   // idioma en que se abrió. Ocultarlo no basta: hay que vaciarlo, porque el
@@ -1729,7 +1756,7 @@ renderAllSketchIcons();
 loadLanguage(detectLang(), { dynamic: DYNAMIC_STRINGS })
   .then(() => {
     markActiveLang();
-    updateRiskPreview();
+    renderRiskPreview();
     renderVolatilityReadout();
     return loadContent();
   })

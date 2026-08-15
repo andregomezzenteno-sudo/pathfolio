@@ -149,6 +149,18 @@ async function main() {
   assert(phases.size > 10, `los iconos deberían arrancar desfasados entre sí para no parpadear al unísono, solo hay ${phases.size} fases distintas`);
   console.log(`OK: los ${slots.length} iconos llevan 3 fotogramas, arrancan con ${phases.size} fases distintas y con retardo negativo (sin parpadeo al unísono)`);
 
+  /* ---------- la portada no debe saltarse en una carga nueva ---------- */
+  // Bug real detectado con Chrome de verdad, no con jsdom: si algún código de
+  // arranque llama a la función que sincroniza el slider de riesgo con la URL
+  // (en vez de solo repintarlo), escribe risk=50&amount=1000 en el hash antes
+  // de que nadie haya tocado nada, y restoreFromUrl() lo lee como "ya hay
+  // respuestas" y se salta la portada para todo el mundo. jsdom sí rastrea
+  // bien `hidden` y `location.hash`, así que esta comprobación no necesita
+  // layout real para pillarlo — solo hacía falta escribirla.
+  assert(!doc.getElementById('screen-landing').hidden, 'la portada debería seguir visible justo tras cargar, antes de cualquier clic');
+  assert(window.location.hash === '', `el hash no debería tener nada en una carga nueva, tenía "${window.location.hash}"`);
+  console.log('OK: la portada no se salta en una carga nueva (el hash sigue vacío hasta que el usuario responde)');
+
   /* ---------- nubes: nunca más de 3, y siempre del tema actual ---------- */
   click(doc.getElementById('startBtn'));
   await flush();
@@ -678,6 +690,23 @@ async function main() {
     const donutAria = doc.getElementById('allocationDonut').getAttribute('aria-label');
     assert(/portfolio/i.test(donutAria), `el aria-label del donut debería traducirse, decía "${donutAria}"`);
     console.log('OK: con la app en inglés no queda ni un texto en español, ni entidades sin decodificar, y los aria-label también se traducen');
+  }
+
+  /* ---------- listas construidas en JS ("A, B y C") también deben hablar el idioma ---------- */
+  // Este NO lo pilla el guard de arriba: listPhrase() no vive en ningún
+  // catálogo, compone la frase uniendo textos con un separador fijo
+  // (`arr.slice(0,-1).join(', ') + ' y ' + último`), así que la frase entera
+  // nunca coincide con ningún valor del catálogo español para comparar.
+  // Se coló en producción como "S&P 500, NASDAQ 100 y Technology aren't as
+  // volatile..." en plena narración en inglés. Aquí se comprueba con dos
+  // instrumentos de renta variable elegidos a la vez (arriba, sp500 +
+  // nasdaq100), que es justo lo que dispara listPhrase con 2+ elementos.
+  {
+    const wholePage = renderedText();
+    const offenderLine = wholePage.split('\n').find(line => /\w y \w/.test(line));
+    assert(!offenderLine,
+      `queda una lista unida con la "y" española en una pantalla en inglés: "${offenderLine}"`);
+    console.log('OK: las listas compuestas en JS (listPhrase) usan el conector en inglés, no la "y" española');
   }
 
   // Y de vuelta al español sin perder la cartera.
