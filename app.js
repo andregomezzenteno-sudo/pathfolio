@@ -713,61 +713,138 @@ function syncSelections(qKey) {
   syncMultiButton(qKey);
 }
 
-/* Reparto dentro de un bloque. Elegir varios instrumentos repartía siempre a
-   partes iguales, así que no había forma de decir "quiero algo más de
-   tecnología" o "más oro que bitcoin": la elección múltiple existía pero la
-   proporción no. Cada elegido recibe un peso relativo del 1 al 10 y el
-   porcentaje real sale de dividir por la suma — así no hace falta que cuadren
-   a 100 a mano, que es donde este tipo de control se vuelve incómodo. */
+/* Reparto dentro de un bloque. Antes cada instrumento llevaba un peso
+   relativo del 1 al 10 y el porcentaje salía de dividir por la suma: mover un
+   control cambiaba TODOS los porcentajes a la vez, porque cambiaba el
+   denominador, y no había forma de pedir "exactamente un 40 % aquí". Ahora el
+   control ES el porcentaje: lo que marcas es lo que se lleva ese instrumento,
+   y lo que queda se reparte entre los demás respetando sus proporciones. La
+   suma da 100 siempre.
+
+   El GRUPO importa: el motor mete los índices y las inclinaciones sectoriales
+   en el mismo bloque de renta variable (equityKeys, engine.js), así que los
+   dos paneles listan todo el bloque. Si cada panel sumara 100 por su cuenta,
+   la pantalla diría 50 % donde la cartera real acaba poniendo 25 %. */
+const MIX_GROUPS = {
+  equityIndex: ['equityIndex', 'equityTilt'],
+  equityTilt: ['equityIndex', 'equityTilt'],
+  bondsChoice: ['bondsChoice'],
+  realEstateType: ['realEstateType'],
+  altType: ['altType'],
+};
+// Nadie puede caer a 0 %: el motor descarta los pesos que no son > 0
+// (mixWeight) y les aplica el peso por defecto, así que un 0 % en pantalla
+// significaría otra cosa por dentro. Quien quiera quitar algo, lo desmarca.
+const MIN_MIX_SHARE = 1;
+
+function mixGroupKeys(qKey) {
+  return (MIX_GROUPS[qKey] || [qKey]).flatMap(q => answers[q] || []);
+}
+
+function mixLabelOf(qKey, key) {
+  for (const q of (MIX_GROUPS[qKey] || [qKey])) {
+    const card = document.querySelector(`[data-options="${q}"] .option-card[data-value="${key}"] .option-label`);
+    if (card) return card.textContent;
+  }
+  return key;
+}
+
+// Reparte `budget` entre `keys` respetando las proporciones de `weights`, sin
+// que ninguno baje del suelo y cuadrando el redondeo en el último.
+function distributeMix(keys, budget, weights) {
+  const sum = weights.reduce((a, b) => a + b, 0) || 1;
+  let assigned = 0;
+  keys.forEach((k, i) => {
+    const floorForRest = (keys.length - 1 - i) * MIN_MIX_SHARE;
+    const share = i === keys.length - 1
+      ? budget - assigned
+      : Math.round(budget * weights[i] / sum);
+    answers.mix[k] = Math.max(MIN_MIX_SHARE, Math.min(share, budget - assigned - floorForRest));
+    assigned += answers.mix[k];
+  });
+}
+
+function normalizeMixGroup(keys) {
+  if (keys.length < 2) return;
+  const known = keys.filter(k => Number.isFinite(answers.mix[k]) && answers.mix[k] > 0);
+  const fresh = keys.filter(k => !known.includes(k));
+  if (fresh.length) {
+    // Lo que se acaba de marcar entra con su parte justa y los que ya estaban
+    // se aprietan para dejarle sitio, en vez de reescalarlo todo a ciegas.
+    const fair = Math.max(MIN_MIX_SHARE, Math.floor(100 / keys.length));
+    fresh.forEach(k => { answers.mix[k] = fair; });
+    if (known.length) distributeMix(known, 100 - fair * fresh.length, known.map(k => answers.mix[k]));
+  }
+  const total = keys.reduce((a, k) => a + (answers.mix[k] || 0), 0);
+  if (total !== 100) distributeMix(keys, 100, keys.map(k => answers.mix[k] || 1));
+}
+
+function setMixPercent(keys, key, pct) {
+  const others = keys.filter(k => k !== key);
+  if (!others.length) { answers.mix[key] = 100; return; }
+  const max = 100 - others.length * MIN_MIX_SHARE;
+  answers.mix[key] = Math.min(Math.max(pct, MIN_MIX_SHARE), max);
+  const prev = others.map(k => answers.mix[k] || 0);
+  distributeMix(others, 100 - answers.mix[key], prev.some(v => v > 0) ? prev : others.map(() => 1));
+}
+
 function renderMixPanel(qKey) {
   const panel = document.querySelector(`[data-mix="${qKey}"]`);
   if (!panel) return;
-  const selected = answers[qKey] || [];
-  const optionsEl = document.querySelector(`[data-options="${qKey}"]`);
-  const labelOf = key => {
-    const card = optionsEl && optionsEl.querySelector(`.option-card[data-value="${key}"] .option-label`);
-    return card ? card.textContent : key;
-  };
+  const keys = mixGroupKeys(qKey);
 
-  panel.hidden = selected.length < 2;
+  panel.hidden = keys.length < 2;
   if (panel.hidden) { panel.textContent = ''; return; }
+  normalizeMixGroup(keys);
 
-  const total = selected.reduce((a, k) => a + (answers.mix[k] || 5), 0) || 1;
   panel.textContent = '';
   const title = document.createElement('p');
   title.className = 'mix-title';
   title.textContent = t('mix.title');
   panel.appendChild(title);
 
-  selected.forEach(key => {
-    const value = answers.mix[key] || 5;
+  const rows = [];
+  keys.forEach(key => {
+    const label = mixLabelOf(qKey, key);
     const row = document.createElement('div');
     row.className = 'mix-row';
 
     const name = document.createElement('span');
     name.className = 'mix-name';
-    name.textContent = labelOf(key);
+    name.textContent = label;
 
     const slider = document.createElement('input');
     slider.type = 'range';
-    slider.min = '1'; slider.max = '10'; slider.step = '1';
-    slider.value = String(value);
-    slider.setAttribute('aria-label', t('mix.aria', { name: labelOf(key) }));
+    slider.min = String(MIN_MIX_SHARE); slider.max = '100'; slider.step = '1';
+    slider.value = String(answers.mix[key]);
+    slider.setAttribute('aria-label', t('mix.aria', { name: label }));
 
     const pct = document.createElement('span');
     pct.className = 'mix-pct';
-    pct.textContent = formatPctValue((value / total) * 100, 0);
-
-    slider.addEventListener('input', () => {
-      answers.mix[key] = parseInt(slider.value, 10);
-      renderMixPanel(qKey);
-      renderPreview();
-      syncUrl();
-    });
+    pct.textContent = formatPctValue(answers.mix[key], 0);
 
     row.append(name, slider, pct);
     panel.appendChild(row);
+    rows.push({ key, slider, pct });
   });
+
+  // Se actualizan los controles EN SU SITIO en vez de repintar el panel: si se
+  // reconstruye el DOM en pleno arrastre, el navegador pierde el control que
+  // tiene cogido el ratón y el gesto se corta a la primera.
+  const syncRows = () => rows.forEach(r => {
+    r.slider.value = String(answers.mix[r.key]);
+    r.pct.textContent = formatPctValue(answers.mix[r.key], 0);
+  });
+
+  rows.forEach(r => r.slider.addEventListener('input', () => {
+    setMixPercent(keys, r.key, parseInt(r.slider.value, 10));
+    syncRows();
+    // El otro panel del mismo bloque (índices ↔ sectores) muestra estas mismas
+    // cifras, así que también hay que refrescarlo.
+    (MIX_GROUPS[qKey] || []).filter(q => q !== qKey).forEach(q => renderMixPanel(q));
+    renderPreview();
+    syncUrl();
+  }));
 }
 
 function syncMultiButton(qKey) {
@@ -836,7 +913,9 @@ function chooseOption(question, value, btn) {
     answers[question] = list.includes(value) ? list.filter(v => v !== value) : [...list, value];
     btn.classList.toggle('selected');
     syncMultiButton(question);
-    renderMixPanel(question);
+    // Marcar un sector cambia el reparto que ve el panel de los índices (y al
+    // revés): comparten bloque, así que se repintan los dos.
+    (MIX_GROUPS[question] || [question]).forEach(q => renderMixPanel(q));
     renderPreview();
     syncUrl();
     return;
@@ -920,7 +999,7 @@ seeResultsBtn.addEventListener('click', () => {
   answers.amount = Math.max(100, parseFloat(amountInput.value) || 1000);
   answers.monthly = Math.max(0, parseFloat(monthlyInput.value) || 0);
   syncUrl();
-  runDashboard();
+  goToLoading();
 });
 amountInput.addEventListener('input', () => {
   answers.amount = Math.max(0, parseFloat(amountInput.value) || 0);
@@ -929,6 +1008,7 @@ amountInput.addEventListener('input', () => {
 });
 restartBtn.addEventListener('click', () => {
   screenDashboard.hidden = true;
+  screenLoading.hidden = true;
   document.querySelectorAll('.option-card.selected').forEach(el => el.classList.remove('selected'));
   answers = freshAnswers();
   riskSlider.value = 50; volatilitySlider.value = 50;
@@ -975,7 +1055,12 @@ function encodeAnswers(a) {
   const parts = [];
   // El reparto entre instrumentos también forma parte de "tu" cartera, así
   // que viaja en el enlace: sin él, compartirlo devolvería otra distinta.
-  const mixKeys = Object.keys(a.mix || {}).filter(k => a.mix[k] && a.mix[k] !== 5);
+  // Solo lo que sigue marcado: al desmarcar un instrumento su porcentaje se
+  // queda en answers.mix, y sin este filtro viajaría en el enlace para
+  // siempre. (Antes se descartaba el valor 5 por ser el peso por defecto de
+  // la escala 1-10; ahora son porcentajes y un 5 % es una respuesta legítima.)
+  const stillPicked = new Set([...MULTI_QUESTIONS].flatMap(q => a[q] || []));
+  const mixKeys = Object.keys(a.mix || {}).filter(k => stillPicked.has(k) && a.mix[k] > 0);
   if (mixKeys.length) parts.push('mix=' + encodeURIComponent(mixKeys.map(k => `${k}:${a.mix[k]}`).join(',')));
   for (const k of URL_KEYS) {
     const v = a[k];
@@ -1000,7 +1085,7 @@ function decodeAnswers(hash) {
     for (const pair of params.get('mix').split(',')) {
       const [key, raw] = pair.split(':');
       const n = parseInt(raw, 10);
-      if (key && Number.isFinite(n) && n >= 1 && n <= 10) { out.mix[key] = n; seen++; }
+      if (key && Number.isFinite(n) && n >= MIN_MIX_SHARE && n <= 100) { out.mix[key] = n; seen++; }
     }
   }
   for (const k of URL_KEYS) {
@@ -1331,9 +1416,68 @@ function buildStatTiles(container, tiles) {
   });
 }
 
+/* ---------- Pantalla de carga ----------
+   Va entre la última pregunta y el resultado. La espera no es decorativa: es
+   cuando se descargan de verdad los precios de todo lo elegido. Y es el mejor
+   momento para ofrecer el vídeo de repaso — justo al terminar de contestar y
+   antes de ver ninguna cifra. */
+const screenLoading = document.getElementById('screen-loading');
+const loadingBarFill = document.getElementById('loadingBarFill');
+const seeMyPathfolioBtn = document.getElementById('seeMyPathfolioBtn');
+const LOADING_MIN_MS = (window.PATHFOLIO_CONFIG && Number.isFinite(window.PATHFOLIO_CONFIG.loadingMinMs))
+  ? window.PATHFOLIO_CONFIG.loadingMinMs : 10000;
+
+// Se adelanta la descarga mientras la persona lee o ve el vídeo.
+// fetchTickerSeries cachea la PROMESA, así que cuando runDashboard() pida
+// estos mismos tickers no vuelve a salir a la red: se engancha a esta misma
+// petición. Los fallos se ignoran aquí a propósito — de contarlos y de ofrecer
+// reintentar ya se encarga el dashboard, y dos mensajes para el mismo error
+// sobran.
+function prefetchSeriesFor(current) {
+  try {
+    const { holdings } = computeAllocation(current, ALLOCATIONS);
+    const tickers = holdings.filter(h => h.hasRealData && h.ticker).map(h => h.ticker);
+    return mapWithConcurrency([...tickers, 'EUR/USD'], 3, tk => fetchTickerSeries(tk).catch(() => null));
+  } catch (e) {
+    return Promise.resolve(null);
+  }
+}
+
+function goToLoading() {
+  screenQuiz.hidden = true;
+  quizChrome.hidden = true;
+  screenDashboard.hidden = true;
+  screenLoading.hidden = false;
+  seeMyPathfolioBtn.hidden = true;
+
+  // La barra sube sola hasta el 92 % durante la espera mínima y solo remata el
+  // 100 % cuando los datos están de verdad. Clavarla en el 100 % mientras
+  // todavía se espera a la red sería mentir con una animación.
+  loadingBarFill.style.transition = 'none';
+  loadingBarFill.style.width = '0%';
+  void loadingBarFill.offsetWidth; // fuerza el reflow: sin esto no hay transición desde 0
+  loadingBarFill.style.transition = `width ${LOADING_MIN_MS}ms linear`;
+  loadingBarFill.style.width = '92%';
+
+  const minWait = new Promise(r => setTimeout(r, LOADING_MIN_MS));
+  return Promise.all([minWait, prefetchSeriesFor(answers)]).then(() => {
+    if (screenLoading.hidden) return; // se salió de aquí mientras cargaba
+    loadingBarFill.style.transition = 'width 0.35s ease-out';
+    loadingBarFill.style.width = '100%';
+    seeMyPathfolioBtn.hidden = false;
+    seeMyPathfolioBtn.focus({ preventScroll: true });
+  });
+}
+
+seeMyPathfolioBtn.addEventListener('click', () => {
+  screenLoading.hidden = true;
+  runDashboard();
+});
+
 async function runDashboard() {
   screenQuiz.hidden = true;
   quizChrome.hidden = true;
+  screenLoading.hidden = true;
   screenDashboard.hidden = false;
   backtestStory.textContent = t('loading');
   statGrid.textContent = '';

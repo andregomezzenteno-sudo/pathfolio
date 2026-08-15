@@ -222,7 +222,7 @@
             <p data-i18n="rvLesson.trioText3">Un fondo que cotiza en bolsa y copia un índice entero. Compras y vendes al instante, y cobra comisiones bajísimas.</p>
           </div>
         </div>
-        <p class="lesson-footnote" data-i18n="rvLesson.footnote"><strong data-i18n="rvLesson.strong4">Renta variable</strong> es justo esto: nadie te promete cuánto vas a ganar. Es la parte que más sube y más baja de una cartera.</p>
+        <p class="lesson-footnote" data-i18n-html="rvLesson.footnote"><strong data-i18n="rvLesson.strong4">Renta variable</strong> es justo esto: nadie te promete cuánto vas a ganar. Es la parte que más sube y más baja de una cartera.</p>
         <button class="btn-primary" data-advance="rvLesson" type="button" data-i18n="rvLesson.btn">Lo pillo, seguir →</button>
       </div>
 
@@ -273,7 +273,7 @@
       <div class="quiz-card" id="q-equityIndex" data-question="equityIndex" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2 data-i18n="equityIndex.h2">¿Qué quieres dentro de tu renta variable?</h2>
-        <p class="quiz-hint" data-i18n="equityIndex.hint">Puedes marcar varias. El peso de la renta variable se reparte a partes iguales entre las que elijas — mira cómo cambia el donut de la derecha.</p>
+        <p class="quiz-hint" data-i18n="equityIndex.hint">Puedes marcar varias, y decidir cuánto pesa cada una — mira cómo cambia el donut de la derecha.</p>
         <div class="quiz-options multi" data-options="equityIndex" data-multi>
           <button class="option-card" type="button" data-value="sp500">
             <span class="sketch-icon-slot" data-icon="sp500flag" data-size="40"></span>
@@ -656,7 +656,7 @@
       <div class="quiz-card" id="q-altType" data-question="altType" hidden>
         <p class="quiz-eyebrow connector-text" data-connector hidden></p>
         <h2 data-i18n="altType.h2">¿Cuáles te interesan?</h2>
-        <p class="quiz-hint" data-i18n="altType.hint">Marca todas las que quieras: el peso se reparte a partes iguales entre ellas.</p>
+        <p class="quiz-hint" data-i18n="altType.hint">Marca todas las que quieras y ajusta cuánto pesa cada una.</p>
         <div class="quiz-options multi" data-options="altType" data-multi>
           <button class="option-card" type="button" data-value="crypto">
             <span class="sketch-icon-slot" data-icon="coin" data-size="40"></span>
@@ -752,6 +752,43 @@
       </aside>
     </section>
 
+    <!-- ===================== CARGA ===================== -->
+    <!-- Entre el cuestionario y el resultado. No es una espera decorativa: es
+         el rato en el que se descargan de verdad los precios históricos de
+         todos los instrumentos elegidos, y de paso es el mejor momento para
+         ofrecer el vídeo de repaso — justo cuando acabas de contestar y aún
+         no has visto nada. Ver el vídeo es opcional; el botón de continuar
+         aparece cuando los datos están listos. -->
+    <section class="screen" id="screen-loading" data-screen hidden>
+      <div class="landing-card loading-card">
+        <svg class="loading-mark" id="loadingMark" viewBox="0 0 100 100" aria-hidden="true">
+          <circle cx="50" cy="50" r="35.5" fill="none" stroke="var(--brand)" stroke-width="15.5"
+            stroke-linecap="butt" stroke-dasharray="199.49 23.54" stroke-dashoffset="-11.77"
+            transform="rotate(-90 50 50)" filter="url(#sketchWobbleChart)"/>
+        </svg>
+        <p class="landing-eyebrow" data-i18n="loading.eyebrow">Montando tu cartera</p>
+        <h2 data-i18n="loading.h2">Estamos descargando los precios reales de lo que has elegido.</h2>
+        <p data-i18n="loading.p">Tarda unos segundos. Mientras tanto, si algo del cuestionario no te ha quedado claro, este repaso te pone al día.</p>
+
+        <div class="loading-bar" role="progressbar" aria-label="Progreso" id="loadingBar">
+          <div class="loading-bar-fill" id="loadingBarFill"></div>
+        </div>
+
+        <div class="video-panel">
+          <button class="video-cta" id="recapVideoToggle" type="button" aria-expanded="false">
+            <span class="video-cta-play" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2 1.2 L10.5 6 L2 10.8 Z" fill="currentColor"/></svg></span>
+            <span data-i18n="loading.videoRecap">Esto no me ha quedado claro</span>
+            <span class="chevron" aria-hidden="true">▾</span>
+          </button>
+          <div class="layer3-body" id="recapVideoBody" hidden>
+            <div class="video-embed" id="recapVideoEmbed" data-yt-es="yQDLAzZLjCM" data-yt-en="SA9CNsBfE3k"></div>
+          </div>
+        </div>
+
+        <button class="btn-primary" id="seeMyPathfolioBtn" type="button" data-i18n="loading.cta" hidden>Ver mi PathFolio →</button>
+      </div>
+    </section>
+
     <!-- ===================== DASHBOARD ===================== -->
     <section class="screen" id="screen-dashboard" data-screen hidden>
 
@@ -801,8 +838,8 @@
           <table class="detail-table compare-table">
             <thead>
               <tr>
-                <th data-i18n="compare.portfolio">Cartera</th><th data-i18n="compare.finalValue">Valor final</th><th data-i18n="compare.annualReturn">Rentab. anual</th>
-                <th data-i18n="compare.vol">Volatilidad</th><th data-i18n="compare.maxDD">Máxima caída</th>
+                <th data-i18n="compare.portfolio">Cartera</th><th class="num" data-i18n="compare.finalValue">Valor final</th><th class="num" data-i18n="compare.annualReturn">Rentab. anual</th>
+                <th class="num" data-i18n="compare.vol">Volatilidad</th><th class="num" data-i18n="compare.maxDD">Máxima caída</th>
               </tr>
             </thead>
             <tbody id="comparisonTableBody"></tbody>
@@ -817,16 +854,6 @@
         <ol class="narrative-list" id="narrativeList"></ol>
       </div>
 
-      <div class="dash-card layer-video">
-        <button class="layer3-toggle" id="recapVideoToggle" type="button" aria-expanded="false">
-          <span data-i18n="dash.videoRecap">Esto no me ha quedado claro</span>
-          <span class="chevron" aria-hidden="true">▾</span>
-        </button>
-        <div class="layer3-body" id="recapVideoBody" hidden>
-          <div class="video-embed" id="recapVideoEmbed" data-yt-es="yQDLAzZLjCM" data-yt-en="SA9CNsBfE3k"></div>
-        </div>
-      </div>
-
       <div class="dash-card layer-3">
         <button class="layer3-toggle" id="layer3Toggle" type="button" aria-expanded="false">
           <span data-i18n="dash.techToggle">Ver el detalle técnico</span>
@@ -839,7 +866,7 @@
               <thead>
                 <tr>
                   <th data-i18n="table.category">Categoría</th><th data-i18n="table.instrument">Instrumento</th><th data-i18n="table.ticker">Ticker</th>
-                  <th data-i18n="table.weight">Peso</th><th data-i18n="table.vol">Volatilidad anual</th><th data-i18n="table.cost">Coste (TER) / importe</th>
+                  <th class="num" data-i18n="table.weight">Peso</th><th class="num" data-i18n="table.vol">Volatilidad anual</th><th class="num" data-i18n="table.cost">Coste (TER) / importe</th>
                 </tr>
               </thead>
               <tbody id="detailTableBody"></tbody>

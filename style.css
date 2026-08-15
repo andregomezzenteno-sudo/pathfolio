@@ -635,12 +635,33 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
 
 .landing-icon { width: 76px; height: 76px; color: var(--brand); }
 
+/* Pantalla de carga: el anillo de la marca girando y una barra con el mismo
+   trazo tembloroso que el resto de la interfaz, para que la espera siga
+   pareciendo PathFolio y no un spinner de plantilla. */
+.loading-mark { width: 84px; height: 84px; animation: mark-spin 1.6s linear infinite; }
+@keyframes mark-spin { to { transform: rotate(360deg); } }
+.loading-bar {
+  width: 100%; max-width: 420px; height: 12px; margin: 2px 0 4px;
+  background: var(--surface-2); border-radius: 999px; overflow: hidden;
+  filter: url(#sketchWobble);
+}
+.loading-bar-fill { height: 100%; width: 0; background: var(--brand); border-radius: 999px; }
+@media (prefers-reduced-motion: reduce) {
+  .loading-mark { animation: none; }
+  .loading-bar-fill { transition: none !important; }
+}
+
 .table-scroll { width: 100%; overflow-x: auto; }
 .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 620px; }
 .detail-table th, .detail-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--gridline); }
 .detail-table th { color: var(--text-muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.02em; }
 .detail-table td.num { font-variant-numeric: tabular-nums; text-align: right; }
-.detail-table th:nth-child(n+4) { text-align: right; }
+/* La cabecera se alinea con SU columna, no por posición: antes esto era un
+   th:nth-child(n+4) pensado para la tabla técnica (6 columnas, cifras de la
+   4.ª en adelante), y la de comparación —que empieza a dar cifras en la 2.ª—
+   quedaba con "Valor final" y "Rentab. anual" a la izquierda y sus números a
+   la derecha. Marcando la columna se acabó el desfase en las dos tablas. */
+.detail-table th.num { text-align: right; }
 .detail-table td.estimated { color: var(--text-muted); font-style: italic; }
 .detail-table .group-row td {
   font-weight: 700; color: var(--text-primary);

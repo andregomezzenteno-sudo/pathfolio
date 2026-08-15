@@ -10,7 +10,11 @@ const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 const html = read('index.html');
 // Se apunta el proxy a un host de prueba: lo que se comprueba es que la app
 // hable SIEMPRE con él y nunca lleve credenciales, no la URL concreta.
-const configJs = read('config.js').replace(/dataProxyUrl: '[^']*'/, "dataProxyUrl: 'https://proxy.test'");
+// La espera mínima de la pantalla de carga se pone a 0: son 10 s por recorrido
+// y aquí se recorre el cuestionario entero varias veces.
+const configJs = read('config.js')
+  .replace(/dataProxyUrl: '[^']*'/, "dataProxyUrl: 'https://proxy.test'")
+  .replace(/loadingMinMs: \d+/, 'loadingMinMs: 0');
 const i18nJs = read('i18n.js');
 const dynamicJs = read('i18n/dynamic.js');
 const engineJs = read('engine.js');
@@ -103,6 +107,21 @@ async function main() {
   const advance = q => click(doc.querySelector(`[data-advance="${q}"]`));
   const absNum = t => Math.abs(parseFloat(t.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')));
   const step = async (fn) => { fn(); await wait(220); };
+  // Entre la última pregunta y el resultado se interpone la pantalla de carga
+  // (descarga real + vídeo de repaso opcional), así que llegar al dashboard
+  // son dos clics, no uno.
+  async function seeResults() {
+    click(doc.getElementById('seeResultsBtn'));
+    await flush(40);
+    assert(!doc.getElementById('screen-loading').hidden,
+      'debería pasarse por la pantalla de carga antes de enseñar el resultado');
+    assert(doc.getElementById('screen-dashboard').hidden,
+      'el dashboard no debería verse todavía mientras se cargan los datos');
+    const cta = doc.getElementById('seeMyPathfolioBtn');
+    assert(!cta.hidden, 'al terminar la carga debería aparecer el botón para ver el resultado');
+    click(cta);
+    await flush(40);
+  }
   function renderedText(root) {
     const walker = doc.createTreeWalker(root || doc.body, window.NodeFilter.SHOW_TEXT, {
       acceptNode: n => (n.parentElement && n.parentElement.closest('script,style'))
@@ -255,15 +274,22 @@ async function main() {
   // tiene que cambiar el porcentaje que se muestra.
   const mixPanel = doc.querySelector('[data-mix="equityIndex"]');
   assert(!mixPanel.hidden, 'con dos índices marcados debería aparecer el reparto entre ellos');
-  const mixRows = mixPanel.querySelectorAll('.mix-row');
-  assert(mixRows.length === 2, `debería haber un control por instrumento elegido, hubo ${mixRows.length}`);
-  const pctBefore = mixRows[1].querySelector('.mix-pct').textContent;
-  const slider = mixRows[1].querySelector('input[type="range"]');
-  slider.value = '10';
+  const mixShares = panel => [...panel.querySelectorAll('.mix-row input[type="range"]')].map(s => parseInt(s.value, 10));
+  const sum = xs => xs.reduce((a, b) => a + b, 0);
+  assert(mixShares(mixPanel).length === 2,
+    `debería haber un control por instrumento elegido, hubo ${mixShares(mixPanel).length}`);
+  assert(sum(mixShares(mixPanel)) === 100, `el reparto debería nacer sumando 100, sumó ${mixShares(mixPanel)}`);
+
+  // El control ES el porcentaje, no un peso relativo: pedir 70 tiene que dar
+  // 70 clavado, y lo que sobra se reparte entre el resto hasta cuadrar 100.
+  // Antes movías un control y cambiaban TODOS los porcentajes, porque lo que
+  // se movía era el denominador.
+  const slider = mixPanel.querySelectorAll('.mix-row input[type="range"]')[1];
+  slider.value = '70';
   slider.dispatchEvent(new window.Event('input', { bubbles: true }));
-  const pctAfter = mixPanel.querySelectorAll('.mix-row')[1].querySelector('.mix-pct').textContent;
-  assert(pctBefore !== pctAfter, `subir el peso debería cambiar su porcentaje (${pctBefore} -> ${pctAfter})`);
-  console.log(`OK: dentro de un bloque se puede pedir más de un instrumento que de otro (${pctBefore} -> ${pctAfter} en NASDAQ)`);
+  assert(mixShares(mixPanel)[1] === 70, `pedir un 70 % debería dar exactamente 70, dio ${mixShares(mixPanel)[1]}`);
+  assert(sum(mixShares(mixPanel)) === 100, `tras moverlo debería seguir sumando 100, sumó ${mixShares(mixPanel)}`);
+  console.log(`OK: el reparto se fija directamente en porcentaje (NASDAQ 70 %) y el bloque siempre suma 100`);
 
   await step(() => advance('equityIndex'));
   console.log('OK: los índices admiten marcar varios a la vez, se pueden desmarcar y Continuar refleja cuántos llevas');
@@ -274,6 +300,16 @@ async function main() {
   assert(visible('equityTilt'), 'decir que sí debería mostrar los sectores y regiones');
   pick('equityTilt', 'tecnologia');
   pick('equityTilt', 'industriales');
+  // Índices y sectores caen en el MISMO bloque de renta variable dentro del
+  // motor, así que el panel tiene que listarlos juntos. Si cada pantalla
+  // sumara 100 por su cuenta, enseñaría un 50 % donde la cartera final acaba
+  // poniendo un 25 %.
+  const tiltPanel = doc.querySelector('[data-mix="equityTilt"]');
+  assert(mixShares(tiltPanel).length === 4,
+    `el reparto de renta variable debería listar los 2 índices y los 2 sectores, listó ${mixShares(tiltPanel).length}`);
+  assert(sum(mixShares(tiltPanel)) === 100,
+    `el bloque entero de renta variable debería sumar 100, sumó ${mixShares(tiltPanel)}`);
+  console.log('OK: el reparto de renta variable cuenta índices y sectores en el mismo bloque, sumando 100 entre todos');
   await step(() => advance('equityTilt'));
   console.log('OK: se puede inclinar la renta variable hacia sectores concretos (tecnología, industriales…), que era justo lo que no se podía pedir');
 
@@ -316,8 +352,7 @@ async function main() {
   assert(previewSegs() === 7, `la vista previa debería mostrar 1 pista + 6 categorías antes del resultado, tiene ${previewSegs()}`);
   console.log('OK: el donut de la vista previa se va rellenando con cada respuesta y llega a las 6 categorías antes de ver el resultado');
 
-  click(doc.getElementById('seeResultsBtn'));
-  await flush(30);
+  await seeResults();
 
   /* ---------- dashboard ---------- */
   assert(!doc.getElementById('screen-dashboard').hidden, 'el dashboard debería mostrarse');
@@ -517,8 +552,7 @@ async function main() {
   setSlider('volatilitySlider', 95);
   await step(() => advance('volatility'));
   doc.getElementById('amountInput').value = '1000'; // por debajo del mínimo
-  click(doc.getElementById('seeResultsBtn'));
-  await flush(30);
+  await seeResults();
 
   const peNotice = doc.getElementById('peNotice');
   assert(!peNotice.hidden, 'debería avisar de que private equity queda fuera');
