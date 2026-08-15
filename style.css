@@ -602,12 +602,35 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
 .layer3-body[hidden] { display: none; }
 .layer3-body p { margin: 0; color: var(--text-secondary); }
 
-.video-panel { margin: 4px 0 18px; }
+.video-panel { margin: 4px 0 18px; width: 100%; }
 .video-embed {
   position: relative; width: 100%; aspect-ratio: 16 / 9;
   border-radius: 12px; overflow: hidden; background: var(--surface-2);
 }
 .video-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* Botón del video de introducción: a diferencia de "Ver detalle técnico"
+   (un enlace discreto para quien ya sabe que existe), este tiene que
+   notarse solo, porque es la primera vez que alguien lo ve. */
+.video-cta {
+  display: inline-flex; align-items: center; gap: 10px;
+  font: inherit; font-weight: 700; font-size: 0.92rem;
+  padding: 10px 20px 10px 12px; border-radius: 999px;
+  border: 1.5px solid var(--brand);
+  background: color-mix(in srgb, var(--brand) 10%, var(--surface-1));
+  color: var(--brand); cursor: pointer;
+}
+.video-cta:hover { background: color-mix(in srgb, var(--brand) 18%, var(--surface-1)); }
+.video-cta .chevron { color: var(--brand); }
+.video-cta[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+.video-cta-play {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--brand); color: var(--brand-ink);
+}
+.video-cta-play svg { width: 11px; height: 11px; }
+
+.landing-icon { width: 76px; height: 76px; color: var(--brand); }
 
 .table-scroll { width: 100%; overflow-x: auto; }
 .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 620px; }

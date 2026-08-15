@@ -72,14 +72,19 @@
     <!-- ===================== PORTADA ===================== -->
     <section class="screen" id="screen-landing" data-screen>
       <div class="landing-card">
-        <div class="sketch-icon-slot" data-icon="stocks" data-size="96"></div>
+        <svg class="landing-icon" viewBox="0 0 100 100" aria-hidden="true">
+          <circle cx="50" cy="50" r="35.5" fill="none" stroke="var(--brand)" stroke-width="15.5"
+            stroke-linecap="butt" stroke-dasharray="199.49 23.54" stroke-dashoffset="-11.77"
+            transform="rotate(-90 50 50)" filter="url(#sketchWobbleChart)"/>
+        </svg>
         <p class="landing-eyebrow" data-i18n="landing.eyebrow">Un mini-curso de 5 minutos</p>
         <h2 data-i18n="landing.h2">Nunca has invertido y no sabes por dónde empezar. Es normal.</h2>
         <p data-i18n="landing.p">Vamos a construir juntos una cartera de ejemplo para tu situación, con explicaciones sencillas e ilustradas por el camino — opcionales, si ya controlas del tema. Al final verás cómo se habría comportado en la vida real.</p>
 
         <div class="video-panel">
-          <button class="layer3-toggle" id="introVideoToggle" type="button" aria-expanded="false">
-            <span data-i18n="landing.videoIntro">¿Primera vez invirtiendo? Mira esto antes de empezar (4 min)</span>
+          <button class="video-cta" id="introVideoToggle" type="button" aria-expanded="false">
+            <span class="video-cta-play" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2 1.2 L10.5 6 L2 10.8 Z" fill="currentColor"/></svg></span>
+            <span data-i18n="landing.videoIntro">¿Primera vez invirtiendo? Mira esto antes de empezar</span>
             <span class="chevron" aria-hidden="true">▾</span>
           </button>
           <div class="layer3-body" id="introVideoBody" hidden>
