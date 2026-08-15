@@ -103,6 +103,15 @@ async function main() {
   const advance = q => click(doc.querySelector(`[data-advance="${q}"]`));
   const absNum = t => Math.abs(parseFloat(t.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')));
   const step = async (fn) => { fn(); await wait(220); };
+  function renderedText(root) {
+    const walker = doc.createTreeWalker(root || doc.body, window.NodeFilter.SHOW_TEXT, {
+      acceptNode: n => (n.parentElement && n.parentElement.closest('script,style'))
+        ? window.NodeFilter.FILTER_REJECT : window.NodeFilter.FILTER_ACCEPT,
+    });
+    let out = '', n;
+    while ((n = walker.nextNode())) out += n.textContent + '\n';
+    return out;
+  }
 
   /* ---------- lessons.json ya no se descarga ---------- */
   assert(!fetchedUrls.some(u => u.includes('lessons.json')),
@@ -579,6 +588,51 @@ async function main() {
     `las categorías deberían traducirse, decía: "${legendEn.slice(0, 90)}"`);
   console.log('OK: el selector cambia HTML, cadenas dinámicas, narración y contenido de datos, y el idioma viaja en la URL');
 
+  /* ---------- los NÚMEROS también tienen que hablar el idioma activo ---------- */
+  // Las cadenas del catálogo pueden estar todas traducidas y, aun así, salir
+  // "39,1 %" en una pantalla en inglés: los números no vienen del catálogo,
+  // los formatea toLocaleString(), y si esa llamada tiene el idioma fijo a
+  // 'es-ES' el catálogo nunca lo detecta. Es justo el fallo que se coló la
+  // primera vez: pasaba cualquier prueba de texto y solo se veía en una
+  // captura de pantalla real.
+  {
+    const wholePage = renderedText();
+
+    // El espacio antes de "%" es la convención española; en inglés no debe
+    // haber ninguno, así que su sola presencia delata un número mal formado.
+    const spacedPercent = wholePage.match(/\d\s%/g);
+    assert(!spacedPercent, `hay porcentajes con el espacio a la española en una pantalla en inglés: ${spacedPercent}`);
+
+    // Un separador de miles con punto (12.345) es la convención española; en
+    // inglés va con coma (12,345). Se excluyen los tickers y los IDs de la
+    // URL, que sí pueden llevar puntos por otros motivos.
+    const dotThousands = wholePage.match(/\b\d{1,3}\.\d{3}(?:[,.]\d+)?\s?€/g);
+    assert(!dotThousands, `hay importes con separador de miles a la española en una pantalla en inglés: ${dotThousands}`);
+
+    // Meses en español colándose en una fecha (el eje del gráfico y la
+    // historia del backtest usan shortDate()).
+    const spanishMonths = wholePage.match(/\b\d{1,2}\s(ene|feb|mar|abr|may|jun|jul|ago|sept?|oct|nov|dic)\b/i);
+    assert(!spanishMonths, `hay una fecha con mes en español en una pantalla en inglés: ${spanishMonths}`);
+
+    console.log('OK: en inglés, los NÚMEROS también usan convención inglesa — sin comas decimales, sin espacio antes de %, sin meses en español');
+  }
+
+  // El tooltip del donut: "9.000 € de 100.000 €" era literalmente esto —
+  // un "de" español pegado entre dos cifras, en medio de una pantalla en
+  // inglés. Se reproduce el hover para comprobar la frase completa, no solo
+  // que no aparezca la palabra suelta.
+  {
+    const hit = doc.getElementById('allocationDonut').querySelector('.donut-hit');
+    hit.dispatchEvent(new window.Event('pointerenter', { bubbles: false }));
+    const moneyLine = doc.querySelector('.dt-money');
+    assert(moneyLine, 'el tooltip debería mostrar la línea de importe');
+    assert(/^€?[\d,.]+ €? ?of €?[\d,.]+ €?$/.test(moneyLine.textContent.trim())
+      || / of /.test(moneyLine.textContent),
+      `el tooltip debería decir "X of Y" en inglés, decía: "${moneyLine.textContent}"`);
+    assert(!/ de /.test(moneyLine.textContent), `no debería quedar el "de" español: "${moneyLine.textContent}"`);
+    hit.dispatchEvent(new window.Event('pointerleave', { bubbles: false }));
+    console.log(`OK: el tooltip del donut dice "${moneyLine.textContent}" en inglés, no "X de Y"`);
+  }
 
   /* ---------- nada en español debe sobrevivir al cambio a inglés ---------- */
   // Ir parcheando textos sueltos a mano no escala: esto recorre la pantalla
@@ -593,7 +647,10 @@ async function main() {
     const spanishOnly = new Set(Object.values(esCat).filter(v => !sameInBoth.has(v)));
 
     const leftovers = [];
-    const walker = doc.createTreeWalker(doc.body, window.NodeFilter.SHOW_TEXT);
+    const walker = doc.createTreeWalker(doc.body, window.NodeFilter.SHOW_TEXT, {
+      acceptNode: n => (n.parentElement && n.parentElement.closest('script,style'))
+        ? window.NodeFilter.FILTER_REJECT : window.NodeFilter.FILTER_ACCEPT,
+    });
     let node;
     while ((node = walker.nextNode())) {
       const text = node.textContent.trim();

@@ -481,19 +481,31 @@ function calendarYearReturns(dates, equity, minBars = 200) {
 
 /* ---------- Formato ---------- */
 
+// El separador decimal y de miles depende del idioma (39,1 % en español,
+// 39.1% en inglés), así que no puede ir fijo a 'es-ES'. getLang() lo aporta
+// i18n.js en el navegador; en Node (las pruebas del motor) esa función no
+// existe y se cae al español, que es el idioma en que están escritas esas
+// pruebas — mismo patrón de respaldo que ya usa resolvePicks() con localized().
+function activeLocale() {
+  return (typeof getLang === 'function' && getLang() === 'en') ? 'en-US' : 'es-ES';
+}
+// El espacio antes de "%" es la convención tipográfica española (y francesa);
+// en inglés no lleva espacio.
+function pctSuffix() { return activeLocale() === 'en-US' ? '%' : ' %'; }
+
 function formatEUR(v, decimals) {
   if (v == null || Number.isNaN(v)) return '—';
   const d = decimals != null ? decimals : (Math.abs(v) < 1000 ? 2 : 0);
-  return v.toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+  return v.toLocaleString(activeLocale(), { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
 }
 function formatPct(v, decimals = 1) {
   if (v == null || Number.isNaN(v)) return '—';
-  return (v * 100).toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' %';
+  return (v * 100).toLocaleString(activeLocale(), { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + pctSuffix();
 }
 // Para valores YA expresados en porcentaje (0-100), sin volver a multiplicar.
 function formatPctValue(p, decimals = 1) {
   if (p == null || Number.isNaN(p)) return '—';
-  return p.toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' %';
+  return p.toLocaleString(activeLocale(), { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + pctSuffix();
 }
 // Reparte el redondeo con el método del resto mayor: los porcentajes que se
 // ven en pantalla suman EXACTAMENTE 100, en lugar de quedarse en 99,9 o
@@ -516,7 +528,7 @@ function formatSignedPct(v, decimals = 1) {
   return (v >= 0 ? '+' : '') + formatPct(v, decimals);
 }
 function shortDate(iso) {
-  return new Date(iso + 'T00:00:00Z').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  return new Date(iso + 'T00:00:00Z').toLocaleDateString(activeLocale(), { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
 

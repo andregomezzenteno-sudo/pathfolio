@@ -62,6 +62,18 @@ catálogos tengan las mismas claves, que ninguna esté vacía y que los
 marcadores `{variable}` coincidan — porque una traducción a la que se le cae
 un marcador simplemente no enseña esa cifra.
 
+Los **números** también hablan el idioma activo, que es fácil de pasar por
+alto porque no vienen del catálogo: los formatea `toLocaleString()`, y tenerlo
+fijo a `'es-ES'` habría dejado `39,1 %` en una pantalla en inglés aunque cada
+cadena de texto estuviera perfectamente traducida. `activeLocale()` en
+[`engine.js`](engine.js) resuelve el separador decimal, el de miles, el
+espacio antes de `%` y el idioma de las fechas según el idioma activo — con
+el mismo patrón de respaldo a español que ya usa `localized()` para que las
+pruebas del motor (que corren en Node, sin `i18n.js` cargado) sigan sin
+cambios. La suite de integración cambia a inglés y escanea el DOM entero
+buscando exactamente ese patrón (coma decimal, espacio antes de `%`, meses en
+español) para que no vuelva a colarse.
+
 ## Lo que demuestra técnicamente
 
 - **Motor separado de la interfaz** ([`engine.js`](engine.js)): la lógica que

@@ -145,7 +145,7 @@ async function fetchPricesTwelveData(symbol, outputsize) {
     json = await res.json();
   }
   if (!res.ok || json.status === 'error') {
-    throw new Error(json.message || ('Error de la API ' + res.status));
+    throw new Error(json.message || t('error.apiStatus', { status: res.status }));
   }
   const values = Array.isArray(json.values) ? json.values : [];
   const chronological = values.slice().reverse();
@@ -376,7 +376,7 @@ function showDonutTooltip(tooltipEl, seg, amount) {
   if (amount != null) {
     const money = document.createElement('div');
     money.className = 'dt-money';
-    money.textContent = `${formatEUR(amount * seg.weight, 0)} de ${formatEUR(amount, 0)}`;
+    money.textContent = t('dt.of', { part: formatEUR(amount * seg.weight, 0), whole: formatEUR(amount, 0) });
     tooltipEl.appendChild(money);
   }
 
@@ -497,7 +497,10 @@ function renderLineChart({ svg, tooltipEl, dates, series, yFormat, tooltipFormat
   for (let t = 0; t < xTickCount; t++) {
     const idx = Math.round((t / (xTickCount - 1 || 1)) * (n - 1));
     const label = svgEl('text', { x: xForIndex(idx), y: height - 6, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--text-muted)' });
-    label.textContent = shortDate(dates[idx]).replace(/ de \d+$/, '').replace(' de ', ' ');
+    // (Antes había aquí un .replace() pensado para recortar un "de" del
+    // formato largo en español, pero shortDate() nunca produjo ese patrón
+    // — era código muerto en los dos idiomas. shortDate() ya es compacto.)
+    label.textContent = shortDate(dates[idx]);
     svg.appendChild(label);
   }
 
