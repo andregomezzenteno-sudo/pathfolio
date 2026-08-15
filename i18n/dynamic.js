@@ -14,6 +14,8 @@
 const DYNAMIC_STRINGS = {
   es: {
     'list.and': ' y ',
+    'cert.meta': 'Perfil {tier} · emitido el {date}',
+    'cert.ref': 'Referencia {ref}',
     /* --- niveles y conectores --- */
     'tier.conservador': 'Conservador', 'tier.moderado': 'Moderado', 'tier.arriesgado': 'Arriesgado',
     'profileTag': 'Perfil {tier}',
@@ -133,6 +135,8 @@ const DYNAMIC_STRINGS = {
 
   en: {
     'list.and': ' and ',
+    'cert.meta': '{tier} profile · issued on {date}',
+    'cert.ref': 'Reference {ref}',
     'tier.conservador': 'Conservative', 'tier.moderado': 'Moderate', 'tier.arriesgado': 'Aggressive',
     'profileTag': '{tier} profile',
     'connector.risk': "At {age}, let's think about how you handle the dips.",

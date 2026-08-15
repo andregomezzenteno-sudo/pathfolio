@@ -520,6 +520,32 @@ async function main() {
     `la caída máxima debería decir en euros lo que habrías visto, decía: "${ddTile.textContent}"`);
   console.log(`OK: el dashboard añade ${stats.length} cifras destacadas (valor final, rentabilidades, volatilidad, caída máxima, ventaja sobre efectivo, mejor/peor año)`);
 
+  /* ---------- certificado ---------- */
+  assert(!doc.getElementById('certForm').hidden, 'sin certificado emitido debería verse el formulario');
+  assert(doc.getElementById('certWrap').hidden, 'el certificado no debería verse antes de emitirlo');
+  // Un nombre vacío o de una sola letra no emite nada.
+  doc.getElementById('certName').value = ' ';
+  click(doc.getElementById('certIssueBtn'));
+  assert(doc.getElementById('certWrap').hidden, 'un nombre vacío no debería emitir certificado');
+
+  doc.getElementById('certName').value = '  Ada   Lovelace  ';
+  click(doc.getElementById('certIssueBtn'));
+  assert(!doc.getElementById('certWrap').hidden, 'debería mostrarse el certificado tras emitirlo');
+  assert(doc.getElementById('certForm').hidden, 'el formulario debería desaparecer tras emitir');
+  const certName = doc.getElementById('certNameOut').textContent;
+  assert(certName === 'Ada Lovelace', `el nombre debería normalizarse a "Ada Lovelace", quedó "${certName}"`);
+  const certRefText = doc.getElementById('certRef').textContent;
+  assert(/PF-[0-9A-F]{4}-[0-9A-F]{4}/.test(certRefText), `debería llevar una referencia con formato, decía "${certRefText}"`);
+  assert(/Perfil /.test(doc.getElementById('certMeta').textContent),
+    'el certificado debería decir con qué perfil se emitió');
+  // El texto legal tiene que ir DENTRO del certificado: es lo que se imprime,
+  // y sin él un papel que dice "certifica" en un contexto financiero se puede
+  // leer como una acreditación que no es.
+  const certText = doc.getElementById('certificate').textContent;
+  assert(/simulación educativa/i.test(certText) && /no es asesoramiento financiero/i.test(certText),
+    'el certificado impreso debería dejar claro que no es una titulación ni asesoramiento');
+  console.log(`OK: el certificado se emite con el nombre normalizado ("${certName}"), su perfil, referencia y el aviso de que no es una titulación`);
+
   assert(doc.getElementById('altNotice').hidden && doc.getElementById('peNotice').hidden,
     'no debería haber avisos de exclusión cuando todo cumple los requisitos');
   assert(doc.getElementById('dashProfileTag').textContent.includes('Arriesgado'), 'la etiqueta de perfil debería decir Arriesgado');
@@ -561,6 +587,15 @@ async function main() {
   assert(doc.getElementById('allocationDonut').querySelectorAll('.donut-seg').length === 3,
     'sin sleeves aceptados el donut debería quedarse en 3 categorías');
   console.log('OK: pedir private equity con capital insuficiente lo excluye y explica exactamente por qué (importe mínimo)');
+
+  // Segundo recorrido completo: el certificado ya emitido debe seguir siendo
+  // el mismo, sin volver a ofrecer el formulario. Es todo el "una sola vez"
+  // que puede garantizar un sitio sin cuentas ni servidor.
+  assert(doc.getElementById('certForm').hidden && !doc.getElementById('certWrap').hidden,
+    'tras rehacer el cuestionario no debería poder emitirse un segundo certificado');
+  assert(doc.getElementById('certNameOut').textContent === 'Ada Lovelace',
+    'debería seguir mostrándose el certificado ya emitido, con su nombre original');
+  console.log('OK: el certificado se emite una sola vez — al repetir el recorrido se recupera el que ya había');
 
   /* ---------- comisiones e inflación ---------- */
   const statTxt = doc.getElementById('statGrid').textContent;

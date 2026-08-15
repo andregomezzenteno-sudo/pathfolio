@@ -1474,6 +1474,66 @@ seeMyPathfolioBtn.addEventListener('click', () => {
   runDashboard();
 });
 
+/* ---------- Certificado ---------- */
+const CERT_STORAGE_KEY = 'pathfolio-certificate';
+const certForm = document.getElementById('certForm');
+const certWrap = document.getElementById('certWrap');
+const certNameInput = document.getElementById('certName');
+const certNameOut = document.getElementById('certNameOut');
+const certMeta = document.getElementById('certMeta');
+const certRef = document.getElementById('certRef');
+let lastEffectiveRisk = 'moderado';
+
+function readIssuedCert() {
+  try { return JSON.parse(localStorage.getItem(CERT_STORAGE_KEY) || 'null'); }
+  catch (e) { return null; }   // almacenamiento bloqueado: se podrá emitir otra vez, y ya está
+}
+
+// Referencia corta y estable: el mismo nombre en la misma fecha da siempre el
+// mismo código. NO es verificable contra ningún registro (no hay servidor
+// donde guardarlo), así que se enseña como número de referencia y en ningún
+// sitio se dice que se pueda comprobar.
+function certReference(name, day) {
+  let h = 2166136261;
+  for (const ch of (name + '|' + day)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  const hex = (h >>> 0).toString(16).toUpperCase().padStart(8, '0');
+  return `PF-${hex.slice(0, 4)}-${hex.slice(4)}`;
+}
+
+function renderCertificate(cert) {
+  certNameOut.textContent = cert.name;
+  const date = new Date(cert.issued).toLocaleDateString(activeLocale(), { day: 'numeric', month: 'long', year: 'numeric' });
+  certMeta.textContent = t('cert.meta', { tier: tierLabel(cert.tier || 'moderado'), date });
+  certRef.textContent = t('cert.ref', { ref: cert.ref });
+  certForm.hidden = true;
+  certWrap.hidden = false;
+}
+
+// "Una sola vez" hasta donde llega un sitio estático: se guarda en el
+// navegador y, si ya hay uno, se enseña ese en vez de emitir otro. Sin
+// cuentas ni servidor no hay forma de ir más allá — quien borre los datos del
+// navegador o entre en incógnito podrá emitir otro, y por eso el texto habla
+// de un recuerdo del recorrido y no de una credencial.
+function issueCertificate() {
+  const name = certNameInput.value.trim().replace(/\s+/g, ' ');
+  if (name.length < 2) { certNameInput.focus(); return; }
+  const issued = new Date().toISOString();
+  const cert = { name, issued, tier: lastEffectiveRisk, ref: certReference(name, issued.slice(0, 10)) };
+  try { localStorage.setItem(CERT_STORAGE_KEY, JSON.stringify(cert)); } catch (e) { /* sin persistencia */ }
+  renderCertificate(cert);
+}
+
+function syncCertificate() {
+  const issued = readIssuedCert();
+  if (issued) { renderCertificate(issued); return; }
+  certForm.hidden = false;
+  certWrap.hidden = true;
+}
+
+document.getElementById('certIssueBtn').addEventListener('click', issueCertificate);
+document.getElementById('certPrintBtn').addEventListener('click', () => window.print());
+certNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') issueCertificate(); });
+
 async function runDashboard() {
   screenQuiz.hidden = true;
   quizChrome.hidden = true;
@@ -1497,6 +1557,8 @@ async function runDashboard() {
 
   dashHeadline.textContent = explanation ? explanation.headline : '—';
   dashProfileTag.textContent = t('profileTag', { tier: tierLabel(effectiveRisk) });
+  lastEffectiveRisk = effectiveRisk;
+  syncCertificate();
 
   // Cada aviso guarda su texto SOLO junto con el propio hidden, en la misma
   // rama: nunca se muestra sin recalcularlo antes en el idioma activo. Pero

@@ -538,6 +538,6 @@ function shortDate(iso) {
     CATEGORY_META, computeAllocation, getExplanation,
     alignSeriesSet, simulatePortfolio, simulateDCA, annualizedVol, maxDrawdown,
     calendarYearReturns, realValue, interpolateCurve, convertToEur, formatEUR, formatPct, formatPctValue, displayPercents,
-    formatSignedPct, shortDate, TIER_LABEL, listPhrase,
+    formatSignedPct, shortDate, TIER_LABEL, listPhrase, activeLocale,
   };
 });

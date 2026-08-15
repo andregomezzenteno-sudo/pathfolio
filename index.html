@@ -878,6 +878,46 @@
 
       <p class="cap-note" id="inflationNotice"></p>
 
+      <!-- Certificado: el cierre del recorrido. Se emite una vez y se guarda
+           en el navegador (ver el comentario de issueCertificate en app.js
+           sobre hasta dónde llega ese "una vez" sin servidor detrás). -->
+      <div class="dash-card layer-cert">
+        <h2 data-i18n="cert.title">Tu certificado</h2>
+        <p class="dash-story" data-i18n="cert.intro">Has llegado al final del recorrido. Pon tu nombre y te lo emitimos.</p>
+
+        <div class="cert-form" id="certForm">
+          <label class="cert-label" for="certName" data-i18n="cert.nameLabel">¿Cómo te llamas?</label>
+          <input type="text" id="certName" maxlength="60" autocomplete="name"
+                 data-i18n-attr="placeholder:cert.placeholder" placeholder="Nombre y apellidos">
+          <p class="cert-warn" data-i18n="cert.once">Se emite una sola vez, así que comprueba que está bien escrito antes de seguir.</p>
+          <button class="btn-primary" id="certIssueBtn" type="button" data-i18n="cert.issue">Emitir mi certificado</button>
+        </div>
+
+        <div class="cert-wrap" id="certWrap" hidden>
+          <article class="certificate" id="certificate">
+            <svg class="cert-mark" viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="35.5" fill="none" stroke="var(--brand)" stroke-width="15.5"
+                stroke-linecap="butt" stroke-dasharray="199.49 23.54" stroke-dashoffset="-11.77"
+                transform="rotate(-90 50 50)" filter="url(#sketchWobbleChart)"/>
+            </svg>
+            <p class="cert-eyebrow" data-i18n="cert.eyebrow">Certificado de PathFolio</p>
+            <p class="cert-lead" data-i18n="cert.lead">PathFolio certifica que</p>
+            <p class="cert-name" id="certNameOut">—</p>
+            <p class="cert-body" data-i18n="cert.body">ha completado el recorrido entero, ha construido su cartera de ejemplo y ha visto cómo se habría comportado con datos reales de mercado.</p>
+            <p class="cert-meta" id="certMeta"></p>
+            <div class="cert-seal">
+              <span class="cert-seal-name">PathFolio</span>
+              <span class="cert-seal-note" data-i18n="cert.sealNote">Proyecto educativo de código abierto</span>
+            </div>
+            <p class="cert-disclaimer" data-i18n="cert.disclaimer">Esto es una simulación educativa: no es una titulación, no acredita ninguna cualificación y no es asesoramiento financiero.</p>
+            <p class="cert-ref" id="certRef"></p>
+          </article>
+          <div class="cert-actions">
+            <button class="btn-secondary" id="certPrintBtn" type="button" data-i18n="cert.print">Guardar como PDF</button>
+          </div>
+        </div>
+      </div>
+
       <div class="dash-actions">
         <button class="btn-secondary" id="shareBtn" type="button" data-i18n="dash.share">Copiar enlace a esta cartera</button>
         <button class="btn-secondary" id="restartBtn" type="button" data-i18n="dash.restart">Volver a empezar</button>

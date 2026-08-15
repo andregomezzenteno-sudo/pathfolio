@@ -651,6 +651,95 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
   .loading-bar-fill { transition: none !important; }
 }
 
+/* Certificado. Cambia de registro a propósito —serif, centrado, mucho aire—
+   porque un diploma no se lee como el resto de la interfaz; el marco lleva el
+   mismo trazo tembloroso de las tarjetas para que siga siendo PathFolio. */
+.cert-form { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; max-width: 420px; }
+.cert-label { font-weight: 600; font-size: 0.9rem; }
+#certName {
+  font: inherit; font-size: 1rem; padding: 10px 14px; width: 100%;
+  border: 1px solid var(--baseline); border-radius: 10px;
+  background: var(--page-plane); color: var(--text-primary);
+}
+.cert-warn { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
+
+.cert-wrap { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+.certificate {
+  position: relative; width: 100%;
+  background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 18px;
+  padding: 44px 40px 34px; text-align: center;
+  font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.certificate::after {
+  content: ""; position: absolute; inset: 8px;
+  border: 1.5px solid var(--brand); border-radius: 12px;
+  filter: url(#sketchWobble); opacity: 0.35; pointer-events: none;
+}
+.cert-mark { width: 62px; height: 62px; }
+.cert-eyebrow {
+  margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--brand);
+}
+.cert-lead { margin: 0; font-size: 1rem; color: var(--text-secondary); }
+.cert-name {
+  margin: 0; font-size: clamp(1.8rem, 5vw, 2.8rem); line-height: 1.15;
+  color: var(--text-primary); max-width: 20ch; text-wrap: balance;
+}
+.cert-body { margin: 0; font-size: 1rem; line-height: 1.6; color: var(--text-secondary); max-width: 46ch; }
+.cert-meta { margin: 0; font-size: 0.92rem; color: var(--text-primary); }
+.cert-seal {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border);
+}
+.cert-seal-name { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); }
+.cert-seal-note {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.72rem; color: var(--text-muted);
+}
+.cert-disclaimer, .cert-ref {
+  margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--text-muted);
+}
+.cert-disclaimer { font-size: 0.72rem; max-width: 54ch; }
+.cert-ref { font-size: 0.7rem; letter-spacing: 0.06em; }
+.cert-actions { display: flex; gap: 10px; }
+
+/* Al imprimir sale SOLO el certificado, no el informe entero. */
+@page { size: A4 landscape; margin: 0; }
+@media print {
+  /* Se COLAPSA todo lo que no lleva al certificado, dejando solo su cadena de
+     ancestros. Con visibility:hidden (el primer intento) lo demás seguía
+     ocupando su sitio en el flujo, así que el diploma acababa en la página 7
+     detrás de seis en blanco. Las reglas que vuelven a mostrar llevan más
+     especificidad que las que ocultan, por eso el orden aquí no basta. */
+  body > *, .page > *, #app > *, #screen-dashboard > *, .layer-cert > *, .cert-wrap > * { display: none !important; }
+  .page, #app, #screen-dashboard { display: block !important; }
+  #screen-dashboard > .layer-cert { display: block !important; }
+  #certWrap { display: block !important; }
+  #certificate { display: flex !important; }
+
+  .dash-card { animation: none !important; }   /* card-in dejaría el papel en blanco */
+  /* La tarjeta que lo contiene desaparece: su borde salía impreso como un
+     segundo marco alrededor del marco del diploma. */
+  html, body, .page, #app, #screen-dashboard, #screen-dashboard > .layer-cert, #certWrap {
+    margin: 0; padding: 0; border: none; background: none; gap: 0;
+  }
+  #screen-dashboard > .layer-cert::after { display: none; }
+  #certificate {
+    position: static; margin: 0; width: auto;
+    border: none; border-radius: 0; padding: 12mm 18mm;
+    background: var(--surface-1);
+    /* Que ocupe la hoja entera y quede centrado, en vez de amontonarse
+       arriba dejando media página en blanco. */
+    min-height: 100vh; justify-content: center;
+  }
+  #certificate::after { inset: 6mm; border-radius: 3mm; }
+  .cert-mark { flex-shrink: 0; }
+}
+
 .table-scroll { width: 100%; overflow-x: auto; }
 .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 620px; }
 .detail-table th, .detail-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--gridline); }
