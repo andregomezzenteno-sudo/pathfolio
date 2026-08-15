@@ -1530,8 +1530,34 @@ function syncCertificate() {
   certWrap.hidden = true;
 }
 
+/* Los dos entregables imprimibles salen del MISMO DOM: la hoja de estilos de
+   impresión enseña el informe por defecto y solo el diploma cuando el body
+   lleva .printing-cert. `prepare` deja la página lista (por ejemplo
+   desplegando el detalle técnico, que en papel no se puede desplegar) y
+   devuelve cómo dejarla como estaba. */
+function printAs(mode, prepare) {
+  const undo = prepare ? prepare() : null;
+  if (mode) document.body.classList.add(mode);
+  const cleanup = () => {
+    if (mode) document.body.classList.remove(mode);
+    if (undo) undo();
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  window.print();
+}
+
 document.getElementById('certIssueBtn').addEventListener('click', issueCertificate);
-document.getElementById('certPrintBtn').addEventListener('click', () => window.print());
+document.getElementById('certPrintBtn').addEventListener('click', () => printAs('printing-cert'));
+document.getElementById('downloadBtn').addEventListener('click', () => printAs(null, () => {
+  // El informe descargado va completo aunque en pantalla esté plegado: en un
+  // PDF no hay forma de desplegar nada después.
+  const wasCollapsed = layer3Body.hidden;
+  if (!wasCollapsed) return null;
+  layer3Body.hidden = false;
+  layer3Toggle.setAttribute('aria-expanded', 'true');
+  return () => { layer3Body.hidden = true; layer3Toggle.setAttribute('aria-expanded', 'false'); };
+}));
 certNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') issueCertificate(); });
 
 async function runDashboard() {

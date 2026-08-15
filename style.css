@@ -707,37 +707,66 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
 .cert-ref { font-size: 0.7rem; letter-spacing: 0.06em; }
 .cert-actions { display: flex; gap: 10px; }
 
-/* Al imprimir sale SOLO el certificado, no el informe entero. */
-@page { size: A4 landscape; margin: 0; }
-@media print {
-  /* Se COLAPSA todo lo que no lleva al certificado, dejando solo su cadena de
-     ancestros. Con visibility:hidden (el primer intento) lo demás seguía
-     ocupando su sitio en el flujo, así que el diploma acababa en la página 7
-     detrás de seis en blanco. Las reglas que vuelven a mostrar llevan más
-     especificidad que las que ocultan, por eso el orden aquí no basta. */
-  body > *, .page > *, #app > *, #screen-dashboard > *, .layer-cert > *, .cert-wrap > * { display: none !important; }
-  .page, #app, #screen-dashboard { display: block !important; }
-  #screen-dashboard > .layer-cert { display: block !important; }
-  #certWrap { display: block !important; }
-  #certificate { display: flex !important; }
+/* ---------- Impresión: dos entregables distintos del mismo DOM ----------
+   Por defecto se imprime el INFORME (así Ctrl+P también da algo presentable);
+   con .printing-cert en el body sale SOLO el diploma. El certificado necesita
+   apaisado y el informe vertical, y @page no se puede condicionar por clase,
+   así que el diploma usa una página con nombre. */
+@page { size: A4 portrait; margin: 14mm 12mm; }
+@page cert { size: A4 landscape; margin: 0; }
 
+@media print {
+  .cloud-lane, .falling-cloud { display: none !important; }
   .dash-card { animation: none !important; }   /* card-in dejaría el papel en blanco */
-  /* La tarjeta que lo contiene desaparece: su borde salía impreso como un
-     segundo marco alrededor del marco del diploma. */
-  html, body, .page, #app, #screen-dashboard, #screen-dashboard > .layer-cert, #certWrap {
+
+  /* --- Informe (modo por defecto) --- */
+  /* Se conserva la cabecera con la marca, pero no lo que no se puede pulsar
+     en papel: idioma, enlace al repo y los botones del final. El aviso legal
+     del pie SÍ se queda: es lo primero que debe acompañar a unas cifras
+     financieras impresas. */
+  .header-actions, .dash-actions, .layer-cert, .retry-row { display: none !important; }
+  #screen-landing, #screen-quiz, #screen-loading { display: none !important; }
+  .donut-hint { display: none !important; }   /* en un PDF no se pasa el ratón por nada */
+  .dash-card { break-inside: avoid; page-break-inside: avoid; }
+  .table-scroll { overflow: visible !important; }
+  .detail-table { min-width: 0 !important; font-size: 0.72rem; }
+  .detail-table td.num, .detail-table th.num { white-space: nowrap; }   /* "100,0 %" no debe partirse */
+  .layer3-body[hidden] { display: flex !important; }   /* el detalle técnico va completo */
+
+  /* --- Certificado (body.printing-cert) --- */
+  /* Se COLAPSA todo lo que no lleva al diploma, dejando solo su cadena de
+     ancestros. Con visibility:hidden (el primer intento) lo demás seguía
+     ocupando su sitio en el flujo y el diploma acababa en la página 7 detrás
+     de seis en blanco. Las reglas que vuelven a mostrar llevan más
+     especificidad que las que ocultan, por eso el orden aquí no basta. */
+  body.printing-cert > *, body.printing-cert .page > *, body.printing-cert #app > *,
+  body.printing-cert #screen-dashboard > *, body.printing-cert .layer-cert > *,
+  body.printing-cert .cert-wrap > * { display: none !important; }
+  body.printing-cert .page, body.printing-cert #app,
+  body.printing-cert #screen-dashboard { display: block !important; }
+  body.printing-cert #screen-dashboard > .layer-cert { display: block !important; }
+  body.printing-cert #certWrap { display: block !important; }
+  body.printing-cert #certificate { display: flex !important; }
+
+  /* La tarjeta contenedora desaparece: su borde salía impreso como un segundo
+     marco alrededor del marco del diploma. */
+  body.printing-cert, body.printing-cert .page, body.printing-cert #app,
+  body.printing-cert #screen-dashboard, body.printing-cert #screen-dashboard > .layer-cert,
+  body.printing-cert #certWrap {
     margin: 0; padding: 0; border: none; background: none; gap: 0;
   }
-  #screen-dashboard > .layer-cert::after { display: none; }
-  #certificate {
+  body.printing-cert #screen-dashboard > .layer-cert::after { display: none; }
+  body.printing-cert #certificate {
+    page: cert;
     position: static; margin: 0; width: auto;
     border: none; border-radius: 0; padding: 12mm 18mm;
     background: var(--surface-1);
-    /* Que ocupe la hoja entera y quede centrado, en vez de amontonarse
-       arriba dejando media página en blanco. */
+    /* Que ocupe la hoja entera y quede centrado, en vez de amontonarse arriba
+       dejando media página en blanco. */
     min-height: 100vh; justify-content: center;
   }
-  #certificate::after { inset: 6mm; border-radius: 3mm; }
-  .cert-mark { flex-shrink: 0; }
+  body.printing-cert #certificate::after { inset: 6mm; border-radius: 3mm; }
+  body.printing-cert .cert-mark { flex-shrink: 0; }
 }
 
 .table-scroll { width: 100%; overflow-x: auto; }
