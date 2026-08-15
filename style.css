@@ -143,7 +143,13 @@ body {
   gap: 16px;
   flex-wrap: wrap;
 }
-.app-header h1 { margin: 0 0 4px; font-size: 1.6rem; font-weight: 700; }
+.brand-mark { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; }
+.brand-icon { width: 30px; height: 30px; flex-shrink: 0; }
+/* El wordmark lleva el mismo filtro que ya distorsiona los bordes de las
+   tarjetas (ver más abajo, ::after) — así el trazo de las letras y el del
+   resto de la interfaz nacen del mismo ruido, no de dos efectos parecidos
+   por casualidad. */
+.app-header h1 { margin: 0; font-size: 1.6rem; font-weight: 700; filter: url(#sketchWobble); }
 .subtitle { margin: 0; color: var(--text-secondary); font-size: 0.95rem; max-width: 56ch; }
 .repo-link {
   color: var(--brand); text-decoration: none; font-size: 0.9rem;
