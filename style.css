@@ -602,12 +602,15 @@ svg.viz-root { width: 100%; display: block; overflow: visible; }
 .layer3-body[hidden] { display: none; }
 .layer3-body p { margin: 0; color: var(--text-secondary); }
 
-.video-panel { margin: 4px 0 18px; width: 100%; }
+.video-panel { display: flex; flex-direction: column; gap: 14px; margin: 4px 0 18px; width: 100%; }
+.video-panel > .video-cta { align-self: center; }
 .video-embed {
   position: relative; width: 100%; aspect-ratio: 16 / 9;
   border-radius: 12px; overflow: hidden; background: var(--surface-2);
 }
 .video-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+/* Solo el de la portada se encoge: es el único que se pidió más pequeño. */
+.video-panel .video-embed { width: 75%; margin: 0 auto; }
 
 /* Botón del video de introducción: a diferencia de "Ver detalle técnico"
    (un enlace discreto para quien ya sabe que existe), este tiene que
