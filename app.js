@@ -1167,6 +1167,45 @@ layer3Toggle.addEventListener('click', () => {
   layer3Body.hidden = expanded;
 });
 
+// Los dos videos (intro en la portada, repaso en el dashboard) van en
+// youtube-nocookie sin listar. El <iframe> no se crea hasta que se abre el
+// panel por primera vez — cargar YouTube de fondo en cada visita, aunque
+// nadie llegue a pulsar el botón, sería peso muerto. Si el idioma cambia
+// DESPUÉS de haberlo abierto, se actualiza el id en vez de dejarlo en el
+// idioma con el que se abrió por primera vez.
+function loadVideoEmbed(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el || el.querySelector('iframe')) return;
+  const id = getLang() === 'en' ? el.dataset.ytEn : el.dataset.ytEs;
+  const frame = document.createElement('iframe');
+  frame.src = `https://www.youtube-nocookie.com/embed/${id}`;
+  frame.title = 'PathFolio';
+  frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+  frame.allowFullscreen = true;
+  frame.loading = 'lazy';
+  el.appendChild(frame);
+}
+function refreshVideoEmbedLanguage(containerId) {
+  const el = document.getElementById(containerId);
+  const frame = el && el.querySelector('iframe');
+  if (!frame) return;
+  const id = getLang() === 'en' ? el.dataset.ytEn : el.dataset.ytEs;
+  if (!frame.src.includes(`/embed/${id}`)) frame.src = `https://www.youtube-nocookie.com/embed/${id}`;
+}
+function wireVideoToggle(toggleId, bodyId, embedId) {
+  const toggle = document.getElementById(toggleId);
+  const body = document.getElementById(bodyId);
+  if (!toggle || !body) return;
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!expanded));
+    body.hidden = expanded;
+    if (!expanded) loadVideoEmbed(embedId);
+  });
+}
+wireVideoToggle('introVideoToggle', 'introVideoBody', 'introVideoEmbed');
+wireVideoToggle('recapVideoToggle', 'recapVideoBody', 'recapVideoEmbed');
+
 
 /* La respuesta real a "explícamelo todo": la cadena completa de cómo se llegó
    a cada porcentaje, con TUS números. Vive aquí y no en el motor porque es
@@ -1747,6 +1786,8 @@ async function switchLanguage(lang) {
   // contenido sigue en el DOM y reaparecería tal cual.
   if (donutTooltip) { donutTooltip.hidden = true; donutTooltip.textContent = ''; }
   if (!screenDashboard.hidden) runDashboard();
+  refreshVideoEmbedLanguage('introVideoEmbed');
+  refreshVideoEmbedLanguage('recapVideoEmbed');
 }
 
 document.querySelectorAll('.lang-btn').forEach(btn =>
