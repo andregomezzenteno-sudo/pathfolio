@@ -56,7 +56,10 @@ const DYNAMIC_STRINGS = {
     /* --- avisos del dashboard --- */
     'notice.volatility': 'Dijiste que tolerarías más riesgo, pero tu respuesta sobre caídas reales apunta a lo contrario — hemos ajustado la mezcla hacia algo más prudente. Mejor prevenir que vender presa del pánico.',
     'notice.age': 'Con {age} años queda menos tiempo para que una mala racha se recupere antes de necesitar el dinero, así que hemos ajustado la mezcla hacia algo más prudente.',
-    'notice.tilt': '{equity} y {bonds} no son igual de volátiles que nuestras opciones de referencia, así que le hemos dado a la renta variable {dir} de peso del que te habría tocado por defecto — buscando mantener el riesgo total parecido.',
+    // Las dos listas ya traen su propia "y" dentro (listPhrase), así que unirlas
+    // con otra "y" pelada daba "S&P 500 y NASDAQ 100 y Mezcla". Nombrar el
+    // bloque de cada una las separa, igual que hace narr.tilt.text.
+    'notice.tilt': 'En renta variable llevas {equity}; en renta fija, {bonds}. No son igual de volátiles que nuestras opciones de referencia, así que le hemos dado a la renta variable {dir} de peso del que te habría tocado por defecto — buscando mantener el riesgo total parecido.',
     'notice.tilt.less': 'algo menos', 'notice.tilt.more': 'algo más',
     'notice.rejected': 'Pediste {items}, pero tu puntuación de riesgo final es {score}/100 y hace falta al menos {thresholds}. Cada activo tiene su propio umbral: el oro entra en carteras moderadas, el bitcoin no.',
     'notice.rejected.threshold': '{score} para {label}',
@@ -116,7 +119,7 @@ const DYNAMIC_STRINGS = {
     'narr.base.title': 'El reparto de partida',
     'narr.base.text': 'La curva de riesgo, evaluada en tu puntuación exacta de {score}/100, da un {equities} en renta variable, un {bonds} en renta fija y un {cash} en efectivo.',
     'narr.tilt.title': 'Ajuste por los instrumentos que elegiste',
-    'narr.tilt.text': 'Elegiste {equity} en renta variable y {bonds} en renta fija. Como no son igual de volátiles que nuestras referencias, la renta variable {dir} de {from} a {to}, y la renta fija pasa a {bondsTo}. El efectivo no se toca: es el suelo de seguridad que fija tu perfil.',
+    'narr.tilt.text': 'En renta variable elegiste {equity}; en renta fija, {bonds}. Como no son igual de volátiles que nuestras referencias, la renta variable {dir} de {from} a {to}, y la renta fija pasa a {bondsTo}. El efectivo no se toca: es el suelo de seguridad que fija tu perfil.',
     'narr.tilt.down': 'baja',
     'narr.tilt.up': 'sube',
     'narr.noTilt.title': 'Los instrumentos que elegiste no mueven los pesos',
@@ -174,7 +177,7 @@ const DYNAMIC_STRINGS = {
 
     'notice.volatility': "You said you'd tolerate more risk, but your answer about real drawdowns points the other way — we've shifted the mix towards something more cautious. Better that than panic-selling.",
     'notice.age': "At {age} there's less time for a bad run to recover before you need the money, so we've shifted the mix towards something more cautious.",
-    'notice.tilt': "{equity} and {bonds} aren't as volatile as our reference options, so we've given equities {dir} weight than you'd have got by default — aiming to keep total risk roughly the same.",
+    'notice.tilt': "In equities you hold {equity}; in fixed income, {bonds}. They aren't as volatile as our reference options, so we've given equities {dir} weight than you'd have got by default — aiming to keep total risk roughly the same.",
     'notice.tilt.less': 'slightly less', 'notice.tilt.more': 'slightly more',
     'notice.rejected': 'You asked for {items}, but your final risk score is {score}/100 and it takes at least {thresholds}. Each asset has its own threshold: gold gets into moderate portfolios, Bitcoin does not.',
     'notice.rejected.threshold': '{score} for {label}',
@@ -231,7 +234,7 @@ const DYNAMIC_STRINGS = {
     'narr.base.title': 'The starting split',
     'narr.base.text': 'The risk curve, evaluated at your exact score of {score}/100, gives {equities} in equities, {bonds} in fixed income and {cash} in cash.',
     'narr.tilt.title': 'Adjustment for the instruments you chose',
-    'narr.tilt.text': 'You chose {equity} in equities and {bonds} in fixed income. Since they are not as volatile as our reference options, equities {dir} from {from} to {to}, and fixed income moves to {bondsTo}. Cash is left alone: it is the safety floor set by your profile.',
+    'narr.tilt.text': 'In equities you chose {equity}; in fixed income, {bonds}. Since they are not as volatile as our reference options, equities {dir} from {from} to {to}, and fixed income moves to {bondsTo}. Cash is left alone: it is the safety floor set by your profile.',
     'narr.tilt.down': 'go down',
     'narr.tilt.up': 'go up',
     'narr.noTilt.title': 'The instruments you chose do not move the weights',

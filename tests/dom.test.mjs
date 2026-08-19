@@ -488,6 +488,23 @@ async function main() {
     'la comparativa debería venir con su lectura escrita, no solo con la tabla');
   console.log(`OK: la comparativa demuestra el valor de diversificar — solo renta variable: vol ${cellsOf(equityRow)[3].trim()} y caída ${cellsOf(equityRow)[4].trim()}, frente a ${cellsOf(youRow)[3].trim()} y ${cellsOf(youRow)[4].trim()} de tu cartera`);
 
+  /* ---------- dos listas seguidas no pueden encadenar dos conjunciones ---------- */
+  // El aviso de ajuste mete DOS listas en una frase, y cada una ya trae su
+  // propia "y" dentro (listPhrase). Unirlas con otra "y" pelada producía
+  // "S&P 500 y NASDAQ 100 y Mezcla", que se lee como si fueran tres cosas del
+  // mismo bloque. Lo destapó una captura de pantalla, no una prueba: el texto
+  // estaba bien traducido y bien interpolado, solo mal redactado al juntarse.
+  {
+    const tilt = doc.getElementById('tiltNotice');
+    assert(!tilt.hidden, 'con varios instrumentos elegidos debería salir el aviso de ajuste por volatilidad');
+    const txt = tilt.textContent;
+    assert(!/\sy\s[^,]*?\sy\s/.test(txt.split(' no son')[0] + ' no son'),
+      `el aviso encadena dos "y" seguidas al unir las dos listas: "${txt.slice(0, 90)}"`);
+    assert(/en renta variable/i.test(txt) && /en renta fija/i.test(txt),
+      `cada lista debería decir a qué bloque pertenece para no confundirse con la otra: "${txt.slice(0, 90)}"`);
+    console.log('OK: el aviso de ajuste nombra el bloque de cada lista, sin encadenar dos conjunciones seguidas');
+  }
+
   /* ---------- avisos metodológicos ---------- */
   const drift = doc.getElementById('driftNotice').textContent;
   assert(drift.includes('rebalanceas una vez al año') && drift.includes('€'),
