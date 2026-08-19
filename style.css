@@ -105,6 +105,13 @@ body {
   0%,   33.2% { opacity: 1; }
   33.3%, 100% { opacity: 0; }
 }
+/* Mientras una tarjeta hace su entrada (card-in), el hervido se congela. Un
+   corte seco de trazo en mitad de un fundido no se lee como un dibujo
+   redibujado a mano sino como un parpadeo, que era justo lo que se veía al
+   cambiar de pregunta. Congelado sigue mostrando su fotograma actual, así que
+   el icono entra nítido y reanuda el hervido por donde iba. */
+.is-entering .sketch-icon .frame { animation-play-state: paused; }
+
 @media (prefers-reduced-motion: reduce) {
   .sketch-icon .frame { animation: none; opacity: 0; }
   .sketch-icon .frame-1 { opacity: 1; }

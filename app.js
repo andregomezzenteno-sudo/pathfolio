@@ -96,6 +96,23 @@ function renderSketchIcon(container, iconKey, size) {
   container.classList.add('icon-ready');
 }
 
+/* Congela el hervido de los iconos mientras la tarjeta entra (ver .is-entering
+   en la hoja de estilos). El respaldo por temporizador hace falta porque con
+   prefers-reduced-motion la tarjeta no anima y animationend no llega nunca:
+   sin él, los iconos se quedarían congelados para siempre. */
+function freezeBoilDuringEntrance(card) {
+  if (!card) return;
+  card.classList.add('is-entering');
+  let timer = 0;
+  const done = () => {
+    clearTimeout(timer);
+    card.classList.remove('is-entering');
+    card.removeEventListener('animationend', done);
+  };
+  card.addEventListener('animationend', done);
+  timer = setTimeout(done, 400);
+}
+
 function renderAllSketchIcons(root = document) {
   root.querySelectorAll('[data-icon]').forEach(el => {
     if (el.dataset.iconRendered === '1') return;
@@ -871,6 +888,7 @@ function showStep(step) {
     document.getElementById('q-' + q).hidden = i !== step;
   });
   const qKey = QUESTIONS[step];
+  freezeBoilDuringEntrance(document.getElementById('q-' + qKey));
   renderConnector(qKey);
   syncSelections(qKey);
   updateCloudForQuestion(qKey);
